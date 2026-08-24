@@ -1,0 +1,12 @@
+{
+  "name": "@aerobeat/web-renderer-testbed",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "echo \"Add a repo-local Vite or static demo command when scenes need serving.\"",
+    "serve": "echo \"Define host, port, cache busting, QR/link output, served roots, and secure-context handling before mobile validation.\"",
+    "test": "echo \"Add repo-local testbed tests when this template becomes a concrete repo.\"",
+    "test:browser": "echo \"Add Playwright browser tests when this repo owns browser-visible behavior.\""
+  }
+}

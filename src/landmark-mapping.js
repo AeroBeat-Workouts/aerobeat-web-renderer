@@ -66,18 +66,18 @@
 
 /**
  * @typedef {object} AeroRendererOverlaySurfaceDescriptorInput
- * @property {number | undefined} viewportWidth Canvas drawing-buffer or viewport width.
- * @property {number | undefined} viewportHeight Canvas drawing-buffer or viewport height.
- * @property {number | undefined} width Alternate viewport width.
- * @property {number | undefined} height Alternate viewport height.
- * @property {number | undefined} intrinsicWidth Source media intrinsic width.
- * @property {number | undefined} intrinsicHeight Source media intrinsic height.
- * @property {number | undefined} videoWidth Alternate source media width.
- * @property {number | undefined} videoHeight Alternate source media height.
- * @property {AeroRendererFitMode | undefined} fitMode Presentation fit mode.
- * @property {boolean | undefined} mirrored Whether normalized x should be mirrored.
- * @property {boolean | undefined} mirror Alternate mirror flag.
- * @property {AeroRendererContentRect | undefined} contentRect Explicit fitted media rectangle.
+ * @property {number} [viewportWidth] Canvas drawing-buffer or viewport width.
+ * @property {number} [viewportHeight] Canvas drawing-buffer or viewport height.
+ * @property {number} [width] Alternate viewport width.
+ * @property {number} [height] Alternate viewport height.
+ * @property {number} [intrinsicWidth] Source media intrinsic width.
+ * @property {number} [intrinsicHeight] Source media intrinsic height.
+ * @property {number} [videoWidth] Alternate source media width.
+ * @property {number} [videoHeight] Alternate source media height.
+ * @property {AeroRendererFitMode} [fitMode] Presentation fit mode.
+ * @property {boolean} [mirrored] Whether normalized x should be mirrored.
+ * @property {boolean} [mirror] Alternate mirror flag.
+ * @property {AeroRendererContentRect} [contentRect] Explicit fitted media rectangle.
  */
 
 /**

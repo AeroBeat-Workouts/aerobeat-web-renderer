@@ -1,64 +1,47 @@
 # aerobeat-web-renderer
 
-AeroBeat-owned WebGL2 renderer facade for shared browser rendering and normalized landmark overlays.
+AeroBeat-owned per-game WebGL2 renderer for full-container gameplay and normalized landmark overlays.
 
 ## Responsibility
 
-This package owns the durable WebGL2 rendering path for AeroBeat web. The first scaffold exposes a singleton-shaped renderer facade that attaches to an `HTMLCanvasElement`, acquires a `WebGL2RenderingContext`, reports capability/status snapshots, clears or renders smoke frames, and draws normalized pose/hand landmarks as WebGL2 points and lines over fitted media content rectangles.
+This package owns exact-container/DPR canvas sizing, screen-space gameplay drawing, WebGL2 resources, branding alpha-mask atlas upload, context-loss recovery, capability/degradation truth, and deterministic teardown. One `AeroWebGl2Renderer` belongs to each connected `aero-game`; there is no renderer singleton.
 
-It does not own camera permission, video playback lifecycle, CV inference, input routing, gameplay scoring, UI components, content loading, or product assembly wiring.
+It does not own camera/media, CV, the hidden calibrated athlete grid, input evidence, gameplay judgement/scoring, content loading, UI components, theme precedence, external background acquisition, or assembly policy.
 
-Temporary 2D canvas overlays may exist in proving tools while seams are still moving, but this repo owns the final shared overlay renderer for browser gameplay and debug visuals.
+## Public API
 
-## Public API Surface
+- `createAeroWebGl2Renderer()` / `AeroWebGl2Renderer` create independent instances.
+- `attach`, `resize`, `detach`, and `destroy` own the canvas lifecycle.
+- `renderGameplayFrame` draws Flow, Spatial Grid Boxing, or Semantic Track Boxing from already-resolved serializable targets.
+- `renderLandmarkOverlay` preserves normalized pose/hand debug overlays.
+- `setTheme`, `setTuning`, `resetTuning`, `exportTuning`, and `setBackgroundProjection` accept visual data only.
+- `uploadIconAtlas`, `normalizeBrandingIconManifest`, and `rasterizeBrandingIconAtlas` implement the alpha-mask icon path.
+- `buildGameplayRenderPlan` exposes deterministic screenshot-free draw commands for tests and diagnostics.
+- `getCapabilities` and `describe` expose immutable, serializable state without pixels, screenshots, canvases, textures, or media objects.
 
-- `src/renderer-facade.js` exports `createAeroWebGl2Renderer()`, `getAeroWebGl2RendererSingleton()`, and the `aero.renderer.webgl2` service ID.
-- `src/landmark-mapping.js` exports mapping utilities for fitted media rectangles and normalized landmark conversion to viewport or WebGL clip space.
-- `src/index.js` exports the public package surface for `@aerobeat/web-renderer`.
+The removed `getAeroWebGl2RendererSingleton()` export must not be used by downstream packages.
 
-## Overlay Mapping
+## Gameplay presentation
 
-Renderer overlay calls accept normalized landmark objects with public `id`, `x`, `y`, `z`, and `v` fields. Surface descriptors accept viewport size, optional intrinsic media size, `fitMode` (`contain`, `cover`, or `stretch`), `mirrored`, and an optional explicit `contentRect`.
+Flow and Spatial Grid Boxing share a subtle normalized top-left 4x3 visible playfield. It is independent of the camera-calibrated athlete-input grid. Semantic Track uses athlete-left and athlete-right bottom-to-top lanes with a separate defensive layer. Targets support role icon/shape, hand color, grayscale/alpha arrival, depth scale, an approach ring converging at beat center, and hit/miss collapse/dissolve feedback. Guards span connected cells; standard and crossed guards use distinct branding IDs. Obstacles are exact hatched blocked regions and safe cells have a separate cue. Pause, calibration, tracking-loss dim, and countdown overlays are renderer primitives.
 
-The mapping helpers are intentionally compatible with public metadata from `@aerobeat/web-video`: the renderer consumes media surface descriptors but does not control media playback or import video internals.
+## Branding contract
 
-## Adjacent Repos
+Approved SVG masters are resolved from `aerobeat-branding/icons/web-gameplay/manifest.json`. DOM consumers use `currentColor`. This package rasterizes those vectors before upload, normalizes RGB to white, samples only texture alpha, and applies semantic theme color in the fragment shader. WebGL does not parse SVG paths. Missing atlas data is a truthful fallback-shape degradation.
 
-- `aerobeat-web-video` owns browser media lifecycle and media surface descriptors.
-- `aerobeat-web-cv` owns pose-frame production.
-- `aerobeat-web-input` owns gameplay-facing input routing.
-- `aerobeat-web-ui` owns visible UI components and screens.
-- `aerobeat-web-assembly` wires concrete services into the product shell.
+## Container and lifecycle
 
-## Source Boundary
-
-Runtime code lives under `src/` and is exposed through `package.json` `exports`. Tests, demos, scenes, debug data, screenshots, traces, and Playwright harnesses live under `.testbed/`.
-
-## Public Imports
-
-This scaffold has no runtime package imports. Future code may import only declared public exports from other `@aerobeat/web-*` packages. Do not import sibling repo internals, private testbed files, unexported source paths, or vendor-native shapes across domain boundaries.
-
-## JavaScript Posture
-
-- Use JavaScript, native ES modules, `// @ts-check`, and JSDoc.
-- Every exported value, public structure, service shape, event payload, and typedef needs JSDoc.
-- Do not use `any`, star-shaped JSDoc escapes, or undocumented escape hatches.
-- Unknown external values must be narrowed into documented shapes before use.
+Assembly passes the exact parent content box and effective DPR to `resize()`. Tuning caps DPR (default 2); portrait, landscape, and arbitrary aspect ratios use the same normalized layout. Context restoration rebuilds GPU programs and the private atlas texture. `detach()` releases listeners and GPU objects; `destroy()` is synchronous, terminal, and idempotent.
 
 ## Validation
-
-Run these commands before handoff:
 
 ```bash
 npm run check
 npm test
 npm run test:browser
+npm pack --dry-run
 ```
 
-The current checks are no-dependency scaffold validators for strict JSDoc/no-escape posture, public import boundaries, component-only screen/scene composition, Playwright console-warning/error posture, and renderer facade/mapping smoke behavior.
+Unit validation covers deterministic layout, exact 4x3 cells, Track lanes, animation convergence, guard/obstacle/safe cues, instance isolation, resize/DPR, atlas upload, context restoration, and disposal. Chromium validation renders portrait/landscape instances, resizes them, exercises context loss when supported, fails on console noise, and writes ignored visual evidence to `screenshots/task8-renderer-chromium.png`.
 
-When a browser-visible package needs mobile or remote validation, add `npm run testbed:serve`. It must state the host, port, cache-busting/version display, QR/link output, served roots, and HTTPS or secure-context path for Tailscale devices.
-
-## Docs Handoff
-
-Keep repo-local implementation notes and accepted decisions under `docs/`. Public contributor/user docs belong in `aerobeat-web-docs`; mirror cross-repo decisions there after they are accepted.
+Implementation decisions live under `docs/decisions/`; public product documentation belongs in `aerobeat-web-docs` after integration is accepted.

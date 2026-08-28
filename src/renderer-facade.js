@@ -1,379 +1,263 @@
 // @ts-check
 
-import {
-  mapNormalizedLandmarkToClipSpace,
-  normalizeOverlaySurfaceDescriptor
-} from "./landmark-mapping.js";
+import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
+import { mapNormalizedLandmarkToClipSpace, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
+import { buildGameplayRenderPlan, defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-plan.js";
+import { colorTokenToRgba, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererTuning } from "./visual-profiles.js";
 
-/**
- * AeroBeat-owned WebGL2 renderer service ID.
- *
- * @type {"aero.renderer.webgl2"}
- */
+/** @type {"aero.renderer.webgl2"} */
 export const aeroWebGl2RendererServiceId = "aero.renderer.webgl2";
+/** @typedef {import("./gameplay-plan.js").AeroGameplayFrame} AeroGameplayFrame */
+/** @typedef {import("./gameplay-plan.js").AeroGameplayRenderPlan} AeroGameplayRenderPlan */
+/** @typedef {import("./gameplay-plan.js").AeroRendererThemeTokens} AeroRendererThemeTokens */
+/** @typedef {import("./gameplay-plan.js").AeroRendererTuning} AeroRendererTuning */
+/** @typedef {import("./icon-atlas.js").AeroIconAtlasData} AeroIconAtlasData */
+/** @typedef {import("./landmark-mapping.js").AeroNormalizedLandmark} AeroNormalizedLandmark */
+/** @typedef {import("./landmark-mapping.js").AeroRendererOverlaySurfaceDescriptorInput} AeroRendererOverlaySurfaceDescriptorInput */
+/** @typedef {"unsupported"|"ready"|"running"|"context_lost"|"error"|"destroyed"} AeroRendererState */
+/** @typedef {{widthCssPx:number,heightCssPx:number,devicePixelRatio:number,maxDevicePixelRatio?:number}} AeroRendererResize */
+/** @typedef {{surface?:AeroRendererOverlaySurfaceDescriptorInput,connections?:readonly (readonly [number,number])[],minVisibility?:number,color?:readonly [number,number,number,number],pointSize?:number}} AeroRendererOverlayOptions */
+/** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,tuningId:string,tuningHash:string,iconAtlasReady:boolean,errorMessage:string|null}} AeroWebGl2RendererStatus */
+/** @typedef {{serviceId:"aero.renderer.webgl2",webgl2:boolean,exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:boolean,maxDevicePixelRatio:number,degradations:readonly string[]}} AeroWebGl2RendererCapabilities */
+/** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,shapeLocation:WebGLUniformLocation|null,ringWidthLocation:WebGLUniformLocation|null}} ShapeProgram */
+/** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,uvRectLocation:WebGLUniformLocation|null,samplerLocation:WebGLUniformLocation|null}} IconProgram */
+/** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,colorLocation:WebGLUniformLocation|null,pointSizeLocation:WebGLUniformLocation|null}} OverlayProgram */
 
 /**
- * Renderer lifecycle states.
- *
- * @typedef {"unsupported" | "ready" | "running" | "error"} AeroRendererState
+ * Per-game renderer. No process-global singleton exists: each connected aero-game owns
+ * one instance and one canvas/context lifecycle.
  */
+export class AeroWebGl2Renderer {
+  /** @param {{contextAttributes?:WebGLContextAttributes}} [options] */
+  constructor(options = {}) {
+    this.serviceId = aeroWebGl2RendererServiceId;
+    this.contextAttributes = options.contextAttributes ?? { alpha: true, antialias: true, premultipliedAlpha: true };
+    /** @type {HTMLCanvasElement|null} */ this.canvas = null;
+    /** @type {WebGL2RenderingContext|null} */ this.gl = null;
+    /** @type {ShapeProgram|null} */ this.shapeProgram = null;
+    /** @type {IconProgram|null} */ this.iconProgram = null;
+    /** @type {OverlayProgram|null} */ this.overlayProgram = null;
+    /** @type {WebGLTexture|null} */ this.iconTexture = null;
+    /** @type {AeroIconAtlasData|null} */ this.iconAtlasData = null;
+    /** @type {Map<string, import("./icon-atlas.js").AeroIconAtlasEntry>} */ this.iconEntries = new Map();
+    /** @type {AeroRendererState} */ this.state = "unsupported";
+    /** @type {AeroRendererThemeTokens} */ this.theme = defaultRendererThemeTokens;
+    /** @type {AeroRendererTuning} */ this.tuning = defaultRendererTuning;
+    this.themeId = "aero.theme.default";
+    this.background = normalizeBackgroundProjection(null);
+    this.errorMessage = null;
+    this.frameCount = 0; this.drawCount = 0;
+    this.widthCssPx = 0; this.heightCssPx = 0; this.devicePixelRatio = 1;
+    this.contextLost = false; this.destroyed = false;
+    this.onContextLost = (event) => { event.preventDefault(); this.contextLost = true; this.state = "context_lost"; this.releaseGpuReferences(false); };
+    this.onContextRestored = () => { if (!this.canvas || this.destroyed) return; this.contextLost = false; this.acquireContext(); };
+  }
 
-/**
- * @typedef {import("./landmark-mapping.js").AeroNormalizedLandmark} AeroNormalizedLandmark
- * @typedef {import("./landmark-mapping.js").AeroRendererOverlaySurfaceDescriptorInput} AeroRendererOverlaySurfaceDescriptorInput
- */
+  /** @param {HTMLCanvasElement} canvas @param {WebGLContextAttributes} [options] @returns {AeroWebGl2RendererStatus} */
+  attach(canvas, options = this.contextAttributes) {
+    if (this.destroyed) return this.describe();
+    if (this.canvas !== canvas) this.detach();
+    this.canvas = canvas;
+    this.contextAttributes = options;
+    canvas.addEventListener("webglcontextlost", this.onContextLost);
+    canvas.addEventListener("webglcontextrestored", this.onContextRestored);
+    this.acquireContext();
+    return this.describe();
+  }
 
-/**
- * Renderer status snapshot.
- *
- * @typedef {object} AeroWebGl2RendererStatus
- * @property {"aero.renderer.webgl2"} serviceId Stable service ID.
- * @property {AeroRendererState} state Current renderer state.
- * @property {boolean} supported Whether a WebGL2 context is attached.
- * @property {boolean} attached Whether a canvas/context is currently retained.
- * @property {number} frameCount Render helper calls since attach.
- * @property {number} drawCount Overlay draw calls since attach.
- * @property {number} viewportWidth Current drawing-buffer width.
- * @property {number} viewportHeight Current drawing-buffer height.
- * @property {string | undefined} errorMessage Last renderer error message.
- */
-
-/**
- * @typedef {object} AeroRendererClearOptions
- * @property {readonly [number, number, number, number] | undefined} color RGBA clear color.
- */
-
-/**
- * @typedef {object} AeroRendererOverlayOptions
- * @property {AeroRendererOverlaySurfaceDescriptorInput | undefined} surface Media surface mapping metadata.
- * @property {readonly (readonly [number, number])[] | undefined} connections Landmark ID pairs to render as lines.
- * @property {number | undefined} minVisibility Minimum accepted `v` value.
- * @property {readonly [number, number, number, number] | undefined} color RGBA overlay color.
- * @property {number | undefined} pointSize Landmark point size in pixels.
- */
-
-/**
- * @typedef {object} AeroRendererFrameResult
- * @property {AeroWebGl2RendererStatus} status Renderer status after the operation.
- */
-
-/**
- * @typedef {object} AeroRendererOverlayResult
- * @property {AeroWebGl2RendererStatus} status Renderer status after the operation.
- * @property {number} pointCount Number of visible landmarks submitted.
- * @property {number} lineVertexCount Number of line vertices submitted.
- */
-
-/**
- * @typedef {object} AeroWebGl2Renderer
- * @property {"aero.renderer.webgl2"} serviceId Stable service ID.
- * @property {(canvas: HTMLCanvasElement, options?: WebGLContextAttributes) => AeroWebGl2RendererStatus} attach Attaches a canvas and acquires WebGL2.
- * @property {() => AeroWebGl2RendererStatus} detach Releases the retained canvas/context references.
- * @property {() => AeroWebGl2RendererStatus} describe Reports current capability and state.
- * @property {(options?: AeroRendererClearOptions) => AeroRendererFrameResult} clear Clears the current viewport.
- * @property {(options?: AeroRendererClearOptions) => AeroRendererFrameResult} renderFrame Smoke-friendly frame helper.
- * @property {(landmarks: readonly AeroNormalizedLandmark[], options?: AeroRendererOverlayOptions) => AeroRendererOverlayResult} renderLandmarkOverlay Draws normalized landmarks as WebGL2 points and lines.
- */
-
-/**
- * @typedef {object} OverlayProgram
- * @property {WebGLProgram} program Linked WebGL program.
- * @property {number} positionLocation Position attribute location.
- * @property {WebGLUniformLocation | null} colorLocation Overlay color uniform.
- * @property {WebGLUniformLocation | null} pointSizeLocation Point size uniform.
- * @property {WebGLBuffer} buffer Vertex buffer.
- */
-
-/** @type {AeroWebGl2Renderer | undefined} */
-let rendererSingleton;
-
-/**
- * Returns the process-local renderer singleton facade used by assembly wiring.
- *
- * @returns {AeroWebGl2Renderer}
- */
-export function getAeroWebGl2RendererSingleton() {
-  rendererSingleton ??= createAeroWebGl2Renderer();
-  return rendererSingleton;
-}
-
-/**
- * Creates a WebGL2 renderer facade. This owns durable overlay rendering; 2D
- * canvas overlays may remain temporary proving aids outside this package.
- *
- * @returns {AeroWebGl2Renderer}
- */
-export function createAeroWebGl2Renderer() {
-  /** @type {HTMLCanvasElement | undefined} */
-  let canvas;
-  /** @type {WebGL2RenderingContext | undefined} */
-  let gl;
-  /** @type {OverlayProgram | undefined} */
-  let overlayProgram;
-  /** @type {AeroRendererState} */
-  let state = "unsupported";
-  /** @type {string | undefined} */
-  let errorMessage;
-  let frameCount = 0;
-  let drawCount = 0;
-
-  return {
-    serviceId: aeroWebGl2RendererServiceId,
-    attach(nextCanvas, options = {}) {
-      canvas = nextCanvas;
-      overlayProgram = undefined;
-      frameCount = 0;
-      drawCount = 0;
-      errorMessage = undefined;
-      try {
-        const context = nextCanvas.getContext("webgl2", options);
-        if (!context) {
-          gl = undefined;
-          state = "unsupported";
-          errorMessage = "WebGL2 is unavailable for this canvas";
-          return describe();
-        }
-        gl = context;
-        state = "ready";
-        configureViewport(gl, canvas);
-        return describe();
-      } catch (error) {
-        gl = undefined;
-        state = "error";
-        errorMessage = readErrorMessage(error);
-        return describe();
-      }
-    },
-    detach() {
-      canvas = undefined;
-      gl = undefined;
-      overlayProgram = undefined;
-      state = "unsupported";
-      errorMessage = undefined;
-      return describe();
-    },
-    describe,
-    clear(options = {}) {
-      return clearFrame(options);
-    },
-    renderFrame(options = {}) {
-      return clearFrame(options);
-    },
-    renderLandmarkOverlay(landmarks, options = {}) {
-      if (!gl) {
-        state = state === "error" ? "error" : "unsupported";
-        return { status: describe(), pointCount: 0, lineVertexCount: 0 };
-      }
-      configureViewport(gl, canvas);
-      try {
-        const program = overlayProgram ?? createOverlayProgram(gl);
-        overlayProgram = program;
-        const surface = normalizeOverlaySurfaceDescriptor({
-          viewportWidth: gl.drawingBufferWidth,
-          viewportHeight: gl.drawingBufferHeight,
-          ...options.surface
-        });
-        const visible = landmarks.filter((landmark) => isVisibleLandmark(landmark, options.minVisibility ?? 0));
-        const pointVertices = visible.flatMap((landmark) => {
-          const clip = mapNormalizedLandmarkToClipSpace(landmark, surface);
-          return [clip.x, clip.y];
-        });
-        const lineVertices = buildLineVertices(visible, options.connections ?? [], surface);
-        drawVertices(gl, program, lineVertices, gl.LINES, options);
-        drawVertices(gl, program, pointVertices, gl.POINTS, options);
-        state = "running";
-        drawCount += 1;
-        return {
-          status: describe(),
-          pointCount: pointVertices.length / 2,
-          lineVertexCount: lineVertices.length / 2
-        };
-      } catch (error) {
-        state = "error";
-        errorMessage = readErrorMessage(error);
-        return { status: describe(), pointCount: 0, lineVertexCount: 0 };
-      }
+  /** @returns {AeroWebGl2RendererStatus} */
+  detach() {
+    if (this.canvas) {
+      this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
+      this.canvas.removeEventListener("webglcontextrestored", this.onContextRestored);
     }
-  };
-
-  /**
-   * @returns {AeroWebGl2RendererStatus}
-   */
-  function describe() {
-    return {
-      serviceId: aeroWebGl2RendererServiceId,
-      state,
-      supported: Boolean(gl),
-      attached: Boolean(canvas && gl),
-      frameCount,
-      drawCount,
-      viewportWidth: gl?.drawingBufferWidth ?? canvas?.width ?? 0,
-      viewportHeight: gl?.drawingBufferHeight ?? canvas?.height ?? 0,
-      errorMessage
-    };
+    this.deleteGpuResources();
+    this.canvas = null; this.gl = null; this.contextLost = false;
+    if (!this.destroyed) this.state = "unsupported";
+    return this.describe();
   }
 
-  /**
-   * @param {AeroRendererClearOptions} options
-   * @returns {AeroRendererFrameResult}
-   */
-  function clearFrame(options) {
-    if (!gl) {
-      state = state === "error" ? "error" : "unsupported";
-      return { status: describe() };
-    }
-    configureViewport(gl, canvas);
-    const color = options.color ?? [0, 0, 0, 0];
-    gl.clearColor(color[0], color[1], color[2], color[3]);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    state = "running";
-    frameCount += 1;
-    return { status: describe() };
+  /** @param {AeroRendererResize} size @returns {AeroWebGl2RendererStatus} */
+  resize(size) {
+    if (!this.canvas || this.destroyed) return this.describe();
+    this.widthCssPx = finiteNonNegative(size.widthCssPx);
+    this.heightCssPx = finiteNonNegative(size.heightCssPx);
+    const cap = Math.max(1, Math.min(size.maxDevicePixelRatio ?? this.tuning.dprCap, this.tuning.dprCap));
+    this.devicePixelRatio = Math.max(0.1, Math.min(Number.isFinite(size.devicePixelRatio) ? size.devicePixelRatio : 1, cap));
+    const width = Math.max(1, Math.round(this.widthCssPx * this.devicePixelRatio));
+    const height = Math.max(1, Math.round(this.heightCssPx * this.devicePixelRatio));
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+    this.canvas.style.width = `${this.widthCssPx}px`;
+    this.canvas.style.height = `${this.heightCssPx}px`;
+    this.configureViewport();
+    return this.describe();
   }
+
+  /** @param {unknown} descriptor @returns {AeroWebGl2RendererStatus} */
+  setTheme(descriptor) {
+    this.theme = normalizeRendererTheme(descriptor);
+    this.themeId = isThemeDescriptor(descriptor) ? descriptor.id : "aero.theme.default";
+    return this.describe();
+  }
+
+  /** @param {unknown} tuning @returns {AeroWebGl2RendererStatus} */
+  setTuning(tuning) { this.tuning = normalizeRendererTuning(tuning); return this.describe(); }
+  /** @returns {AeroWebGl2RendererStatus} */
+  resetTuning() { this.tuning = defaultRendererTuning; return this.describe(); }
+  /** @returns {AeroRendererTuning} */
+  exportTuning() { return Object.freeze({ ...this.tuning }); }
+  /** @param {unknown} background @returns {AeroWebGl2RendererStatus} */
+  setBackgroundProjection(background) { this.background = normalizeBackgroundProjection(background); return this.describe(); }
+
+  /** @param {AeroIconAtlasData} atlas @returns {AeroWebGl2RendererStatus} */
+  uploadIconAtlas(atlas) {
+    if (this.destroyed || !Number.isInteger(atlas.width) || !Number.isInteger(atlas.height) || !(atlas.pixels instanceof Uint8Array)) return this.describe();
+    if (atlas.pixels.length !== atlas.width * atlas.height * 4) throw new TypeError("Icon atlas pixel length is invalid");
+    this.iconAtlasData = Object.freeze({ width: atlas.width, height: atlas.height, pixels: atlas.pixels.slice(), entries: Object.freeze(atlas.entries.map((entry) => Object.freeze({ ...entry }))) });
+    this.iconEntries = new Map(this.iconAtlasData.entries.map((entry) => [entry.id, entry]));
+    const gl = this.gl;
+    if (!gl) return this.describe();
+    if (this.iconTexture) gl.deleteTexture(this.iconTexture);
+    const texture = gl.createTexture();
+    if (!texture) throw new Error("Unable to create icon atlas texture");
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.iconAtlasData.width, this.iconAtlasData.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.iconAtlasData.pixels);
+    this.iconTexture = texture;
+    return this.describe();
+  }
+
+  /** @param {AeroGameplayFrame} frame @returns {{status:AeroWebGl2RendererStatus,plan:AeroGameplayRenderPlan}} */
+  renderGameplayFrame(frame) {
+    const plan = buildGameplayRenderPlan(frame, this.theme, this.tuning);
+    const gl = this.gl;
+    if (!gl || this.destroyed || this.contextLost) return { status: this.describe(), plan };
+    try {
+      this.configureViewport();
+      const background = colorTokenToRgba(this.background.colors[0], [0.03, 0.08, 0.15, 1]);
+      gl.clearColor(background[0], background[1], background[2], background[3]);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      for (const draw of plan.commands) this.drawCommand(draw);
+      if (plan.overlay.dim > 0) this.drawShape({ x: 0, y: 0, width: 1, height: 1 }, [0, 0, 0, plan.overlay.dim], 0, 0.08);
+      if (plan.overlay.countdown !== null) this.drawCountdown(plan.overlay.countdown);
+      this.frameCount += 1; this.state = "running";
+    } catch (error) { this.fail(error); }
+    return { status: this.describe(), plan };
+  }
+
+  /** @param {{color?:readonly [number,number,number,number]}} [options] */
+  clear(options = {}) {
+    const gl = this.gl;
+    if (!gl || this.destroyed) return { status: this.describe() };
+    const color = options.color ?? [0, 0, 0, 0]; this.configureViewport(); gl.clearColor(...color); gl.clear(gl.COLOR_BUFFER_BIT); this.frameCount += 1; this.state = "running"; return { status: this.describe() };
+  }
+  /** @param {{color?:readonly [number,number,number,number]}} [options] */
+  renderFrame(options = {}) { return this.clear(options); }
+
+  /** @param {readonly AeroNormalizedLandmark[]} landmarks @param {AeroRendererOverlayOptions} [options] */
+  renderLandmarkOverlay(landmarks, options = {}) {
+    const gl = this.gl;
+    if (!gl || this.destroyed) return { status: this.describe(), pointCount: 0, lineVertexCount: 0 };
+    try {
+      const program = this.overlayProgram ?? createOverlayProgram(gl); this.overlayProgram = program;
+      const surface = normalizeOverlaySurfaceDescriptor({ viewportWidth: gl.drawingBufferWidth, viewportHeight: gl.drawingBufferHeight, ...options.surface });
+      const visible = landmarks.filter((landmark) => (typeof landmark.v === "number" ? landmark.v : 1) >= (options.minVisibility ?? 0));
+      const points = visible.flatMap((landmark) => { const clip = mapNormalizedLandmarkToClipSpace(landmark, surface); return [clip.x, clip.y]; });
+      const byId = new Map(visible.map((landmark) => [landmark.id, landmark]));
+      /** @type {number[]} */ const lines = [];
+      for (const pair of options.connections ?? []) { const a = byId.get(pair[0]); const b = byId.get(pair[1]); if (a && b) { const ac = mapNormalizedLandmarkToClipSpace(a, surface); const bc = mapNormalizedLandmarkToClipSpace(b, surface); lines.push(ac.x, ac.y, bc.x, bc.y); } }
+      drawOverlay(gl, program, lines, gl.LINES, options); drawOverlay(gl, program, points, gl.POINTS, options);
+      this.drawCount += 1; this.state = "running";
+      return { status: this.describe(), pointCount: points.length / 2, lineVertexCount: lines.length / 2 };
+    } catch (error) { this.fail(error); return { status: this.describe(), pointCount: 0, lineVertexCount: 0 }; }
+  }
+
+  /** @returns {AeroWebGl2RendererCapabilities} */
+  getCapabilities() {
+    const degradations = [];
+    if (!this.gl) degradations.push("webgl2_unavailable");
+    if (!this.iconTexture) degradations.push("icon_atlas_unavailable_fallback_shapes");
+    if (this.background.kind === "linear-gradient" && this.background.colors.length > 1) degradations.push("gradient_background_projected_to_primary_color");
+    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, webgl2: Boolean(this.gl), exactContainerResize: true, dprAware: true, contextLossRecovery: true, alphaMaskIcons: Boolean(this.iconTexture), maxDevicePixelRatio: this.tuning.dprCap, degradations: Object.freeze(degradations) });
+  }
+
+  /** @returns {AeroWebGl2RendererStatus} */
+  describe() {
+    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, state: this.state, supported: Boolean(this.gl), attached: Boolean(this.canvas && this.gl), contextLost: this.contextLost, destroyed: this.destroyed, frameCount: this.frameCount, drawCount: this.drawCount, viewportWidth: this.gl?.drawingBufferWidth ?? this.canvas?.width ?? 0, viewportHeight: this.gl?.drawingBufferHeight ?? this.canvas?.height ?? 0, widthCssPx: this.widthCssPx, heightCssPx: this.heightCssPx, devicePixelRatio: this.devicePixelRatio, themeId: this.themeId, tuningId: this.tuning.id, tuningHash: this.tuning.hash, iconAtlasReady: Boolean(this.iconTexture), errorMessage: this.errorMessage });
+  }
+
+  /** @returns {AeroWebGl2RendererStatus} */
+  destroy() { if (this.destroyed) return this.describe(); this.destroyed = true; this.detach(); this.state = "destroyed"; this.iconEntries.clear(); this.iconAtlasData = null; return this.describe(); }
+
+  acquireContext() {
+    if (!this.canvas || this.destroyed) return;
+    try { const context = this.canvas.getContext("webgl2", this.contextAttributes); if (!context) { this.gl = null; this.state = "unsupported"; this.errorMessage = "WebGL2 is unavailable for this canvas"; return; } this.gl = context; this.state = "ready"; this.errorMessage = null; this.contextLost = false; context.enable(context.BLEND); context.blendFunc(context.SRC_ALPHA, context.ONE_MINUS_SRC_ALPHA); this.configureViewport(); if (this.iconAtlasData) this.uploadIconAtlas(this.iconAtlasData); }
+    catch (error) { this.gl = null; this.fail(error); }
+  }
+  configureViewport() { if (this.gl) this.gl.viewport(0, 0, this.gl.drawingBufferWidth || this.canvas?.width || 1, this.gl.drawingBufferHeight || this.canvas?.height || 1); }
+  /** @param {import("./gameplay-plan.js").AeroGameplayDrawCommand} draw */
+  drawCommand(draw) {
+    const color = this.roleColor(draw.role, draw.alpha, draw.saturation);
+    if (draw.kind === "icon" && draw.iconId && this.iconTexture && this.iconEntries.has(draw.iconId)) this.drawIcon(draw.rect, color, this.iconEntries.get(draw.iconId));
+    else this.drawShape(draw.rect, color, draw.kind === "circle" ? 1 : draw.kind === "ring" ? 2 : draw.kind === "hatch" ? 3 : 0, this.tuning.approachRingWidth);
+    this.drawCount += 1;
+  }
+  /** @param {string} role @param {number} alpha @param {number} saturation @returns {readonly [number,number,number,number]} */
+  roleColor(role, alpha, saturation) {
+    const fallback = /** @type {const} */ ([0.85, 0.95, 1, alpha]);
+    const token = role === "left" ? this.theme.leftHandColor : role === "right" ? this.theme.rightHandColor : role === "guard" ? this.theme.guardColor : role === "obstacle" ? this.theme.obstacleColor : role === "safe" ? "#56d6c9" : this.theme.receptorColor;
+    const color = colorTokenToRgba(token, fallback);
+    const gray = color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722;
+    return [gray + (color[0] - gray) * saturation, gray + (color[1] - gray) * saturation, gray + (color[2] - gray) * saturation, color[3] * alpha];
+  }
+  /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {number} shape @param {number} ringWidth */
+  drawShape(rect, color, shape, ringWidth) { const gl = this.gl; if (!gl) return; const program = this.shapeProgram ?? createShapeProgram(gl); this.shapeProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.uniform4f(program.colorLocation, ...color); gl.uniform1i(program.shapeLocation, shape); gl.uniform1f(program.ringWidthLocation, ringWidth); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+  /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {import("./icon-atlas.js").AeroIconAtlasEntry|undefined} entry */
+  drawIcon(rect, color, entry) { const gl = this.gl; if (!gl || !entry || !this.iconTexture) return; const program = this.iconProgram ?? createIconProgram(gl); this.iconProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.iconTexture); gl.uniform1i(program.samplerLocation, 0); gl.uniform4f(program.colorLocation, ...color); gl.uniform4f(program.uvRectLocation, entry.u0, entry.v0, entry.u1, entry.v1); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+  /** @param {number} value */
+  drawCountdown(value) { const segments = countdownSegments(value); for (const rect of segments) this.drawShape(rect, [1, 1, 1, 0.94], 0, 0.1); }
+  deleteGpuResources() { const gl = this.gl; if (gl) { for (const program of [this.shapeProgram, this.iconProgram, this.overlayProgram]) { if (program) { gl.deleteBuffer(program.buffer); gl.deleteProgram(program.program); } } if (this.iconTexture) gl.deleteTexture(this.iconTexture); } this.releaseGpuReferences(true); }
+  /** @param {boolean} clearEntries */
+  releaseGpuReferences(clearEntries) { this.shapeProgram = null; this.iconProgram = null; this.overlayProgram = null; this.iconTexture = null; if (clearEntries) this.iconEntries.clear(); }
+  /** @param {unknown} error */
+  fail(error) { this.state = "error"; this.errorMessage = error instanceof Error ? error.message : "Renderer operation failed"; }
 }
 
-/**
- * @param {WebGL2RenderingContext} gl
- * @param {HTMLCanvasElement | undefined} canvas
- * @returns {void}
- */
-function configureViewport(gl, canvas) {
-  const width = gl.drawingBufferWidth || canvas?.width || 0;
-  const height = gl.drawingBufferHeight || canvas?.height || 0;
-  gl.viewport(0, 0, width, height);
-}
+/** @param {{contextAttributes?:WebGLContextAttributes}} [options] @returns {AeroWebGl2Renderer} */
+export function createAeroWebGl2Renderer(options) { return new AeroWebGl2Renderer(options); }
 
-/**
- * @param {WebGL2RenderingContext} gl
- * @returns {OverlayProgram}
- */
-function createOverlayProgram(gl) {
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, `#version 300 es
-in vec2 a_position;
-uniform float u_pointSize;
-void main() {
-  gl_Position = vec4(a_position, 0.0, 1.0);
-  gl_PointSize = u_pointSize;
-}`);
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, `#version 300 es
-precision mediump float;
-uniform vec4 u_color;
-out vec4 outColor;
-void main() {
-  outColor = u_color;
-}`);
-  const program = gl.createProgram();
-  if (!program) {
-    throw new Error("Unable to create overlay shader program");
-  }
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    throw new Error(gl.getProgramInfoLog(program) ?? "Unable to link overlay shader program");
-  }
-  const buffer = gl.createBuffer();
-  if (!buffer) {
-    throw new Error("Unable to create overlay vertex buffer");
-  }
-  return {
-    program,
-    positionLocation: gl.getAttribLocation(program, "a_position"),
-    colorLocation: gl.getUniformLocation(program, "u_color"),
-    pointSizeLocation: gl.getUniformLocation(program, "u_pointSize"),
-    buffer
-  };
-}
+/** @param {WebGL2RenderingContext} gl @returns {ShapeProgram} */
+function createShapeProgram(gl) { const program = linkProgram(gl, QUAD_VERTEX, SHAPE_FRAGMENT); const buffer = requiredBuffer(gl); return { program, buffer, positionLocation: gl.getAttribLocation(program, "a_position"), localLocation: gl.getAttribLocation(program, "a_local"), colorLocation: gl.getUniformLocation(program, "u_color"), shapeLocation: gl.getUniformLocation(program, "u_shape"), ringWidthLocation: gl.getUniformLocation(program, "u_ringWidth") }; }
+/** @param {WebGL2RenderingContext} gl @returns {IconProgram} */
+function createIconProgram(gl) { const program = linkProgram(gl, QUAD_VERTEX, ICON_FRAGMENT); const buffer = requiredBuffer(gl); return { program, buffer, positionLocation: gl.getAttribLocation(program, "a_position"), localLocation: gl.getAttribLocation(program, "a_local"), colorLocation: gl.getUniformLocation(program, "u_color"), uvRectLocation: gl.getUniformLocation(program, "u_uvRect"), samplerLocation: gl.getUniformLocation(program, "u_mask") }; }
+/** @param {WebGL2RenderingContext} gl @returns {OverlayProgram} */
+function createOverlayProgram(gl) { const program = linkProgram(gl, `#version 300 es\nin vec2 a_position; uniform float u_pointSize; void main(){gl_Position=vec4(a_position,0.,1.);gl_PointSize=u_pointSize;}`, `#version 300 es\nprecision mediump float; uniform vec4 u_color; out vec4 outColor; void main(){outColor=u_color;}`); return { program, buffer: requiredBuffer(gl), positionLocation: gl.getAttribLocation(program, "a_position"), colorLocation: gl.getUniformLocation(program, "u_color"), pointSizeLocation: gl.getUniformLocation(program, "u_pointSize") }; }
+/** @param {WebGL2RenderingContext} gl @param {string} vertex @param {string} fragment */
+function linkProgram(gl, vertex, fragment) { const vs = compile(gl, gl.VERTEX_SHADER, vertex); const fs = compile(gl, gl.FRAGMENT_SHADER, fragment); const program = gl.createProgram(); if (!program) throw new Error("Unable to create renderer program"); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); gl.deleteShader(vs); gl.deleteShader(fs); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? "Unable to link renderer program"); return program; }
+/** @param {WebGL2RenderingContext} gl @param {number} type @param {string} source */
+function compile(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error("Unable to create renderer shader"); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) ?? "Unable to compile renderer shader"); return shader; }
+/** @param {WebGL2RenderingContext} gl */
+function requiredBuffer(gl) { const buffer = gl.createBuffer(); if (!buffer) throw new Error("Unable to create renderer buffer"); return buffer; }
+/** @param {WebGL2RenderingContext} gl @param {WebGLBuffer} buffer @param {number} positionLocation @param {number} localLocation @param {{x:number,y:number,width:number,height:number}} rect */
+function uploadQuad(gl, buffer, positionLocation, localLocation, rect) { const x0 = rect.x * 2 - 1; const x1 = (rect.x + rect.width) * 2 - 1; const y0 = 1 - rect.y * 2; const y1 = 1 - (rect.y + rect.height) * 2; const values = new Float32Array([x0,y0,0,0,x1,y0,1,0,x0,y1,0,1,x0,y1,0,1,x1,y0,1,0,x1,y1,1,1]); gl.useProgram(null); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, values, gl.STREAM_DRAW); gl.enableVertexAttribArray(positionLocation); gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 16, 0); gl.enableVertexAttribArray(localLocation); gl.vertexAttribPointer(localLocation, 2, gl.FLOAT, false, 16, 8); }
+/** @param {WebGL2RenderingContext} gl @param {OverlayProgram} program @param {number[]} vertices @param {number} primitive @param {AeroRendererOverlayOptions} options */
+function drawOverlay(gl, program, vertices, primitive, options) { if (vertices.length === 0) return; const color = options.color ?? [0.24,0.9,0.45,0.95]; gl.useProgram(program.program); gl.bindBuffer(gl.ARRAY_BUFFER, program.buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW); gl.enableVertexAttribArray(program.positionLocation); gl.vertexAttribPointer(program.positionLocation,2,gl.FLOAT,false,0,0); gl.uniform4f(program.colorLocation,...color); gl.uniform1f(program.pointSizeLocation, options.pointSize ?? 6); gl.drawArrays(primitive,0,vertices.length/2); }
+/** @param {number} value @returns {readonly {x:number,y:number,width:number,height:number}[]} */
+function countdownSegments(value) { const horizontal = (y) => ({x:0.43,y,width:0.14,height:0.025}); const left = (y) => ({x:0.43,y,width:0.025,height:0.12}); const right = (y) => ({x:0.545,y,width:0.025,height:0.12}); if (value === 1) return [right(0.36), right(0.51)]; if (value === 2) return [horizontal(0.34),right(0.36),horizontal(0.49),left(0.51),horizontal(0.64)]; return [horizontal(0.34),right(0.36),horizontal(0.49),right(0.51),horizontal(0.64)]; }
+/** @param {number} value */
+function finiteNonNegative(value) { return Number.isFinite(value) ? Math.max(0, value) : 0; }
 
-/**
- * @param {WebGL2RenderingContext} gl
- * @param {number} type
- * @param {string} source
- * @returns {WebGLShader}
- */
-function compileShader(gl, type, source) {
-  const shader = gl.createShader(type);
-  if (!shader) {
-    throw new Error("Unable to create overlay shader");
-  }
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(gl.getShaderInfoLog(shader) ?? "Unable to compile overlay shader");
-  }
-  return shader;
-}
-
-/**
- * @param {WebGL2RenderingContext} gl
- * @param {OverlayProgram} program
- * @param {number[]} vertices
- * @param {number} primitive
- * @param {AeroRendererOverlayOptions} options
- * @returns {void}
- */
-function drawVertices(gl, program, vertices, primitive, options) {
-  if (vertices.length === 0) {
-    return;
-  }
-  const color = options.color ?? [0.24, 0.9, 0.45, 0.95];
-  gl.useProgram(program.program);
-  gl.bindBuffer(gl.ARRAY_BUFFER, program.buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
-  gl.enableVertexAttribArray(program.positionLocation);
-  gl.vertexAttribPointer(program.positionLocation, 2, gl.FLOAT, false, 0, 0);
-  gl.uniform4f(program.colorLocation, color[0], color[1], color[2], color[3]);
-  gl.uniform1f(program.pointSizeLocation, options.pointSize ?? 6);
-  gl.drawArrays(primitive, 0, vertices.length / 2);
-}
-
-/**
- * @param {readonly AeroNormalizedLandmark[]} landmarks
- * @param {readonly (readonly [number, number])[]} connections
- * @param {AeroRendererOverlaySurfaceDescriptorInput} surface
- * @returns {number[]}
- */
-function buildLineVertices(landmarks, connections, surface) {
-  /** @type {Map<number, AeroNormalizedLandmark>} */
-  const byId = new Map();
-  for (const landmark of landmarks) {
-    if (typeof landmark.id === "number") {
-      byId.set(landmark.id, landmark);
-    }
-  }
-  /** @type {number[]} */
-  const vertices = [];
-  for (const connection of connections) {
-    const start = byId.get(connection[0]);
-    const end = byId.get(connection[1]);
-    if (!start || !end) {
-      continue;
-    }
-    const startClip = mapNormalizedLandmarkToClipSpace(start, surface);
-    const endClip = mapNormalizedLandmarkToClipSpace(end, surface);
-    vertices.push(startClip.x, startClip.y, endClip.x, endClip.y);
-  }
-  return vertices;
-}
-
-/**
- * @param {AeroNormalizedLandmark} landmark
- * @param {number} minVisibility
- * @returns {boolean}
- */
-function isVisibleLandmark(landmark, minVisibility) {
-  const visibility = typeof landmark.v === "number" ? landmark.v : 1;
-  return visibility >= minVisibility;
-}
-
-/**
- * @param {unknown} error
- * @returns {string}
- */
-function readErrorMessage(error) {
-  if (error && typeof error === "object" && "message" in error) {
-    const message = error.message;
-    return typeof message === "string" ? message : "Renderer operation failed";
-  }
-  return "Renderer operation failed";
-}
+const QUAD_VERTEX = `#version 300 es
+in vec2 a_position; in vec2 a_local; out vec2 v_local; void main(){v_local=a_local;gl_Position=vec4(a_position,0.,1.);}`;
+const SHAPE_FRAGMENT = `#version 300 es
+precision mediump float; in vec2 v_local; uniform vec4 u_color; uniform int u_shape; uniform float u_ringWidth; out vec4 outColor;
+void main(){float d=distance(v_local,vec2(.5)); if(u_shape==1 && d>.5) discard; if(u_shape==2 && abs(d-.43)>u_ringWidth*.5) discard; vec4 color=u_color; if(u_shape==3 && mod(floor((v_local.x+v_local.y)*18.),2.)<1.) color.rgb*=.48; outColor=color;}`;
+const ICON_FRAGMENT = `#version 300 es
+precision mediump float; in vec2 v_local; uniform sampler2D u_mask; uniform vec4 u_color; uniform vec4 u_uvRect; out vec4 outColor;
+void main(){vec2 uv=mix(u_uvRect.xy,u_uvRect.zw,v_local);float alpha=texture(u_mask,uv).a; if(alpha<.02) discard;outColor=vec4(u_color.rgb,u_color.a*alpha);}`;

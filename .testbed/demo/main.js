@@ -1,26 +1,38 @@
 // @ts-check
 
-import {
-  aeroWebGl2RendererServiceId,
-  computeMediaContentRect,
-  mapNormalizedLandmarkToClipSpace
-} from "../../src/index.js";
+import { createAeroWebGl2Renderer, gameplayIconIds, rasterizeBrandingIconAtlas } from "../../src/index.js";
 
-/** @type {HTMLElement | null} */
-const app = document.querySelector("#app");
+const surfaces = [...document.querySelectorAll(".surface")];
+const canvases = [...document.querySelectorAll("canvas")];
+const status = document.querySelector("#status");
+const renderers = canvases.map((canvas) => {
+  if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Testbed canvas is missing");
+  const renderer = createAeroWebGl2Renderer(); renderer.attach(canvas); return renderer;
+});
+const fallbackManifest = { schemaId: "aerobeat.branding.web-gameplay-icons.v1", schemaVersion: 1, colorContract: "currentColor", webglContract: "alpha-mask-atlas-input", assets: gameplayIconIds.map((id) => ({ id, file: `${id.replaceAll(".", "-")}.svg`, viewBox: id.includes("guard") ? "0 0 48 24" : "0 0 64 64" })) };
+const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="currentColor" d="M8 28h22V12l26 20-26 20V36H8z"/></svg>`;
+let manifest = fallbackManifest;
+let brandingBase = "";
+try {
+  const response = await fetch("/branding/manifest.json");
+  if (response.ok) { manifest = await response.json(); brandingBase = "/branding/"; }
+} catch {}
+const atlas = await rasterizeBrandingIconAtlas(manifest, { resolveUrl: (asset) => brandingBase ? `${brandingBase}${asset.file}` : `data:image/svg+xml,${encodeURIComponent(fallbackSvg)}` });
+renderers[0].uploadIconAtlas(atlas); renderers[1].uploadIconAtlas(atlas);
 
-if (app instanceof HTMLElement) {
-  const surface = {
-    viewportWidth: 640,
-    viewportHeight: 480,
-    intrinsicWidth: 1280,
-    intrinsicHeight: 720,
-    fitMode: "contain",
-    mirrored: true
-  };
-  app.textContent = JSON.stringify({
-    serviceId: aeroWebGl2RendererServiceId,
-    contentRect: computeMediaContentRect(surface),
-    centerClip: mapNormalizedLandmarkToClipSpace({ id: 0, x: 0.5, y: 0.5 }, surface)
+function draw() {
+  renderers.forEach((renderer, index) => {
+    const rect = surfaces[index].getBoundingClientRect(); renderer.resize({ widthCssPx: rect.width, heightCssPx: rect.height, devicePixelRatio: window.devicePixelRatio });
   });
+  const targets = [
+    { id:"straight",kind:"punch",hand:"left",family:"straight",cell:5,cells:[],lane:"left",beatCenterMs:1000 },
+    { id:"hook",kind:"punch",hand:"right",family:"hook",cell:6,cells:[],lane:"right",beatCenterMs:1000 },
+    { id:"guard",kind:"guard",hand:"both",family:"crossed_guard",cell:null,cells:[8,9],lane:null,beatCenterMs:1000 }
+  ];
+  const primary = renderers[0].renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets,blockedCells:[0,3],safeCells:[10],overlay:"none" });
+  const secondary = renderers[1].renderGameplayFrame({ presentation:"boxing_semantic_track",nowMs:1000,targets:targets.slice(0,2),overlay:"calibrating",calibrationDim:0.18,countdown:3 });
+  const snapshot = { ready:true, primary:primary.status, secondary:secondary.status, primaryCommands:primary.plan.commands.length, secondaryCommands:secondary.plan.commands.length };
+  if (status) status.textContent = JSON.stringify(snapshot, null, 2);
+  globalThis.__AERO_RENDERER_TEST__ = { ...snapshot, resize: draw, renderers };
 }
+draw();

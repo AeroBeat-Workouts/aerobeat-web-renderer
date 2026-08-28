@@ -1,6 +1,7 @@
 // @ts-check
 
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
+import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToClipSpace, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
 import { buildGameplayRenderPlan, defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-plan.js";
 import { colorTokenToRgba, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererTuning } from "./visual-profiles.js";
@@ -17,8 +18,8 @@ export const aeroWebGl2RendererServiceId = "aero.renderer.webgl2";
 /** @typedef {"unsupported"|"ready"|"running"|"context_lost"|"error"|"destroyed"} AeroRendererState */
 /** @typedef {{widthCssPx:number,heightCssPx:number,devicePixelRatio:number,maxDevicePixelRatio?:number}} AeroRendererResize */
 /** @typedef {{surface?:AeroRendererOverlaySurfaceDescriptorInput,connections?:readonly (readonly [number,number])[],minVisibility?:number,color?:readonly [number,number,number,number],pointSize?:number}} AeroRendererOverlayOptions */
-/** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,tuningId:string,tuningHash:string,iconAtlasReady:boolean,errorMessage:string|null}} AeroWebGl2RendererStatus */
-/** @typedef {{serviceId:"aero.renderer.webgl2",webgl2:boolean,exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:boolean,maxDevicePixelRatio:number,degradations:readonly string[]}} AeroWebGl2RendererCapabilities */
+/** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,themeVersion:string,themeHash:string,tuningId:string,tuningVersion:string,tuningHash:string,tuningRequiresRegeneration:false,iconAtlasReady:boolean,iconAtlasError:string|null,errorMessage:string|null}} AeroWebGl2RendererStatus */
+/** @typedef {{serviceId:"aero.renderer.webgl2",webgl2:boolean,exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:boolean,liveTuning:true,maxDevicePixelRatio:number,degradations:readonly string[]}} AeroWebGl2RendererCapabilities */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,shapeLocation:WebGLUniformLocation|null,ringWidthLocation:WebGLUniformLocation|null}} ShapeProgram */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,uvRectLocation:WebGLUniformLocation|null,samplerLocation:WebGLUniformLocation|null}} IconProgram */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,colorLocation:WebGLUniformLocation|null,pointSizeLocation:WebGLUniformLocation|null}} OverlayProgram */
@@ -44,8 +45,11 @@ export class AeroWebGl2Renderer {
     /** @type {AeroRendererThemeTokens} */ this.theme = defaultRendererThemeTokens;
     /** @type {AeroRendererTuning} */ this.tuning = defaultRendererTuning;
     this.themeId = "aero.theme.default";
+    this.themeVersion = "1";
+    this.themeHash = "theme-default";
     this.background = normalizeBackgroundProjection(null);
-    this.errorMessage = null;
+    this.iconAtlasError = /** @type {string|null} */ (null);
+    this.errorMessage = /** @type {string|null} */ (null);
     this.frameCount = 0; this.drawCount = 0;
     this.widthCssPx = 0; this.heightCssPx = 0; this.devicePixelRatio = 1;
     this.contextLost = false; this.destroyed = false;
@@ -96,46 +100,67 @@ export class AeroWebGl2Renderer {
 
   /** @param {unknown} descriptor @returns {AeroWebGl2RendererStatus} */
   setTheme(descriptor) {
-    this.theme = normalizeRendererTheme(descriptor);
-    this.themeId = isThemeDescriptor(descriptor) ? descriptor.id : "aero.theme.default";
+    if (this.destroyed) return this.describe();
+    const normalized = normalizeRendererTheme(descriptor);
+    const accepted = isThemeDescriptor(descriptor) && normalized !== defaultRendererThemeTokens;
+    this.theme = normalized;
+    this.themeId = accepted ? descriptor.id : "aero.theme.default";
+    this.themeVersion = accepted ? descriptor.themeVersion : "1";
+    this.themeHash = accepted ? descriptor.contentHash.value : "theme-default";
     return this.describe();
   }
 
   /** @param {unknown} tuning @returns {AeroWebGl2RendererStatus} */
-  setTuning(tuning) { this.tuning = normalizeRendererTuning(tuning); return this.describe(); }
+  setTuning(tuning) { if (!this.destroyed) this.tuning = normalizeRendererTuning(tuning); return this.describe(); }
+  /** @param {unknown} tuning @returns {AeroWebGl2RendererStatus} */
+  importTuning(tuning) { return this.setTuning(tuning); }
   /** @returns {AeroWebGl2RendererStatus} */
-  resetTuning() { this.tuning = defaultRendererTuning; return this.describe(); }
+  resetTuning() { if (!this.destroyed) this.tuning = defaultRendererTuning; return this.describe(); }
   /** @returns {AeroRendererTuning} */
   exportTuning() { return Object.freeze({ ...this.tuning }); }
   /** @param {unknown} background @returns {AeroWebGl2RendererStatus} */
-  setBackgroundProjection(background) { this.background = normalizeBackgroundProjection(background); return this.describe(); }
+  setBackgroundProjection(background) { if (!this.destroyed) this.background = normalizeBackgroundProjection(background); return this.describe(); }
 
   /** @param {AeroIconAtlasData} atlas @returns {AeroWebGl2RendererStatus} */
   uploadIconAtlas(atlas) {
-    if (this.destroyed || !Number.isInteger(atlas.width) || !Number.isInteger(atlas.height) || !(atlas.pixels instanceof Uint8Array)) return this.describe();
-    if (atlas.pixels.length !== atlas.width * atlas.height * 4) throw new TypeError("Icon atlas pixel length is invalid");
-    this.iconAtlasData = Object.freeze({ width: atlas.width, height: atlas.height, pixels: atlas.pixels.slice(), entries: Object.freeze(atlas.entries.map((entry) => Object.freeze({ ...entry }))) });
-    this.iconEntries = new Map(this.iconAtlasData.entries.map((entry) => [entry.id, entry]));
+    if (this.destroyed) return this.describe();
+    let normalized;
+    try {
+      normalized = normalizeIconAtlasData(atlas);
+    } catch (error) {
+      if (this.gl && this.iconTexture) this.gl.deleteTexture(this.iconTexture);
+      this.iconTexture = null;
+      this.iconAtlasData = null;
+      this.iconEntries.clear();
+      this.iconAtlasError = error instanceof Error ? error.message : "Icon atlas is invalid";
+      return this.describe();
+    }
+    this.iconAtlasData = normalized;
+    this.iconEntries = new Map(normalized.entries.map((entry) => [entry.id, entry]));
+    this.iconAtlasError = null;
     const gl = this.gl;
     if (!gl) return this.describe();
     if (this.iconTexture) gl.deleteTexture(this.iconTexture);
     const texture = gl.createTexture();
-    if (!texture) throw new Error("Unable to create icon atlas texture");
+    if (!texture) { this.iconAtlasError = "Unable to create icon atlas texture"; return this.describe(); }
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.iconAtlasData.width, this.iconAtlasData.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.iconAtlasData.pixels);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, normalized.width, normalized.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, normalized.pixels);
     this.iconTexture = texture;
     return this.describe();
   }
 
   /** @param {AeroGameplayFrame} frame @returns {{status:AeroWebGl2RendererStatus,plan:AeroGameplayRenderPlan}} */
   renderGameplayFrame(frame) {
-    const plan = buildGameplayRenderPlan(frame, this.theme, this.tuning);
+    const width = this.widthCssPx > 0 ? this.widthCssPx : this.gl?.drawingBufferWidth ?? 0;
+    const height = this.heightCssPx > 0 ? this.heightCssPx : this.gl?.drawingBufferHeight ?? 0;
+    const viewportAspect = frame.viewportAspect ?? (width > 0 && height > 0 ? width / height : 4 / 3);
+    const plan = buildGameplayRenderPlan({ ...frame, viewportAspect }, this.theme, this.tuning);
     const gl = this.gl;
     if (!gl || this.destroyed || this.contextLost) return { status: this.describe(), plan };
     try {
@@ -182,14 +207,14 @@ export class AeroWebGl2Renderer {
   getCapabilities() {
     const degradations = [];
     if (!this.gl) degradations.push("webgl2_unavailable");
-    if (!this.iconTexture) degradations.push("icon_atlas_unavailable_fallback_shapes");
+    if (!this.iconTexture) degradations.push(this.iconAtlasError ? "icon_atlas_invalid_fallback_shapes" : "icon_atlas_unavailable_fallback_shapes");
     if (this.background.kind === "linear-gradient" && this.background.colors.length > 1) degradations.push("gradient_background_projected_to_primary_color");
-    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, webgl2: Boolean(this.gl), exactContainerResize: true, dprAware: true, contextLossRecovery: true, alphaMaskIcons: Boolean(this.iconTexture), maxDevicePixelRatio: this.tuning.dprCap, degradations: Object.freeze(degradations) });
+    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, webgl2: Boolean(this.gl), exactContainerResize: true, dprAware: true, contextLossRecovery: true, alphaMaskIcons: Boolean(this.iconTexture), liveTuning: true, maxDevicePixelRatio: this.tuning.dprCap, degradations: Object.freeze(degradations) });
   }
 
   /** @returns {AeroWebGl2RendererStatus} */
   describe() {
-    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, state: this.state, supported: Boolean(this.gl), attached: Boolean(this.canvas && this.gl), contextLost: this.contextLost, destroyed: this.destroyed, frameCount: this.frameCount, drawCount: this.drawCount, viewportWidth: this.gl?.drawingBufferWidth ?? this.canvas?.width ?? 0, viewportHeight: this.gl?.drawingBufferHeight ?? this.canvas?.height ?? 0, widthCssPx: this.widthCssPx, heightCssPx: this.heightCssPx, devicePixelRatio: this.devicePixelRatio, themeId: this.themeId, tuningId: this.tuning.id, tuningHash: this.tuning.hash, iconAtlasReady: Boolean(this.iconTexture), errorMessage: this.errorMessage });
+    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, state: this.state, supported: Boolean(this.gl), attached: Boolean(this.canvas && this.gl), contextLost: this.contextLost, destroyed: this.destroyed, frameCount: this.frameCount, drawCount: this.drawCount, viewportWidth: this.gl?.drawingBufferWidth ?? this.canvas?.width ?? 0, viewportHeight: this.gl?.drawingBufferHeight ?? this.canvas?.height ?? 0, widthCssPx: this.widthCssPx, heightCssPx: this.heightCssPx, devicePixelRatio: this.devicePixelRatio, themeId: this.themeId, themeVersion: this.themeVersion, themeHash: this.themeHash, tuningId: this.tuning.id, tuningVersion: this.tuning.version, tuningHash: this.tuning.hash, tuningRequiresRegeneration: false, iconAtlasReady: Boolean(this.iconTexture), iconAtlasError: this.iconAtlasError, errorMessage: this.errorMessage });
   }
 
   /** @returns {AeroWebGl2RendererStatus} */

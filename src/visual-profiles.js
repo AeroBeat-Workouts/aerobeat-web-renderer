@@ -21,10 +21,10 @@ export function normalizeRendererTheme(value) {
   const tokens = value.tokens;
   const colorNames = ["leftHandColor", "rightHandColor", "guardColor", "obstacleColor", "receptorColor"];
   const easingNames = ["approachEasing", "hitEasing", "missEasing"];
-  if (!colorNames.every((name) => isCssColorToken(tokens[name])) || !easingNames.every((name) => typeof tokens[name] === "string" && tokens[name].length > 0)) {
+  if (!colorNames.every((name) => isRendererColorToken(tokens[name])) || !easingNames.every((name) => isNamedEasing(tokens[name]))) {
     return defaultRendererThemeTokens;
   }
-  if (!["approachLeadMs", "targetStartScale", "targetHitScale"].every((name) => typeof tokens[name] === "number" && Number.isFinite(tokens[name]) && tokens[name] >= 0)) {
+  if (typeof tokens.approachLeadMs !== "number" || !Number.isFinite(tokens.approachLeadMs) || tokens.approachLeadMs < 1 || tokens.approachLeadMs > 10_000 || typeof tokens.targetStartScale !== "number" || !Number.isFinite(tokens.targetStartScale) || tokens.targetStartScale < 0.05 || tokens.targetStartScale > 3 || typeof tokens.targetHitScale !== "number" || !Number.isFinite(tokens.targetHitScale) || tokens.targetHitScale < 0.05 || tokens.targetHitScale > 3) {
     return defaultRendererThemeTokens;
   }
   return Object.freeze({
@@ -43,7 +43,9 @@ export function normalizeRendererTheme(value) {
 export function normalizeRendererTuning(value) {
   if (!isRecord(value)) return defaultRendererTuning;
   const numberNames = ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "dprCap"];
-  if (typeof value.id !== "string" || value.id.length === 0 || typeof value.version !== "string" || value.version.length === 0 || !numberNames.every((name) => typeof value[name] === "number" && Number.isFinite(value[name]))) {
+  const requiredNames = ["id", "version", ...numberNames];
+  const keys = Object.keys(value);
+  if (!keys.every((key) => requiredNames.includes(key) || key === "hash") || !requiredNames.every((key) => keys.includes(key)) || typeof value.id !== "string" || value.id.length === 0 || typeof value.version !== "string" || value.version.length === 0 || !numberNames.every((name) => typeof value[name] === "number" && Number.isFinite(value[name]))) {
     return defaultRendererTuning;
   }
   const normalized = {
@@ -51,7 +53,9 @@ export function normalizeRendererTuning(value) {
     gridInset: clamp(Number(value.gridInset), 0, 0.25), gridGap: clamp(Number(value.gridGap), 0, 0.08), receptorAlpha: clamp(Number(value.receptorAlpha), 0, 1),
     approachRingScale: clamp(Number(value.approachRingScale), 1, 3), approachRingWidth: clamp(Number(value.approachRingWidth), 0.01, 0.3), laneWidth: clamp(Number(value.laneWidth), 0.1, 0.4), dprCap: clamp(Number(value.dprCap), 1, 4)
   };
-  return Object.freeze({ ...normalized, hash: stableVisualHash(normalized) });
+  const hash = stableVisualHash(normalized);
+  if (value.hash !== undefined && value.hash !== hash) return defaultRendererTuning;
+  return Object.freeze({ ...normalized, hash });
 }
 
 /**
@@ -59,7 +63,7 @@ export function normalizeRendererTuning(value) {
  * @returns {AeroRendererBackgroundProjection}
  */
 export function normalizeBackgroundProjection(value) {
-  if (!isRecord(value) || (value.kind !== "solid" && value.kind !== "linear-gradient") || !Array.isArray(value.colors) || value.colors.length === 0 || !value.colors.every(isCssColorToken)) {
+  if (!isRecord(value) || !Object.keys(value).every((key) => key === "kind" || key === "colors" || key === "angleDeg") || (value.kind !== "solid" && value.kind !== "linear-gradient") || !Array.isArray(value.colors) || value.colors.length === 0 || !value.colors.every(isRendererColorToken)) {
     return Object.freeze({ kind: "linear-gradient", colors: Object.freeze(["#071426", "#153b5d"]), angleDeg: 180 });
   }
   return Object.freeze({ kind: value.kind, colors: Object.freeze(value.colors.map(String).slice(0, 4)), angleDeg: typeof value.angleDeg === "number" && Number.isFinite(value.angleDeg) ? value.angleDeg : 180 });
@@ -93,7 +97,12 @@ function stableVisualHash(value) {
 }
 
 /** @param {unknown} value @returns {value is string} */
-function isCssColorToken(value) { return typeof value === "string" && value.length > 0 && value.length <= 128 && !/[;{}]/u.test(value); }
+function isRendererColorToken(value) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 128) return false;
+  return /^#(?:[0-9a-f]{6}|[0-9a-f]{8})$/iu.test(value.trim()) || /^rgba?\(\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?(?:\s*,\s*\d*(?:\.\d+)?)?\s*\)$/iu.test(value.trim());
+}
+/** @param {unknown} value @returns {value is string} */
+function isNamedEasing(value) { return value === "linear" || value === "ease-in" || value === "ease-out" || value === "ease-in-out"; }
 /** @param {unknown} value @returns {value is Record<string, unknown>} */
 function isRecord(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 /** @param {number} value @param {number} minimum @param {number} maximum */

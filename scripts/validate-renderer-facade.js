@@ -85,8 +85,12 @@ for (const direction of allDirections) {
   const target = plan.commands.find((entry) => entry.targetId === id && entry.layer === 4);
   const cues = plan.commands.filter((entry) => entry.targetId === id && entry.layer === 5);
   assert.ok(target, `${direction} target must render`);
+  assert.equal(target.contrast, false, `${direction} target keeps role color`);
   assert.equal(cues.length, direction.includes("-") ? 8 : 2, `${direction} cue command count`);
-  for (const cue of cues) assertRectWithin(cue.rect, target.rect, `${direction} cue`);
+  for (const cue of cues) {
+    assert.equal(cue.contrast, true, `${direction} cue must request theme-derived contrast`);
+    assertRectWithin(cue.rect, target.rect, `${direction} cue`);
+  }
   if (!direction.includes("-")) {
     assert.deepEqual(cues.map((entry) => ({ kind:entry.kind,rect:entry.rect })), legacyCardinalCues(target.rect, direction), `${direction} cardinal geometry must remain byte-identical`);
   } else {

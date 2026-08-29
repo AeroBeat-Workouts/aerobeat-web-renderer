@@ -238,7 +238,7 @@ export class AeroWebGl2Renderer {
   configureViewport() { if (this.gl) this.gl.viewport(0, 0, this.gl.drawingBufferWidth || this.canvas?.width || 1, this.gl.drawingBufferHeight || this.canvas?.height || 1); }
   /** @param {import("./gameplay-plan.js").AeroGameplayDrawCommand} draw */
   drawCommand(draw) {
-    const color = this.roleColor(draw.role, draw.alpha, draw.saturation);
+    const color = draw.contrast ? this.cueContrastColor(draw.role, draw.alpha, draw.saturation) : this.roleColor(draw.role, draw.alpha, draw.saturation);
     if (draw.kind === "icon" && draw.iconId && this.iconTexture && this.iconEntries.has(draw.iconId)) this.drawIcon(draw.rect, color, this.iconEntries.get(draw.iconId));
     else this.drawShape(draw.rect, color, draw.kind === "circle" ? 1 : draw.kind === "ring" ? 2 : draw.kind === "hatch" ? 3 : 0, this.tuning.approachRingWidth);
     this.drawCount += 1;
@@ -250,6 +250,15 @@ export class AeroWebGl2Renderer {
     const color = colorTokenToRgba(token, fallback);
     const gray = color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722;
     return [gray + (color[0] - gray) * saturation, gray + (color[1] - gray) * saturation, gray + (color[2] - gray) * saturation, color[3] * alpha];
+  }
+  /** @param {string} role @param {number} alpha @param {number} saturation @returns {readonly [number,number,number,number]} */
+  cueContrastColor(role, alpha, saturation) {
+    const target = this.roleColor(role, alpha, saturation);
+    const luminance = relativeLuminance(target[0], target[1], target[2]);
+    const blackContrast = (luminance + 0.05) / 0.05;
+    const whiteContrast = 1.05 / (luminance + 0.05);
+    const channel = whiteContrast > blackContrast ? 1 : 0;
+    return [channel, channel, channel, target[3]];
   }
   /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {number} shape @param {number} ringWidth */
   drawShape(rect, color, shape, ringWidth) { const gl = this.gl; if (!gl) return; const program = this.shapeProgram ?? createShapeProgram(gl); this.shapeProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.uniform4f(program.colorLocation, ...color); gl.uniform1i(program.shapeLocation, shape); gl.uniform1f(program.ringWidthLocation, ringWidth); gl.drawArrays(gl.TRIANGLES, 0, 6); }
@@ -287,6 +296,11 @@ function drawOverlay(gl, program, vertices, primitive, options) { if (vertices.l
 function countdownSegments(value) { const horizontal = (y) => ({x:0.43,y,width:0.14,height:0.025}); const left = (y) => ({x:0.43,y,width:0.025,height:0.12}); const right = (y) => ({x:0.545,y,width:0.025,height:0.12}); if (value === 1) return [right(0.36), right(0.51)]; if (value === 2) return [horizontal(0.34),right(0.36),horizontal(0.49),left(0.51),horizontal(0.64)]; return [horizontal(0.34),right(0.36),horizontal(0.49),right(0.51),horizontal(0.64)]; }
 /** @param {number} value */
 function finiteNonNegative(value) { return Number.isFinite(value) ? Math.max(0, value) : 0; }
+/** @param {number} red @param {number} green @param {number} blue */
+function relativeLuminance(red, green, blue) {
+  const linear = (channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  return linear(red) * 0.2126 + linear(green) * 0.7152 + linear(blue) * 0.0722;
+}
 
 const QUAD_VERTEX = `#version 300 es
 in vec2 a_position; in vec2 a_local; out vec2 v_local; void main(){v_local=a_local;gl_Position=vec4(a_position,0.,1.);}`;

@@ -4,7 +4,7 @@
 /** @typedef {"left" | "right" | "guard" | "obstacle" | "neutral" | "safe"} AeroVisualRole */
 /** @typedef {"rect" | "circle" | "ring" | "hatch" | "icon" | "line"} AeroDrawKind */
 /** @typedef {{x:number,y:number,width:number,height:number}} AeroNormalizedRect */
-/** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, layer:number, targetId:string|null}} AeroGameplayDrawCommand */
+/** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, contrast:boolean, layer:number, targetId:string|null}} AeroGameplayDrawCommand */
 /** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
 /** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, roleScale:number, dprCap:number}} AeroRendererTuning */
@@ -173,7 +173,7 @@ function addTarget(commands, frame, target, grid, theme, tuning) {
     const kind = target.kind === "obstacle" ? "hatch" : iconId ? "icon" : "circle";
     commands.push(command(kind, /** @type {AeroVisualRole} */ (role), rect, alpha, scale, iconId, target.kind === "obstacle", 4, target.id, progress));
     if (target.direction) {
-      for (const cue of directionCueRects(rect, target.direction)) commands.push(command(cue.kind, /** @type {AeroVisualRole} */ (role), cue.rect, alpha, scale, null, false, 5, target.id, progress));
+      for (const cue of directionCueRects(rect, target.direction)) commands.push(command(cue.kind, /** @type {AeroVisualRole} */ (role), cue.rect, alpha, scale, null, false, 5, target.id, progress, true));
     }
     if (target.judgement === undefined || target.judgement === "pending") {
       commands.push(command("ring", /** @type {AeroVisualRole} */ (role), scaledRect(baseRect, lerp(tuning.approachRingScale, 1, progress)), 0.85, lerp(tuning.approachRingScale, 1, progress), null, false, 5, target.id, progress));
@@ -220,9 +220,9 @@ function iconIdFor(target) {
   return null;
 }
 
-/** @param {AeroDrawKind} kind @param {AeroVisualRole} role @param {AeroNormalizedRect} rect @param {number} alpha @param {number} scale @param {string|null} iconId @param {boolean} hatch @param {number} layer @param {string|null} targetId @param {number} [saturation] @returns {AeroGameplayDrawCommand} */
-function command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, saturation = 1) {
-  return Object.freeze({ kind, role, rect: Object.freeze({ ...rect }), alpha, scale, saturation: clamp(saturation, 0, 1), iconId, hatch, layer, targetId });
+/** @param {AeroDrawKind} kind @param {AeroVisualRole} role @param {AeroNormalizedRect} rect @param {number} alpha @param {number} scale @param {string|null} iconId @param {boolean} hatch @param {number} layer @param {string|null} targetId @param {number} [saturation] @param {boolean} [contrast] @returns {AeroGameplayDrawCommand} */
+function command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, saturation = 1, contrast = false) {
+  return Object.freeze({ kind, role, rect: Object.freeze({ ...rect }), alpha, scale, saturation: clamp(saturation, 0, 1), iconId, hatch, contrast, layer, targetId });
 }
 
 /** @param {AeroNormalizedRect} rect @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection} direction @returns {readonly {kind:"line"|"circle",rect:AeroNormalizedRect}[]} */

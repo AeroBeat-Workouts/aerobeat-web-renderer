@@ -74,10 +74,19 @@ try {
       const cellWidth = grid.width * test.primary.widthCssPx / 4;
       const cellHeight = grid.height * test.primary.heightCssPx / 3;
       const track = test.secondaryTargetRect;
-      return { cellWidth, cellHeight, trackWidth:track.width * test.secondary.widthCssPx, trackHeight:track.height * test.secondary.heightCssPx };
+      const viewport = { width:innerWidth, height:innerHeight };
+      const surfaces = [...document.querySelectorAll(".surface")].map((entry) => rect(entry.getBoundingClientRect()));
+      const canvases = [...document.querySelectorAll("canvas")].map((entry) => rect(entry.getBoundingClientRect()));
+      const targetBoxes = [test.primaryTargetRects, test.secondaryTargetRects].flatMap((entries, index) => entries.map((target) => ({ canvasIndex:index, left:canvases[index].left + target.x * canvases[index].width, top:canvases[index].top + target.y * canvases[index].height, right:canvases[index].left + (target.x + target.width) * canvases[index].width, bottom:canvases[index].top + (target.y + target.height) * canvases[index].height })));
+      return { cellWidth, cellHeight, trackWidth:track.width * test.secondary.widthCssPx, trackHeight:track.height * test.secondary.heightCssPx, viewport, surfaces, canvases, targetBoxes, horizontalOverflow:document.documentElement.scrollWidth - innerWidth };
+      function rect(value) { return { left:value.left, top:value.top, right:value.right, bottom:value.bottom, width:value.width, height:value.height }; }
     });
     assert.ok(Math.abs(metrics.cellWidth - metrics.cellHeight) < 0.02, `${name} spatial cells must remain physically square`);
     assert.ok(Math.abs(metrics.trackWidth - metrics.trackHeight) < 0.02, `${name} Track icons must remain physically square`);
+    assert.ok(metrics.horizontalOverflow <= 0, `${name} evidence must not overflow horizontally; overflow=${metrics.horizontalOverflow}`);
+    for (const [index, rect] of metrics.surfaces.entries()) assertWithinViewport(rect, metrics.viewport, `${name} surface ${index}`);
+    for (const [index, rect] of metrics.canvases.entries()) assertWithinViewport(rect, metrics.viewport, `${name} canvas ${index}`);
+    for (const [index, rect] of metrics.targetBoxes.entries()) { assertWithinViewport(rect, metrics.viewport, `${name} target ${index}`); assertWithinBounds(rect, metrics.canvases[rect.canvasIndex], `${name} target ${index} inside canvas ${rect.canvasIndex}`); }
     await page.screenshot({ path: join(root, `screenshots/task11-renderer-profile-${name}.png`) });
   }
   const flowResult = await page.evaluate(() => {
@@ -107,3 +116,14 @@ try {
   console.log(`Chromium renderer visual/resize/context/multi-instance validation passed at http://127.0.0.1:${address.port}/.testbed/demo/index.html`);
   console.log(`Visual evidence: ${[...evidence.map(([name]) => join(root, `screenshots/task11-renderer-profile-${name}.png`)), join(root, "screenshots/task8-renderer-flow.png")].join(", ")}`);
 } finally { await browser.close(); await new Promise((resolve) => server.close(resolve)); }
+
+/** @param {{left:number,top:number,right:number,bottom:number}} rect @param {{width:number,height:number}} viewport @param {string} label */
+function assertWithinViewport(rect, viewport, label) {
+  assertWithinBounds(rect, { left:0, top:0, right:viewport.width, bottom:viewport.height }, label);
+}
+
+/** @param {{left:number,top:number,right:number,bottom:number}} rect @param {{left:number,top:number,right:number,bottom:number}} bounds @param {string} label */
+function assertWithinBounds(rect, bounds, label) {
+  const tolerance = 0.5;
+  assert.ok(rect.left >= bounds.left - tolerance && rect.top >= bounds.top - tolerance && rect.right <= bounds.right + tolerance && rect.bottom <= bounds.bottom + tolerance, `${label} must be fully contained; rect=${JSON.stringify(rect)} bounds=${JSON.stringify(bounds)}`);
+}

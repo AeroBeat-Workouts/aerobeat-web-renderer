@@ -22,7 +22,7 @@ renderers[0].uploadIconAtlas(atlas); renderers[1].uploadIconAtlas(atlas);
 
 function draw() {
   renderers.forEach((renderer, index) => {
-    const rect = surfaces[index].getBoundingClientRect(); renderer.resize({ widthCssPx: rect.width, heightCssPx: rect.height, devicePixelRatio: window.devicePixelRatio });
+    const surface = surfaces[index]; renderer.resize({ widthCssPx: surface.clientWidth, heightCssPx: surface.clientHeight, devicePixelRatio: window.devicePixelRatio });
   });
   const targets = [
     { id:"straight",kind:"punch",hand:"left",family:"straight",cell:5,cells:[],lane:"left",beatCenterMs:1000 },
@@ -32,7 +32,7 @@ function draw() {
   ];
   const primary = renderers[0].renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets,blockedCells:[0,3],safeCells:[10],overlay:"none" });
   const secondary = renderers[1].renderGameplayFrame({ presentation:"boxing_semantic_track",nowMs:1000,targets:targets.slice(0,2),overlay:"calibrating",calibrationDim:0.18,countdown:3 });
-  const snapshot = { ready:true, primary:primary.status, secondary:secondary.status, primaryCommands:primary.plan.commands.length, secondaryCommands:secondary.plan.commands.length, primaryGrid:primary.plan.grid, secondaryGrid:secondary.plan.grid, secondaryTargetRect:secondary.plan.commands.find((entry) => entry.targetId === "straight" && entry.kind === "icon")?.rect ?? null };
+  const snapshot = { ready:true, primary:primary.status, secondary:secondary.status, primaryCommands:primary.plan.commands.length, secondaryCommands:secondary.plan.commands.length, primaryGrid:primary.plan.grid, secondaryGrid:secondary.plan.grid, primaryTargetRects:primary.plan.commands.filter((entry) => entry.targetId !== null).map((entry) => entry.rect), secondaryTargetRects:secondary.plan.commands.filter((entry) => entry.targetId !== null).map((entry) => entry.rect), secondaryTargetRect:secondary.plan.commands.find((entry) => entry.targetId === "straight" && entry.kind === "icon")?.rect ?? null };
   if (status) status.textContent = JSON.stringify(snapshot, null, 2);
   globalThis.__AERO_RENDERER_TEST__ = { ...snapshot, resize: draw, renderers, compactRendererVisualProfile };
 }

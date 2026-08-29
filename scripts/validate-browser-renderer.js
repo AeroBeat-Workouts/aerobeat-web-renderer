@@ -91,13 +91,16 @@ try {
   }
   const flowResult = await page.evaluate(() => {
     const renderer = globalThis.__AERO_RENDERER_TEST__.renderers[0];
-    const result = renderer.renderGameplayFrame({ presentation:"flow", nowMs:1000, blockedCells:[3], safeCells:[8], overlay:"none", targets:[
-      { id:"flow-up",kind:"flow",hand:"neutral",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,direction:"up",judgement:"hit",feedbackProgress:0.35 },
-      { id:"flow-right",kind:"flow",hand:"neutral",family:"flow",cell:6,cells:[],lane:null,beatCenterMs:1000,direction:"right",judgement:"miss",feedbackProgress:0.35 }
-    ] });
-    return { commands:result.plan.commands.length, directions:result.plan.commands.filter((entry) => entry.kind === "line").length };
+    const directions = ["up","up-right","right","down-right","down","down-left","left","up-left"];
+    const result = renderer.renderGameplayFrame({ presentation:"flow", nowMs:1000, blockedCells:[3], safeCells:[8], overlay:"none", targets:directions.map((direction,index) => ({ id:`flow-${direction}`,kind:"flow",hand:index%2===0?"left":"right",family:"flow",cell:index,cells:[],lane:null,beatCenterMs:1000,direction,judgement:"hit",feedbackProgress:0 })) });
+    const counts = Object.fromEntries(directions.map((direction) => [direction,result.plan.commands.filter((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5).length]));
+    const bounded = directions.every((direction) => {
+      const target = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 4);
+      return target && result.plan.commands.filter((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5).every((entry) => entry.rect.x >= target.rect.x && entry.rect.y >= target.rect.y && entry.rect.x + entry.rect.width <= target.rect.x + target.rect.width + Number.EPSILON * 64 && entry.rect.y + entry.rect.height <= target.rect.y + target.rect.height + Number.EPSILON * 64);
+    });
+    return { commands:result.plan.commands.length, lines:result.plan.commands.filter((entry) => entry.kind === "line").length, counts, bounded };
   });
-  assert.ok(flowResult.commands >= 18); assert.equal(flowResult.directions, 2);
+  assert.equal(flowResult.commands, 62); assert.equal(flowResult.lines, 32); assert.deepEqual(flowResult.counts, { up:2,"up-right":8,right:2,"down-right":8,down:2,"down-left":8,left:2,"up-left":8 }); assert.equal(flowResult.bounded, true);
   await page.screenshot({ path:join(root, "screenshots/task8-renderer-flow.png"), fullPage:true });
   await page.evaluate(() => globalThis.__AERO_RENDERER_TEST__.resize());
   const resized = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((entry) => ({ width: entry.width, height: entry.height })));

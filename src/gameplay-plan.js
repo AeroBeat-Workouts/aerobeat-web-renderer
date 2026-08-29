@@ -5,7 +5,7 @@
 /** @typedef {"rect" | "circle" | "ring" | "hatch" | "icon" | "line"} AeroDrawKind */
 /** @typedef {{x:number,y:number,width:number,height:number}} AeroNormalizedRect */
 /** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, layer:number, targetId:string|null}} AeroGameplayDrawCommand */
-/** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:"up"|"right"|"down"|"left"|null}} AeroRenderableTarget */
+/** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
 /** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, roleScale:number, dprCap:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
@@ -225,17 +225,39 @@ function command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId,
   return Object.freeze({ kind, role, rect: Object.freeze({ ...rect }), alpha, scale, saturation: clamp(saturation, 0, 1), iconId, hatch, layer, targetId });
 }
 
-/** @param {AeroNormalizedRect} rect @param {"up"|"right"|"down"|"left"} direction @returns {readonly {kind:"line"|"circle",rect:AeroNormalizedRect}[]} */
+/** @param {AeroNormalizedRect} rect @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection} direction @returns {readonly {kind:"line"|"circle",rect:AeroNormalizedRect}[]} */
 function directionCueRects(rect, direction) {
+  const supported = ["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"];
+  if (!supported.includes(direction)) throw new TypeError("Flow direction cue is unsupported");
   const thickness = Math.min(rect.width, rect.height) * 0.09;
-  const horizontal = direction === "left" || direction === "right";
-  const shaft = horizontal
-    ? { x: rect.x + rect.width * 0.25, y: rect.y + rect.height * 0.5 - thickness / 2, width: rect.width * 0.5, height: thickness }
-    : { x: rect.x + rect.width * 0.5 - thickness / 2, y: rect.y + rect.height * 0.25, width: thickness, height: rect.height * 0.5 };
+  const diagonal = direction.includes("-");
+  if (!diagonal) {
+    // Preserve the original cardinal command geometry byte-for-byte.
+    const horizontal = direction === "left" || direction === "right";
+    const shaft = horizontal
+      ? { x: rect.x + rect.width * 0.25, y: rect.y + rect.height * 0.5 - thickness / 2, width: rect.width * 0.5, height: thickness }
+      : { x: rect.x + rect.width * 0.5 - thickness / 2, y: rect.y + rect.height * 0.25, width: thickness, height: rect.height * 0.5 };
+    const size = thickness * 2.5;
+    const headX = direction === "left" ? rect.x + rect.width * 0.2 : direction === "right" ? rect.x + rect.width * 0.8 : rect.x + rect.width * 0.5;
+    const headY = direction === "up" ? rect.y + rect.height * 0.2 : direction === "down" ? rect.y + rect.height * 0.8 : rect.y + rect.height * 0.5;
+    return Object.freeze([{ kind: "line", rect: Object.freeze(shaft) }, { kind: "circle", rect: Object.freeze({ x: headX - size / 2, y: headY - size / 2, width: size, height: size }) }]);
+  }
+  const xSign = direction.endsWith("right") ? 1 : -1;
+  const ySign = direction.startsWith("down") ? 1 : -1;
+  const segments = 7;
+  /** @type {{kind:"line"|"circle",rect:AeroNormalizedRect}[]} */
+  const cues = [];
+  for (let index = 0; index < segments; index += 1) {
+    const offset = -0.2 + index * (0.4 / (segments - 1));
+    const centerX = rect.x + rect.width * (0.5 + xSign * offset);
+    const centerY = rect.y + rect.height * (0.5 + ySign * offset);
+    cues.push({ kind: "line", rect: Object.freeze({ x: centerX - thickness / 2, y: centerY - thickness / 2, width: thickness, height: thickness }) });
+  }
   const size = thickness * 2.5;
-  const headX = direction === "left" ? rect.x + rect.width * 0.2 : direction === "right" ? rect.x + rect.width * 0.8 : rect.x + rect.width * 0.5;
-  const headY = direction === "up" ? rect.y + rect.height * 0.2 : direction === "down" ? rect.y + rect.height * 0.8 : rect.y + rect.height * 0.5;
-  return Object.freeze([{ kind: "line", rect: Object.freeze(shaft) }, { kind: "circle", rect: Object.freeze({ x: headX - size / 2, y: headY - size / 2, width: size, height: size }) }]);
+  const headX = rect.x + rect.width * (0.5 + xSign * 0.3);
+  const headY = rect.y + rect.height * (0.5 + ySign * 0.3);
+  cues.push({ kind: "circle", rect: Object.freeze({ x: headX - size / 2, y: headY - size / 2, width: size, height: size }) });
+  return Object.freeze(cues);
 }
 
 /** @param {AeroNormalizedRect} rect @param {number} scale @returns {AeroNormalizedRect} */

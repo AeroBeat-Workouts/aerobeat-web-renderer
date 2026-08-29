@@ -1,6 +1,6 @@
 // @ts-check
 
-import { createAeroWebGl2Renderer, gameplayIconIds, rasterizeBrandingIconAtlas } from "../../src/index.js";
+import { compactRendererVisualProfile, createAeroWebGl2Renderer, gameplayIconIds, rasterizeBrandingIconAtlas } from "../../src/index.js";
 
 const surfaces = [...document.querySelectorAll(".surface")];
 const canvases = [...document.querySelectorAll("canvas")];
@@ -34,6 +34,6 @@ function draw() {
   const secondary = renderers[1].renderGameplayFrame({ presentation:"boxing_semantic_track",nowMs:1000,targets:targets.slice(0,2),overlay:"calibrating",calibrationDim:0.18,countdown:3 });
   const snapshot = { ready:true, primary:primary.status, secondary:secondary.status, primaryCommands:primary.plan.commands.length, secondaryCommands:secondary.plan.commands.length, primaryGrid:primary.plan.grid, secondaryGrid:secondary.plan.grid, secondaryTargetRect:secondary.plan.commands.find((entry) => entry.targetId === "straight" && entry.kind === "icon")?.rect ?? null };
   if (status) status.textContent = JSON.stringify(snapshot, null, 2);
-  globalThis.__AERO_RENDERER_TEST__ = { ...snapshot, resize: draw, renderers };
+  globalThis.__AERO_RENDERER_TEST__ = { ...snapshot, resize: draw, renderers, compactRendererVisualProfile };
 }
 draw();

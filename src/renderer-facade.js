@@ -3,8 +3,8 @@
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToClipSpace, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { buildGameplayRenderPlan, defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-plan.js";
-import { colorTokenToRgba, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererTuning } from "./visual-profiles.js";
+import { buildGameplayRenderPlan, defaultRendererThemeTokens } from "./gameplay-plan.js";
+import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 /** @type {"aero.renderer.webgl2"} */
 export const aeroWebGl2RendererServiceId = "aero.renderer.webgl2";
@@ -18,7 +18,7 @@ export const aeroWebGl2RendererServiceId = "aero.renderer.webgl2";
 /** @typedef {"unsupported"|"ready"|"running"|"context_lost"|"error"|"destroyed"} AeroRendererState */
 /** @typedef {{widthCssPx:number,heightCssPx:number,devicePixelRatio:number,maxDevicePixelRatio?:number}} AeroRendererResize */
 /** @typedef {{surface?:AeroRendererOverlaySurfaceDescriptorInput,connections?:readonly (readonly [number,number])[],minVisibility?:number,color?:readonly [number,number,number,number],pointSize?:number}} AeroRendererOverlayOptions */
-/** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,themeVersion:string,themeHash:string,tuningId:string,tuningVersion:string,tuningHash:string,tuningRequiresRegeneration:false,iconAtlasReady:boolean,iconAtlasError:string|null,errorMessage:string|null}} AeroWebGl2RendererStatus */
+/** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,themeVersion:string,themeHash:string,tuningId:string,tuningVersion:string,tuningHash:string,tuningRequiresRegeneration:false,visualProfile:import("./visual-profiles.js").AeroRendererVisualProfileSelection,visualProfileIdentity:import("./visual-profiles.js").AeroRendererVisualIdentity,visualProfileSettings:import("./visual-profiles.js").AeroRendererVisualSettings,experimental:true,iconAtlasReady:boolean,iconAtlasError:string|null,errorMessage:string|null}} AeroWebGl2RendererStatus */
 /** @typedef {{serviceId:"aero.renderer.webgl2",webgl2:boolean,exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:boolean,liveTuning:true,maxDevicePixelRatio:number,degradations:readonly string[]}} AeroWebGl2RendererCapabilities */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,shapeLocation:WebGLUniformLocation|null,ringWidthLocation:WebGLUniformLocation|null}} ShapeProgram */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,uvRectLocation:WebGLUniformLocation|null,samplerLocation:WebGLUniformLocation|null}} IconProgram */
@@ -43,7 +43,8 @@ export class AeroWebGl2Renderer {
     /** @type {Map<string, import("./icon-atlas.js").AeroIconAtlasEntry>} */ this.iconEntries = new Map();
     /** @type {AeroRendererState} */ this.state = "unsupported";
     /** @type {AeroRendererThemeTokens} */ this.theme = defaultRendererThemeTokens;
-    /** @type {AeroRendererTuning} */ this.tuning = defaultRendererTuning;
+    this.visualProfile = defaultRendererVisualProfile;
+    /** @type {AeroRendererTuning} */ this.tuning = rendererTuningFromVisualProfile(this.visualProfile);
     this.themeId = "aero.theme.default";
     this.themeVersion = "1";
     this.themeHash = "theme-default";
@@ -110,14 +111,23 @@ export class AeroWebGl2Renderer {
     return this.describe();
   }
 
-  /** @param {unknown} tuning @returns {AeroWebGl2RendererStatus} */
-  setTuning(tuning) { if (!this.destroyed) this.tuning = normalizeRendererTuning(tuning); return this.describe(); }
-  /** @param {unknown} tuning @returns {AeroWebGl2RendererStatus} */
-  importTuning(tuning) { return this.setTuning(tuning); }
+  /** @param {unknown} selection @returns {AeroWebGl2RendererStatus} */
+  setTuning(selection) { return this.importTuning(selection); }
+  /** @param {unknown} selection @returns {AeroWebGl2RendererStatus} */
+  importTuning(selection) {
+    if (this.destroyed) return this.describe();
+    const visualProfile = normalizeRendererVisualProfile(selection);
+    const tuning = rendererTuningFromVisualProfile(visualProfile);
+    this.visualProfile = visualProfile;
+    this.tuning = tuning;
+    return this.describe();
+  }
   /** @returns {AeroWebGl2RendererStatus} */
-  resetTuning() { if (!this.destroyed) this.tuning = defaultRendererTuning; return this.describe(); }
-  /** @returns {AeroRendererTuning} */
-  exportTuning() { return Object.freeze({ ...this.tuning }); }
+  resetTuning() { if (!this.destroyed) { this.visualProfile = defaultRendererVisualProfile; this.tuning = rendererTuningFromVisualProfile(this.visualProfile); } return this.describe(); }
+  /** @returns {import("./visual-profiles.js").AeroRendererVisualProfileSelection} */
+  exportTuning() { return this.visualProfile; }
+  /** @returns {AeroWebGl2RendererStatus} */
+  getSnapshot() { return this.describe(); }
   /** @param {unknown} background @returns {AeroWebGl2RendererStatus} */
   setBackgroundProjection(background) { if (!this.destroyed) this.background = normalizeBackgroundProjection(background); return this.describe(); }
 
@@ -214,7 +224,7 @@ export class AeroWebGl2Renderer {
 
   /** @returns {AeroWebGl2RendererStatus} */
   describe() {
-    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, state: this.state, supported: Boolean(this.gl), attached: Boolean(this.canvas && this.gl), contextLost: this.contextLost, destroyed: this.destroyed, frameCount: this.frameCount, drawCount: this.drawCount, viewportWidth: this.gl?.drawingBufferWidth ?? this.canvas?.width ?? 0, viewportHeight: this.gl?.drawingBufferHeight ?? this.canvas?.height ?? 0, widthCssPx: this.widthCssPx, heightCssPx: this.heightCssPx, devicePixelRatio: this.devicePixelRatio, themeId: this.themeId, themeVersion: this.themeVersion, themeHash: this.themeHash, tuningId: this.tuning.id, tuningVersion: this.tuning.version, tuningHash: this.tuning.hash, tuningRequiresRegeneration: false, iconAtlasReady: Boolean(this.iconTexture), iconAtlasError: this.iconAtlasError, errorMessage: this.errorMessage });
+    return Object.freeze({ serviceId: aeroWebGl2RendererServiceId, state: this.state, supported: Boolean(this.gl), attached: Boolean(this.canvas && this.gl), contextLost: this.contextLost, destroyed: this.destroyed, frameCount: this.frameCount, drawCount: this.drawCount, viewportWidth: this.gl?.drawingBufferWidth ?? this.canvas?.width ?? 0, viewportHeight: this.gl?.drawingBufferHeight ?? this.canvas?.height ?? 0, widthCssPx: this.widthCssPx, heightCssPx: this.heightCssPx, devicePixelRatio: this.devicePixelRatio, themeId: this.themeId, themeVersion: this.themeVersion, themeHash: this.themeHash, tuningId: this.tuning.id, tuningVersion: this.tuning.version, tuningHash: this.tuning.hash, tuningRequiresRegeneration: false, visualProfile: this.visualProfile, visualProfileIdentity: this.visualProfile.identity, visualProfileSettings: this.visualProfile.settings, experimental: true, iconAtlasReady: Boolean(this.iconTexture), iconAtlasError: this.iconAtlasError, errorMessage: this.errorMessage });
   }
 
   /** @returns {AeroWebGl2RendererStatus} */

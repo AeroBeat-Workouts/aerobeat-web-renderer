@@ -51,6 +51,21 @@ try {
   ];
   await mkdir(join(root, "screenshots"), { recursive: true });
   for (const [name, width, height] of evidence) {
+    if (name === "phone-390") {
+      const liveProfile = await page.evaluate(() => {
+        const test = globalThis.__AERO_RENDERER_TEST__;
+        const renderer = test.renderers[0];
+        const canvas = document.querySelector("canvas");
+        const beforeFrames = renderer.describe().frameCount;
+        renderer.importTuning(test.compactRendererVisualProfile);
+        test.resize();
+        return { sameCanvas:canvas === document.querySelector("canvas"), beforeFrames, status:renderer.describe(), exported:renderer.exportTuning() };
+      });
+      assert.equal(liveProfile.sameCanvas, true);
+      assert.ok(liveProfile.status.frameCount > liveProfile.beforeFrames);
+      assert.equal(liveProfile.status.visualProfileIdentity.profileId, "aero.visual.compact");
+      assert.deepEqual(liveProfile.exported.settings, { motionIntensity:0.8, roleScale:0.86 });
+    }
     await page.setViewportSize({ width, height });
     const metrics = await page.evaluate(() => {
       globalThis.__AERO_RENDERER_TEST__.resize();
@@ -63,7 +78,7 @@ try {
     });
     assert.ok(Math.abs(metrics.cellWidth - metrics.cellHeight) < 0.02, `${name} spatial cells must remain physically square`);
     assert.ok(Math.abs(metrics.trackWidth - metrics.trackHeight) < 0.02, `${name} Track icons must remain physically square`);
-    await page.screenshot({ path: join(root, `screenshots/task8-renderer-${name}.png`), fullPage: true });
+    await page.screenshot({ path: join(root, `screenshots/task11-renderer-profile-${name}.png`) });
   }
   const flowResult = await page.evaluate(() => {
     const renderer = globalThis.__AERO_RENDERER_TEST__.renderers[0];
@@ -90,5 +105,5 @@ try {
   await page.evaluate(() => globalThis.__AERO_RENDERER_TEST__.resize());
   assert.deepEqual(noise, []);
   console.log(`Chromium renderer visual/resize/context/multi-instance validation passed at http://127.0.0.1:${address.port}/.testbed/demo/index.html`);
-  console.log(`Visual evidence: ${[...evidence.map(([name]) => join(root, `screenshots/task8-renderer-${name}.png`)), join(root, "screenshots/task8-renderer-flow.png")].join(", ")}`);
+  console.log(`Visual evidence: ${[...evidence.map(([name]) => join(root, `screenshots/task11-renderer-profile-${name}.png`)), join(root, "screenshots/task8-renderer-flow.png")].join(", ")}`);
 } finally { await browser.close(); await new Promise((resolve) => server.close(resolve)); }

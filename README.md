@@ -14,7 +14,7 @@ It does not own camera/media, CV, the hidden calibrated athlete grid, input evid
 - `attach`, `resize`, `detach`, and `destroy` own the canvas lifecycle.
 - `renderGameplayFrame` draws Flow, Spatial Grid Boxing, or Semantic Track Boxing from already-resolved serializable targets.
 - `renderLandmarkOverlay` preserves normalized pose/hand debug overlays.
-- `setTheme`, `setTuning`, `resetTuning`, `exportTuning`, and `setBackgroundProjection` accept visual data only.
+- `setTheme`, `setTuning`/`importTuning`, `resetTuning`, `exportTuning`, and `setBackgroundProjection` accept visual data only. Tuning imports are exact `{identity,settings}` records from the public prototype-profile surface.
 - `uploadIconAtlas`, `normalizeBrandingIconManifest`, and `rasterizeBrandingIconAtlas` implement the alpha-mask icon path.
 - `buildGameplayRenderPlan` exposes deterministic screenshot-free draw commands for tests and diagnostics.
 - `getCapabilities` and `describe` expose immutable, serializable state without pixels, screenshots, canvases, textures, or media objects.
@@ -31,7 +31,7 @@ Approved SVG masters are resolved from `aerobeat-branding/icons/web-gameplay/man
 
 ## Container and lifecycle
 
-Assembly passes the exact parent content box and effective DPR to `resize()`. Tuning caps DPR (default 2); portrait, landscape, zero-size, rapid resize, and arbitrary aspect ratios use the same aspect-aware layout. Theme/tuning status exposes active IDs, versions and hashes; renderer-only tuning is live and explicitly reports `tuningRequiresRegeneration: false`. Imported tuning hashes are verified. Context restoration rebuilds GPU programs and the private atlas texture. `detach()` releases listeners and GPU objects; `destroy()` is synchronous, terminal, idempotent, and rejects later visual mutation.
+Assembly passes the exact parent content box and effective DPR to `resize()`. Tuning caps DPR (default 2); portrait, landscape, zero-size, rapid resize, and arbitrary aspect ratios use the same aspect-aware layout. Theme/tuning status exposes active IDs, versions and hashes; renderer-only tuning is live and explicitly reports `tuningRequiresRegeneration: false`. The experimental public `aero.visual.default` and `aero.visual.compact` selections preserve their exact `aerobeat/prototype_tuning_identity` plus bounded `{motionIntensity,roleScale}` settings in status, snapshot and deterministic export telemetry. Imports reject malformed, accessor-bearing, wrong-class, regeneration-required or hash/settings-mismatched records atomically; reset restores the exact default identity. Context restoration rebuilds GPU programs and the private atlas texture. `detach()` releases listeners and GPU objects; `destroy()` is synchronous, terminal, idempotent, and rejects later visual mutation.
 
 ## Validation
 
@@ -42,6 +42,6 @@ npm run test:browser
 npm pack --dry-run
 ```
 
-Unit validation covers deterministic layout, physically square 4x3 cells and Track targets across extreme aspects, named easing and feedback, connected guards, obstacle/safe cues, instance isolation, zero/rapid resize and DPR, strict atlas upload/cancellation, theme/tuning narrowing, context restoration, and disposal. Chromium validation renders desktop, 390px portrait, landscape and Flow states, exercises context loss when supported, fails on console noise, and writes ignored visual evidence under `screenshots/task8-renderer-*.png`.
+Unit validation covers deterministic layout, physically square 4x3 cells and Track targets across extreme aspects, named easing and feedback, connected guards, obstacle/safe cues, instance isolation, zero/rapid resize and DPR, strict atlas upload/cancellation, theme/tuning narrowing, context restoration, and disposal. Chromium validation renders desktop, 390px portrait, landscape and Flow states, exercises context loss when supported, fails on console noise, and writes ignored baseline evidence under `screenshots/task8-renderer-*.png` and live-profile desktop/390px/landscape evidence under `screenshots/task11-renderer-profile-*.png`.
 
 Implementation decisions live under `docs/decisions/`; public product documentation belongs in `aerobeat-web-docs` after integration is accepted.

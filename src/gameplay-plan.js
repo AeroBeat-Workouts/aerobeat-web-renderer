@@ -7,7 +7,7 @@
 /** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, layer:number, targetId:string|null}} AeroGameplayDrawCommand */
 /** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:"up"|"right"|"down"|"left"|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
-/** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, dprCap:number}} AeroRendererTuning */
+/** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, roleScale:number, dprCap:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{commands:readonly AeroGameplayDrawCommand[], overlay:Readonly<{kind:string,dim:number,countdown:number|null}>, presentation:AeroGameplayPresentation, grid:Readonly<{x:number,y:number,width:number,height:number,columns:4,rows:3}>}} AeroGameplayRenderPlan */
 
@@ -15,13 +15,14 @@
 export const defaultRendererTuning = Object.freeze({
   id: "aero.renderer.prototype.default",
   version: "1",
-  hash: "visual-7dcc90bd",
+  hash: "visual-538685f6",
   gridInset: 0.055,
   gridGap: 0.018,
   receptorAlpha: 0.22,
   approachRingScale: 1.55,
   approachRingWidth: 0.08,
   laneWidth: 0.22,
+  roleScale: 1,
   dprCap: 2
 });
 
@@ -165,7 +166,8 @@ function addTarget(commands, frame, target, grid, theme, tuning) {
     alpha *= 1 - feedback * 0.9;
   }
   const rects = targetRects(frame.presentation, target, grid, tuning, frame.viewportAspect);
-  for (const baseRect of rects) {
+  for (const targetRect of rects) {
+    const baseRect = scaledRect(targetRect, tuning.roleScale);
     const rect = scaledRect(baseRect, scale);
     const iconId = iconIdFor(target);
     const kind = target.kind === "obstacle" ? "hatch" : iconId ? "icon" : "circle";

@@ -6,7 +6,9 @@ import {
   applyNamedEasing,
   buildGameplayRenderPlan,
   cellRect,
+  compactRendererVisualProfile,
   createAeroWebGl2Renderer,
+  defaultRendererVisualProfile,
   fitPlayfieldGrid,
   gameplayIconIds,
   normalizeBrandingIconManifest,
@@ -121,31 +123,66 @@ const rendered = renderer.renderGameplayFrame({ presentation: "boxing_spatial_gr
 assert.equal(rendered.status.state, "running");
 assert.ok(first.gl.drawCalls > 12);
 assert.equal(second.gl.drawCalls, 0, "renderer instances must not leak draws");
-assert.equal(other.describe().tuningId, "aero.renderer.prototype.default");
+assert.equal(other.describe().tuningId, "aero.visual.default");
 assert.equal(other.describe().themeId, "aero.theme.default");
 
 const theme = { schema: "aerobeat/theme_descriptor", version: 1, id: "theme.qa", themeVersion: "1", tokens: { leftHandColor: "#1122ff", rightHandColor: "#22ff44", guardColor: "#aa44ee", obstacleColor: "#ee3344", receptorColor: "#eeeeee", approachLeadMs: 1200, targetStartScale: 0.3, targetHitScale: 1, approachEasing: "linear", hitEasing: "ease-out", missEasing: "ease-out" }, contentHash: { schema: "aerobeat/content_hash", version: 1, algorithm: "sha256", value: "0".repeat(64) } };
 renderer.setTheme(theme);
-renderer.setTuning({ id: "visual.compact", version: "2", gridInset: 0.1, gridGap: 0.01, receptorAlpha: 0.3, approachRingScale: 1.7, approachRingWidth: 0.05, laneWidth: 0.18, dprCap: 1.5 });
+assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
+const defaultVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
+renderer.setTuning(compactRendererVisualProfile);
 assert.equal(renderer.describe().themeId, "theme.qa");
 assert.equal(renderer.describe().themeVersion, "1");
 assert.equal(renderer.describe().themeHash, "0".repeat(64));
-assert.equal(renderer.exportTuning().id, "visual.compact");
-assert.match(renderer.exportTuning().hash, /^visual-[0-9a-f]{8}$/u);
-assert.equal(renderer.describe().tuningVersion, "2");
+assert.deepEqual(renderer.exportTuning(), compactRendererVisualProfile);
+assert.deepEqual(renderer.getSnapshot().visualProfileIdentity, compactRendererVisualProfile.identity);
+assert.deepEqual(renderer.describe().visualProfileSettings, { motionIntensity:0.8, roleScale:0.86 });
+assert.equal(renderer.describe().tuningId, "aero.visual.compact");
+assert.equal(renderer.describe().tuningVersion, "1.0.0");
 assert.equal(renderer.describe().tuningRequiresRegeneration, false);
+assert.equal(renderer.describe().experimental, true);
+const compactVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
+const defaultIcon = defaultVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
+const compactIcon = compactVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
+const defaultRing = defaultVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "ring");
+const compactRing = compactVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "ring");
+assert.ok(defaultIcon && compactIcon && compactIcon.rect.width < defaultIcon.rect.width && compactIcon.rect.height < defaultIcon.rect.height, "compact roleScale must apply live without recreating the renderer");
+assert.ok(defaultRing && compactRing && compactRing.scale < defaultRing.scale, "compact motionIntensity must reduce ring travel");
+assert.deepEqual(other.exportTuning(), defaultRendererVisualProfile, "visual selections must remain instance-local");
 const exportedTuning = renderer.exportTuning();
 renderer.resetTuning();
+assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
 renderer.importTuning(exportedTuning);
 assert.deepEqual(renderer.exportTuning(), exportedTuning);
-renderer.importTuning({ ...exportedTuning, hash: "visual-deadbeef" });
-assert.equal(renderer.describe().tuningId, "aero.renderer.prototype.default", "mismatched imported hashes must reset to the accepted default");
-renderer.importTuning(exportedTuning);
+const acceptedBeforeInvalid = renderer.exportTuning();
+let getterInvoked = false;
+const accessorSelection = {};
+Object.defineProperty(accessorSelection, "identity", { enumerable:true, get(){ getterInvoked = true; return compactRendererVisualProfile.identity; } });
+Object.defineProperty(accessorSelection, "settings", { enumerable:true, value:compactRendererVisualProfile.settings });
+const malformedSelections = [
+  accessorSelection,
+  { identity:{ ...compactRendererVisualProfile.identity, class:"between_run_ruleset" },settings:compactRendererVisualProfile.settings },
+  { identity:{ ...compactRendererVisualProfile.identity, class:"converter_regeneration",regenerationRequired:true },settings:compactRendererVisualProfile.settings },
+  { identity:{ ...compactRendererVisualProfile.identity, contentHash:"0".repeat(64) },settings:compactRendererVisualProfile.settings },
+  { identity:{ ...compactRendererVisualProfile.identity, profileId:"x".repeat(129) },settings:compactRendererVisualProfile.settings },
+  { identity:compactRendererVisualProfile.identity,settings:{ motionIntensity:0.8 } },
+  { identity:compactRendererVisualProfile.identity,settings:{ ...compactRendererVisualProfile.settings, extra:true } },
+  { identity:compactRendererVisualProfile.identity,settings:{ motionIntensity:3,roleScale:0.86 } },
+  { identity:compactRendererVisualProfile.identity,settings:new Uint8Array([1,2]) },
+  { identity:compactRendererVisualProfile.identity,settings:{ motionIntensity:{ nested:{ too:{ deep:true } } },roleScale:0.86 } },
+  Object.assign(Object.create({}), compactRendererVisualProfile),
+  { identity:compactRendererVisualProfile.identity,settings:compactRendererVisualProfile.settings,extra:true }
+];
+for (const malformed of malformedSelections) {
+  assert.throws(() => renderer.importTuning(malformed), TypeError);
+  assert.deepEqual(renderer.exportTuning(), acceptedBeforeInvalid, "rejected tuning imports must be atomic");
+}
+assert.equal(getterInvoked, false, "visual tuning validation must not invoke accessors");
 const invalidTheme = { ...theme, id:"theme.invalid", tokens:{ ...theme.tokens, leftHandColor:"not-a-renderer-color", approachEasing:"spring" } };
 renderer.setTheme(invalidTheme);
 assert.equal(renderer.describe().themeId, "aero.theme.default", "unsupported external theme tokens must not retain external identity");
 renderer.setTheme(theme);
-assert.equal(renderer.resize({ widthCssPx: 100, heightCssPx: 100, devicePixelRatio: 4 }).devicePixelRatio, 1.5);
+assert.equal(renderer.resize({ widthCssPx: 100, heightCssPx: 100, devicePixelRatio: 4 }).devicePixelRatio, 2);
 
 first.dispatch("webglcontextlost", { preventDefault() {} });
 assert.equal(renderer.describe().state, "context_lost");

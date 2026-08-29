@@ -7,6 +7,17 @@ import { defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-pl
 /** @typedef {import("./gameplay-plan.js").AeroRendererTuning} AeroRendererTuning */
 /** @typedef {{schema:"aerobeat/theme_descriptor",version:1,id:string,themeVersion:string,tokens:AeroRendererThemeTokens,contentHash:Readonly<{algorithm:string,value:string}>}} AeroThemeDescriptor */
 /** @typedef {{kind:"solid"|"linear-gradient",colors:readonly string[],angleDeg:number}} AeroRendererBackgroundProjection */
+/** @typedef {Readonly<{schema:"aerobeat/prototype_tuning_identity",version:1,profileId:string,profileVersion:string,contentHash:string,class:"live_visual",regenerationRequired:false}>} AeroRendererVisualIdentity */
+/** @typedef {Readonly<{motionIntensity:number,roleScale:number}>} AeroRendererVisualSettings */
+/** @typedef {Readonly<{identity:AeroRendererVisualIdentity,settings:AeroRendererVisualSettings}>} AeroRendererVisualProfileSelection */
+
+const DEFAULT_VISUAL_HASH = "fdcf478c91e21ef88970299e29fcc35d574bfe69e0d7d00d9f823ee9507f39a3";
+const COMPACT_VISUAL_HASH = "e65d53dfaafe8a859c08837acb3d447b10b03508bd5ae64677d273c93657d603";
+
+/** @type {AeroRendererVisualProfileSelection} */
+export const defaultRendererVisualProfile = visualProfile("aero.visual.default", DEFAULT_VISUAL_HASH, 1, 1);
+/** @type {AeroRendererVisualProfileSelection} */
+export const compactRendererVisualProfile = visualProfile("aero.visual.compact", COMPACT_VISUAL_HASH, 0.8, 0.86);
 
 /**
  * Narrow a public theme descriptor into renderer-owned immutable tokens.
@@ -42,7 +53,7 @@ export function normalizeRendererTheme(value) {
  */
 export function normalizeRendererTuning(value) {
   if (!isRecord(value)) return defaultRendererTuning;
-  const numberNames = ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "dprCap"];
+  const numberNames = ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap"];
   const requiredNames = ["id", "version", ...numberNames];
   const keys = Object.keys(value);
   if (!keys.every((key) => requiredNames.includes(key) || key === "hash") || !requiredNames.every((key) => keys.includes(key)) || typeof value.id !== "string" || value.id.length === 0 || typeof value.version !== "string" || value.version.length === 0 || !numberNames.every((name) => typeof value[name] === "number" && Number.isFinite(value[name]))) {
@@ -51,11 +62,51 @@ export function normalizeRendererTuning(value) {
   const normalized = {
     id: value.id, version: value.version,
     gridInset: clamp(Number(value.gridInset), 0, 0.25), gridGap: clamp(Number(value.gridGap), 0, 0.08), receptorAlpha: clamp(Number(value.receptorAlpha), 0, 1),
-    approachRingScale: clamp(Number(value.approachRingScale), 1, 3), approachRingWidth: clamp(Number(value.approachRingWidth), 0.01, 0.3), laneWidth: clamp(Number(value.laneWidth), 0.1, 0.4), dprCap: clamp(Number(value.dprCap), 1, 4)
+    approachRingScale: clamp(Number(value.approachRingScale), 1, 3), approachRingWidth: clamp(Number(value.approachRingWidth), 0.01, 0.3), laneWidth: clamp(Number(value.laneWidth), 0.1, 0.4), roleScale: clamp(Number(value.roleScale), 0.5, 1.5), dprCap: clamp(Number(value.dprCap), 1, 4)
   };
   const hash = stableVisualHash(normalized);
   if (value.hash !== undefined && value.hash !== hash) return defaultRendererTuning;
   return Object.freeze({ ...normalized, hash });
+}
+
+/**
+ * Strictly narrow one public gameplay visual selection without depending on the
+ * gameplay package. Only the two content-hashed experimental Task 11 profiles
+ * are renderer inputs; scoring/converter identities never cross this adapter.
+ *
+ * @param {unknown} value
+ * @returns {AeroRendererVisualProfileSelection}
+ */
+export function normalizeRendererVisualProfile(value) {
+  const outer = exactDataRecord(value, ["identity", "settings"], "Visual profile selection");
+  const identity = exactDataRecord(outer.identity, ["schema", "version", "profileId", "profileVersion", "contentHash", "class", "regenerationRequired"], "Visual profile identity");
+  const settings = exactDataRecord(outer.settings, ["motionIntensity", "roleScale"], "Visual profile settings");
+  if (identity.schema !== "aerobeat/prototype_tuning_identity" || identity.version !== 1 || identity.class !== "live_visual" || identity.regenerationRequired !== false) throw new TypeError("Visual profile identity is incompatible with live renderer tuning");
+  for (const name of ["profileId", "profileVersion", "contentHash"]) if (typeof identity[name] !== "string" || identity[name].length === 0 || identity[name].length > 128) throw new TypeError(`Visual profile ${name} is invalid`);
+  if (!/^[0-9a-f]{64}$/u.test(String(identity.contentHash))) throw new TypeError("Visual profile contentHash must be bare lowercase SHA-256");
+  if (typeof settings.motionIntensity !== "number" || !Number.isFinite(settings.motionIntensity) || settings.motionIntensity < 0 || settings.motionIntensity > 2 || typeof settings.roleScale !== "number" || !Number.isFinite(settings.roleScale) || settings.roleScale < 0.5 || settings.roleScale > 1.5) throw new TypeError("Visual profile settings are outside renderer bounds");
+  const normalized = visualProfile(String(identity.profileId), String(identity.contentHash), Number(settings.motionIntensity), Number(settings.roleScale), String(identity.profileVersion));
+  const expected = normalized.identity.profileId === "aero.visual.default" ? defaultRendererVisualProfile : normalized.identity.profileId === "aero.visual.compact" ? compactRendererVisualProfile : null;
+  if (!expected || !sameVisualSelection(normalized, expected)) throw new TypeError("Visual profile identity, settings, or content hash is not a supported experimental profile");
+  return expected;
+}
+
+/** @param {AeroRendererVisualProfileSelection} profile @returns {AeroRendererTuning} */
+export function rendererTuningFromVisualProfile(profile) {
+  const motionIntensity = profile.settings.motionIntensity;
+  const roleScale = profile.settings.roleScale;
+  return normalizeRendererTuning({
+    id: profile.identity.profileId,
+    version: profile.identity.profileVersion,
+    gridInset: defaultRendererTuning.gridInset,
+    gridGap: defaultRendererTuning.gridGap,
+    receptorAlpha: defaultRendererTuning.receptorAlpha,
+    approachRingScale: 1 + (defaultRendererTuning.approachRingScale - 1) * motionIntensity,
+    approachRingWidth: defaultRendererTuning.approachRingWidth * Math.max(0.5, motionIntensity),
+    laneWidth: defaultRendererTuning.laneWidth,
+    roleScale,
+    dprCap: defaultRendererTuning.dprCap
+  });
 }
 
 /**
@@ -107,3 +158,31 @@ function isNamedEasing(value) { return value === "linear" || value === "ease-in"
 function isRecord(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 /** @param {number} value @param {number} minimum @param {number} maximum */
 function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(maximum, value)); }
+
+/** @param {string} profileId @param {string} contentHash @param {number} motionIntensity @param {number} roleScale @param {string} [profileVersion] @returns {AeroRendererVisualProfileSelection} */
+function visualProfile(profileId, contentHash, motionIntensity, roleScale, profileVersion = "1.0.0") {
+  return Object.freeze({
+    identity: Object.freeze({ schema: "aerobeat/prototype_tuning_identity", version: 1, profileId, profileVersion, contentHash, class: "live_visual", regenerationRequired: false }),
+    settings: Object.freeze({ motionIntensity, roleScale })
+  });
+}
+
+/** @param {unknown} value @param {readonly string[]} keys @param {string} label @returns {Record<string,unknown>} */
+function exactDataRecord(value, keys, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype || Object.getOwnPropertySymbols(value).length !== 0) throw new TypeError(`${label} must be a plain data record`);
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const names = Object.keys(descriptors);
+  if (names.length !== keys.length || !keys.every((key) => names.includes(key))) throw new TypeError(`${label} fields are invalid`);
+  /** @type {Record<string,unknown>} */ const result = {};
+  for (const key of keys) {
+    const descriptor = descriptors[key];
+    if (!descriptor || !("value" in descriptor) || descriptor.enumerable !== true) throw new TypeError(`${label} must not contain accessors or hidden fields`);
+    result[key] = descriptor.value;
+  }
+  return result;
+}
+
+/** @param {AeroRendererVisualProfileSelection} left @param {AeroRendererVisualProfileSelection} right */
+function sameVisualSelection(left, right) {
+  return left.identity.profileId === right.identity.profileId && left.identity.profileVersion === right.identity.profileVersion && left.identity.contentHash === right.identity.contentHash && left.settings.motionIntensity === right.settings.motionIntensity && left.settings.roleScale === right.settings.roleScale;
+}

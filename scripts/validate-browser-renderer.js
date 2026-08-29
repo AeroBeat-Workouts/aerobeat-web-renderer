@@ -133,7 +133,7 @@ try {
     });
     assertDirectionPixels(pixels.results, name);
     flowPixelEvidence.push({ name, ...pixels });
-    await page.screenshot({ path:join(root, `screenshots/task12-renderer-flow-direction-${name}.png`), fullPage:true });
+    await page.locator(".surface").first().screenshot({ path:join(root, `screenshots/task12-renderer-flow-direction-${name}.png`) });
   }
   assert.equal(flowPixelEvidence.length, 3);
   const themeContrast = await page.evaluate(() => {

@@ -8,6 +8,7 @@ import {
   cellRect,
   compactRendererVisualProfile,
   createAeroWebGl2Renderer,
+  defaultRendererTuning,
   defaultRendererVisualProfile,
   fitPlayfieldGrid,
   gameplayIconIds,
@@ -15,6 +16,7 @@ import {
   normalizeIconAtlasData,
   rasterizeBrandingIconAtlas
 } from "../src/index.js";
+import { rendererTuningFromVisualProfile } from "../src/visual-profiles.js";
 
 assert.deepEqual(cellRect(0, { x: 0, y: 0, width: 1, height: 1 }, 0), { x: 0, y: 0, width: 0.25, height: 1 / 3 });
 assert.deepEqual(cellRect(11, { x: 0, y: 0, width: 1, height: 1 }, 0), { x: 0.75, y: 2 / 3, width: 0.25, height: 1 / 3 });
@@ -34,6 +36,18 @@ for (const [width, height] of [[240,1200],[1600,300]]) {
 assert.equal(applyNamedEasing(0.5, "linear"), 0.5);
 assert.equal(applyNamedEasing(0.5, "ease-in"), 0.25);
 assert.equal(applyNamedEasing(0.5, "ease-out"), 0.75);
+
+const mappedDefaultTuning = rendererTuningFromVisualProfile(defaultRendererVisualProfile);
+const mappedCompactTuning = rendererTuningFromVisualProfile(compactRendererVisualProfile);
+assert.equal(mappedDefaultTuning.id, "aero.visual.default");
+assert.equal(mappedDefaultTuning.hash, "visual-a3e8d245");
+assert.equal(mappedDefaultTuning.roleScale, 1);
+for (const key of ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap"]) assert.equal(mappedDefaultTuning[key], defaultRendererTuning[key], `default profile must preserve legacy renderer tuning ${key}`);
+assert.equal(mappedCompactTuning.id, "aero.visual.compact");
+assert.equal(mappedCompactTuning.hash, "visual-99e2444c");
+assert.equal(mappedCompactTuning.roleScale, 0.86);
+assert.ok(mappedCompactTuning.approachRingScale < mappedDefaultTuning.approachRingScale);
+assert.ok(mappedCompactTuning.approachRingWidth < mappedDefaultTuning.approachRingWidth);
 
 const targetBase = { id: "target", kind: /** @type {const} */ ("punch"), hand: /** @type {const} */ ("left"), family: /** @type {const} */ ("straight"), cell: 5, cells: [], lane: /** @type {const} */ ("left"), beatCenterMs: 1000 };
 const spawn = buildGameplayRenderPlan({ presentation: "boxing_spatial_grid", nowMs: 100, targets: [targetBase] });
@@ -129,6 +143,8 @@ assert.equal(other.describe().themeId, "aero.theme.default");
 const theme = { schema: "aerobeat/theme_descriptor", version: 1, id: "theme.qa", themeVersion: "1", tokens: { leftHandColor: "#1122ff", rightHandColor: "#22ff44", guardColor: "#aa44ee", obstacleColor: "#ee3344", receptorColor: "#eeeeee", approachLeadMs: 1200, targetStartScale: 0.3, targetHitScale: 1, approachEasing: "linear", hitEasing: "ease-out", missEasing: "ease-out" }, contentHash: { schema: "aerobeat/content_hash", version: 1, algorithm: "sha256", value: "0".repeat(64) } };
 renderer.setTheme(theme);
 assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
+assert.deepEqual(renderer.describe().visualProfile, defaultRendererVisualProfile);
+assert.equal(renderer.describe().tuningHash, "visual-a3e8d245");
 const defaultVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
 renderer.setTuning(compactRendererVisualProfile);
 assert.equal(renderer.describe().themeId, "theme.qa");
@@ -138,6 +154,7 @@ assert.deepEqual(renderer.exportTuning(), compactRendererVisualProfile);
 assert.deepEqual(renderer.getSnapshot().visualProfileIdentity, compactRendererVisualProfile.identity);
 assert.deepEqual(renderer.describe().visualProfileSettings, { motionIntensity:0.8, roleScale:0.86 });
 assert.equal(renderer.describe().tuningId, "aero.visual.compact");
+assert.equal(renderer.describe().tuningHash, "visual-99e2444c");
 assert.equal(renderer.describe().tuningVersion, "1.0.0");
 assert.equal(renderer.describe().tuningRequiresRegeneration, false);
 assert.equal(renderer.describe().experimental, true);

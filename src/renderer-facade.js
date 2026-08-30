@@ -228,16 +228,17 @@ export class AeroWebGl2Renderer {
    * @returns {AeroGameplayCursorResult}
    */
   renderGameplayCursors(cursors, options) {
-    if (!Array.isArray(cursors)) throw new TypeError("Gameplay cursors must be an array");
-    const grid = normalizeGameplayCursorGrid(options?.grid);
-    const minConfidence = Math.max(0, Math.min(1, finitePositiveOrZero(options?.minConfidence, 0.5)));
-    const sizeCssPx = Math.max(12, finitePositive(options?.sizeCssPx, 18));
+    const normalizedOptions = normalizeGameplayCursorOptions(options);
+    const grid = normalizeGameplayCursorGrid(normalizedOptions.grid);
+    const minConfidence = Math.max(0, Math.min(1, finitePositiveOrZero(normalizedOptions.minConfidence, 0.5)));
+    const sizeCssPx = Math.max(12, Math.min(64, finitePositive(normalizedOptions.sizeCssPx, 18)));
+    const current = normalizeGameplayCursors(cursors, minConfidence);
     const gl = this.gl;
     if (!gl || this.destroyed || this.contextLost || this.widthCssPx <= 0 || this.heightCssPx <= 0) return Object.freeze({ status:this.describe(), cursorCount:0, roles:Object.freeze([]) });
     const roles = /** @type {AeroGameplayCursorRole[]} */ ([]);
     try {
       for (const role of gameplayCursorRoles) {
-        const cursor = cursors.find((candidate) => candidate?.role === role && validGameplayCursor(candidate, minConfidence));
+        const cursor = current.get(role);
         if (!cursor) continue;
         const centerX = grid.x + cursor.x * grid.width;
         const centerY = grid.y + cursor.y * grid.height;
@@ -323,19 +324,67 @@ export function createAeroWebGl2Renderer(options) { return new AeroWebGl2Rendere
 
 /** Canonical draw order also makes returned role evidence deterministic. @type {readonly AeroGameplayCursorRole[]} */
 const gameplayCursorRoles = Object.freeze(["nose","left_wrist","right_wrist"]);
+const gameplayCursorRoleSet = new Set(gameplayCursorRoles);
+const maxGameplayCursorCandidates = 12;
+
+/**
+ * @param {unknown} value
+ * @returns {AeroGameplayCursorOptions}
+ */
+function normalizeGameplayCursorOptions(value) {
+  if (!isPlainDataRecord(value)) throw new TypeError("Gameplay cursor options are required");
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (Object.keys(descriptors).some((key) => !["grid","minConfidence","sizeCssPx"].includes(key))) throw new TypeError("Gameplay cursor options contain unsupported fields");
+  if (!isDataDescriptor(descriptors.grid)) throw new TypeError("Gameplay cursor grid is required");
+  for (const key of ["minConfidence","sizeCssPx"]) if (descriptors[key] && !isDataDescriptor(descriptors[key])) throw new TypeError(`Gameplay cursor ${key} must be data`);
+  return /** @type {AeroGameplayCursorOptions} */ ({ grid:descriptors.grid.value,minConfidence:descriptors.minConfidence?.value,sizeCssPx:descriptors.sizeCssPx?.value });
+}
+
+/**
+ * Invalid and repeated semantic candidates are intentionally omitted. Candidate count is
+ * bounded before inspection so malformed callers cannot turn a three-cursor draw into
+ * unbounded work. Accessor-bearing records are never invoked.
+ * @param {unknown} value
+ * @param {number} minConfidence
+ * @returns {ReadonlyMap<AeroGameplayCursorRole,AeroGameplayCursor>}
+ */
+function normalizeGameplayCursors(value, minConfidence) {
+  if (!Array.isArray(value)) throw new TypeError("Gameplay cursors must be an array");
+  if (value.length > maxGameplayCursorCandidates) throw new TypeError(`Gameplay cursors cannot exceed ${maxGameplayCursorCandidates} candidates`);
+  /** @type {Map<AeroGameplayCursorRole,AeroGameplayCursor>} */ const normalized = new Map();
+  for (const candidate of value) {
+    if (!isPlainDataRecord(candidate)) continue;
+    const descriptors = Object.getOwnPropertyDescriptors(candidate);
+    if (Object.keys(descriptors).length !== 4 || ["role","x","y","confidence"].some((key) => !isDataDescriptor(descriptors[key]))) continue;
+    const role = descriptors.role.value;
+    if (!gameplayCursorRoleSet.has(role) || normalized.has(role)) continue;
+    const cursor = /** @type {AeroGameplayCursor} */ ({ role,x:descriptors.x.value,y:descriptors.y.value,confidence:descriptors.confidence.value });
+    if (validGameplayCursor(cursor, minConfidence)) normalized.set(role, Object.freeze(cursor));
+  }
+  return normalized;
+}
 
 /** @param {unknown} value @returns {{x:number,y:number,width:number,height:number}} */
 function normalizeGameplayCursorGrid(value) {
-  if (!value || typeof value !== "object") throw new TypeError("Gameplay cursor grid is required");
-  const grid = /** @type {{x?:unknown,y?:unknown,width?:unknown,height?:unknown}} */ (value);
-  if (![grid.x,grid.y,grid.width,grid.height].every((entry) => typeof entry === "number" && Number.isFinite(entry))) throw new TypeError("Gameplay cursor grid must contain finite coordinates");
-  const x = Number(grid.x); const y = Number(grid.y); const width = Number(grid.width); const height = Number(grid.height);
+  if (!isPlainDataRecord(value)) throw new TypeError("Gameplay cursor grid is required");
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const keys = ["x","y","width","height"];
+  const allowed = [...keys,"columns","rows"];
+  if (Object.keys(descriptors).some((key) => !allowed.includes(key)) || keys.some((key) => !isDataDescriptor(descriptors[key])) || ["columns","rows"].some((key) => descriptors[key] && !isDataDescriptor(descriptors[key]))) throw new TypeError("Gameplay cursor grid must contain exact data coordinates");
+  if ((descriptors.columns && descriptors.columns.value !== 4) || (descriptors.rows && descriptors.rows.value !== 3)) throw new TypeError("Gameplay cursor grid dimensions must remain 4x3");
+  const [x,y,width,height] = keys.map((key) => descriptors[key].value);
+  if (![x,y,width,height].every((entry) => typeof entry === "number" && Number.isFinite(entry))) throw new TypeError("Gameplay cursor grid must contain finite coordinates");
   if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > 1 || y + height > 1) throw new TypeError("Gameplay cursor grid must remain inside normalized viewport space");
   return { x,y,width,height };
 }
 
 /** @param {AeroGameplayCursor|undefined} cursor @param {number} minConfidence @returns {cursor is AeroGameplayCursor} */
 function validGameplayCursor(cursor, minConfidence) { return Boolean(cursor && Number.isFinite(cursor.x) && Number.isFinite(cursor.y) && cursor.x >= 0 && cursor.x <= 1 && cursor.y >= 0 && cursor.y <= 1 && Number.isFinite(cursor.confidence) && cursor.confidence >= minConfidence); }
+
+/** @param {unknown} value @returns {value is Record<string,unknown>} */
+function isPlainDataRecord(value) { if (!value || typeof value !== "object" || Array.isArray(value)) return false; const prototype = Object.getPrototypeOf(value); return prototype === Object.prototype || prototype === null; }
+/** @param {PropertyDescriptor|undefined} descriptor @returns {descriptor is PropertyDescriptor & {value:unknown}} */
+function isDataDescriptor(descriptor) { return Boolean(descriptor && Object.hasOwn(descriptor, "value") && descriptor.get === undefined && descriptor.set === undefined); }
 
 /** @param {number|undefined} value @param {number} fallback */
 function finitePositive(value, fallback) { return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback; }

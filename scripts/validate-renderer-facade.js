@@ -184,6 +184,32 @@ const lowConfidenceDraws = first.gl.drawCalls;
 const lowConfidenceResult = renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.2,confidence:0.49 }], { grid:rendered.plan.grid });
 assert.equal(lowConfidenceResult.cursorCount, 0);
 assert.equal(first.gl.drawCalls, lowConfidenceDraws, "low-confidence cursors must not draw");
+let cursorAccessorInvoked = false;
+const accessorCursor = {};
+Object.defineProperty(accessorCursor, "role", { enumerable:true,get(){ cursorAccessorInvoked = true; return "nose"; } });
+for (const [key,value] of [["x",0.5],["y",0.5],["confidence",1]]) Object.defineProperty(accessorCursor,key,{ enumerable:true,value });
+const boundedDraws = first.gl.drawCalls;
+const boundedResult = renderer.renderGameplayCursors([
+  accessorCursor,
+  { role:"unknown",x:0.5,y:0.5,confidence:1 },
+  { role:"nose",x:0.4,y:0.4,confidence:1,extra:true },
+  { role:"nose",x:0.45,y:0.45,confidence:1 },
+  { role:"nose",x:0.55,y:0.55,confidence:1 }
+], { grid:rendered.plan.grid,sizeCssPx:Number.MAX_VALUE });
+assert.equal(cursorAccessorInvoked, false, "cursor validation must not invoke accessors");
+assert.deepEqual(boundedResult.roles, ["nose"], "invalid, unknown, and repeated semantic candidates must be omitted");
+assert.equal(first.gl.drawCalls-boundedDraws, 3, "only the first valid canonical role may draw");
+assert.throws(() => renderer.renderGameplayCursors(Array.from({ length:13 }, () => ({ role:"nose",x:0.5,y:0.5,confidence:1 })), { grid:rendered.plan.grid }), /cannot exceed 12/u);
+let optionsAccessorInvoked = false;
+const accessorOptions = {};
+Object.defineProperty(accessorOptions,"grid",{ enumerable:true,get(){ optionsAccessorInvoked = true; return rendered.plan.grid; } });
+assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ (accessorOptions)), /grid/u);
+assert.equal(optionsAccessorInvoked, false, "cursor option validation must not invoke accessors");
+let gridAccessorInvoked = false;
+const accessorGrid = { y:0.1,width:0.8,height:0.8 };
+Object.defineProperty(accessorGrid,"x",{ enumerable:true,get(){ gridAccessorInvoked = true; return 0.1; } });
+assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ ({ grid:accessorGrid })), /grid/u);
+assert.equal(gridAccessorInvoked, false, "cursor grid validation must not invoke accessors");
 assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ ({})), /grid/u);
 assert.equal(second.gl.drawCalls, 0, "renderer instances must not leak draws");
 assert.equal(other.describe().tuningId, "aero.visual.default");

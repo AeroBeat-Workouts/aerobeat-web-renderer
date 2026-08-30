@@ -13,7 +13,7 @@ It does not own camera/media, CV, the hidden calibrated athlete grid, input evid
 - `createAeroWebGl2Renderer()` / `AeroWebGl2Renderer` create independent instances.
 - `attach`, `resize`, `detach`, and `destroy` own the canvas lifecycle.
 - `renderGameplayFrame` draws Flow, Spatial Grid Boxing, or Semantic Track Boxing from already-resolved serializable targets.
-- `renderGameplayCursors` additively draws exactly the semantic nose, left-wrist, and right-wrist gameplay cursors from current calibrated grid-space coordinates. Call it after each gameplay frame; it retains no pose state, filters low confidence, and renders DPR-invariant dual-tone cursors at least 12 CSS pixels wide.
+- `renderGameplayCursors` additively draws exactly the semantic nose, left-wrist, and right-wrist gameplay cursors from current calibrated grid-space coordinates. Call it after each gameplay frame; it retains no pose state, filters low-confidence/invalid/repeated roles without invoking accessors, bounds each call to 12 candidates and 12–64 CSS pixels, and renders DPR-invariant black/white/role-layered cursors.
 - `renderLandmarkOverlay` preserves normalized pose/hand debug overlays.
 - `setTheme`, `setTuning`/`importTuning`, `resetTuning`, `exportTuning`, and `setBackgroundProjection` accept visual data only. Tuning imports are exact `{identity,settings}` records from the public prototype-profile surface.
 - `uploadIconAtlas`, `normalizeBrandingIconManifest`, and `rasterizeBrandingIconAtlas` implement the alpha-mask icon path.

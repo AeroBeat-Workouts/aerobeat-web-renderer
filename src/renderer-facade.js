@@ -18,6 +18,10 @@ export const aeroWebGl2RendererServiceId = "aero.renderer.webgl2";
 /** @typedef {"unsupported"|"ready"|"running"|"context_lost"|"error"|"destroyed"} AeroRendererState */
 /** @typedef {{widthCssPx:number,heightCssPx:number,devicePixelRatio:number,maxDevicePixelRatio?:number}} AeroRendererResize */
 /** @typedef {{surface?:AeroRendererOverlaySurfaceDescriptorInput,connections?:readonly (readonly [number,number])[],minVisibility?:number,color?:readonly [number,number,number,number],pointSize?:number}} AeroRendererOverlayOptions */
+/** @typedef {"nose"|"left_wrist"|"right_wrist"} AeroGameplayCursorRole */
+/** @typedef {{role:AeroGameplayCursorRole,x:number,y:number,confidence:number}} AeroGameplayCursor */
+/** @typedef {{grid:Readonly<{x:number,y:number,width:number,height:number}>,minConfidence?:number,sizeCssPx?:number}} AeroGameplayCursorOptions */
+/** @typedef {{status:AeroWebGl2RendererStatus,cursorCount:number,roles:readonly AeroGameplayCursorRole[]}} AeroGameplayCursorResult */
 /** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,themeVersion:string,themeHash:string,tuningId:string,tuningVersion:string,tuningHash:string,tuningRequiresRegeneration:false,visualProfile:import("./visual-profiles.js").AeroRendererVisualProfileSelection,visualProfileIdentity:import("./visual-profiles.js").AeroRendererVisualIdentity,visualProfileSettings:import("./visual-profiles.js").AeroRendererVisualSettings,experimental:true,iconAtlasReady:boolean,iconAtlasError:string|null,errorMessage:string|null}} AeroWebGl2RendererStatus */
 /** @typedef {{serviceId:"aero.renderer.webgl2",webgl2:boolean,exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:boolean,liveTuning:true,maxDevicePixelRatio:number,degradations:readonly string[]}} AeroWebGl2RendererCapabilities */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,shapeLocation:WebGLUniformLocation|null,ringWidthLocation:WebGLUniformLocation|null}} ShapeProgram */
@@ -213,6 +217,45 @@ export class AeroWebGl2Renderer {
     } catch (error) { this.fail(error); return { status: this.describe(), pointCount: 0, lineVertexCount: 0 }; }
   }
 
+  /**
+   * Draws bounded semantic gameplay cursors after a gameplay frame. Coordinates are
+   * already-calibrated athlete positions normalized within the supplied playfield grid.
+   * The method is deliberately stateless: callers redraw current cursors after every
+   * `renderGameplayFrame`, which keeps stale tracking evidence off the canvas.
+   *
+   * @param {readonly AeroGameplayCursor[]} cursors
+   * @param {AeroGameplayCursorOptions} options
+   * @returns {AeroGameplayCursorResult}
+   */
+  renderGameplayCursors(cursors, options) {
+    if (!Array.isArray(cursors)) throw new TypeError("Gameplay cursors must be an array");
+    const grid = normalizeGameplayCursorGrid(options?.grid);
+    const minConfidence = Math.max(0, Math.min(1, finitePositiveOrZero(options?.minConfidence, 0.5)));
+    const sizeCssPx = Math.max(12, finitePositive(options?.sizeCssPx, 18));
+    const gl = this.gl;
+    if (!gl || this.destroyed || this.contextLost || this.widthCssPx <= 0 || this.heightCssPx <= 0) return Object.freeze({ status:this.describe(), cursorCount:0, roles:Object.freeze([]) });
+    const roles = /** @type {AeroGameplayCursorRole[]} */ ([]);
+    try {
+      for (const role of gameplayCursorRoles) {
+        const cursor = cursors.find((candidate) => candidate?.role === role && validGameplayCursor(candidate, minConfidence));
+        if (!cursor) continue;
+        const centerX = grid.x + cursor.x * grid.width;
+        const centerY = grid.y + cursor.y * grid.height;
+        const centerColor = role === "nose" ? /** @type {const} */ ([1,0.76,0.04,1]) : this.roleColor(role === "left_wrist" ? "left" : "right", 1, 1);
+        this.drawCursorLayer(centerX, centerY, sizeCssPx, [0,0,0,1]);
+        this.drawCursorLayer(centerX, centerY, sizeCssPx * 0.76, [1,1,1,1]);
+        this.drawCursorLayer(centerX, centerY, sizeCssPx * 0.48, centerColor);
+        roles.push(role);
+        this.drawCount += 3;
+      }
+      if (roles.length > 0) this.state = "running";
+      return Object.freeze({ status:this.describe(), cursorCount:roles.length, roles:Object.freeze(roles) });
+    } catch (error) {
+      this.fail(error);
+      return Object.freeze({ status:this.describe(), cursorCount:0, roles:Object.freeze([]) });
+    }
+  }
+
   /** @returns {AeroWebGl2RendererCapabilities} */
   getCapabilities() {
     const degradations = [];
@@ -260,6 +303,8 @@ export class AeroWebGl2Renderer {
     const channel = whiteContrast > blackContrast ? 1 : 0;
     return [channel, channel, channel, target[3]];
   }
+  /** @param {number} centerX @param {number} centerY @param {number} diameterCssPx @param {readonly [number,number,number,number]} color */
+  drawCursorLayer(centerX, centerY, diameterCssPx, color) { const width = diameterCssPx / this.widthCssPx; const height = diameterCssPx / this.heightCssPx; this.drawShape({ x:centerX-width/2,y:centerY-height/2,width,height }, color, 1, 0); }
   /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {number} shape @param {number} ringWidth */
   drawShape(rect, color, shape, ringWidth) { const gl = this.gl; if (!gl) return; const program = this.shapeProgram ?? createShapeProgram(gl); this.shapeProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.uniform4f(program.colorLocation, ...color); gl.uniform1i(program.shapeLocation, shape); gl.uniform1f(program.ringWidthLocation, ringWidth); gl.drawArrays(gl.TRIANGLES, 0, 6); }
   /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {import("./icon-atlas.js").AeroIconAtlasEntry|undefined} entry */
@@ -275,6 +320,27 @@ export class AeroWebGl2Renderer {
 
 /** @param {{contextAttributes?:WebGLContextAttributes}} [options] @returns {AeroWebGl2Renderer} */
 export function createAeroWebGl2Renderer(options) { return new AeroWebGl2Renderer(options); }
+
+/** Canonical draw order also makes returned role evidence deterministic. @type {readonly AeroGameplayCursorRole[]} */
+const gameplayCursorRoles = Object.freeze(["nose","left_wrist","right_wrist"]);
+
+/** @param {unknown} value @returns {{x:number,y:number,width:number,height:number}} */
+function normalizeGameplayCursorGrid(value) {
+  if (!value || typeof value !== "object") throw new TypeError("Gameplay cursor grid is required");
+  const grid = /** @type {{x?:unknown,y?:unknown,width?:unknown,height?:unknown}} */ (value);
+  if (![grid.x,grid.y,grid.width,grid.height].every((entry) => typeof entry === "number" && Number.isFinite(entry))) throw new TypeError("Gameplay cursor grid must contain finite coordinates");
+  const x = Number(grid.x); const y = Number(grid.y); const width = Number(grid.width); const height = Number(grid.height);
+  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > 1 || y + height > 1) throw new TypeError("Gameplay cursor grid must remain inside normalized viewport space");
+  return { x,y,width,height };
+}
+
+/** @param {AeroGameplayCursor|undefined} cursor @param {number} minConfidence @returns {cursor is AeroGameplayCursor} */
+function validGameplayCursor(cursor, minConfidence) { return Boolean(cursor && Number.isFinite(cursor.x) && Number.isFinite(cursor.y) && cursor.x >= 0 && cursor.x <= 1 && cursor.y >= 0 && cursor.y <= 1 && Number.isFinite(cursor.confidence) && cursor.confidence >= minConfidence); }
+
+/** @param {number|undefined} value @param {number} fallback */
+function finitePositive(value, fallback) { return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback; }
+/** @param {number|undefined} value @param {number} fallback */
+function finitePositiveOrZero(value, fallback) { return Number.isFinite(value) && Number(value) >= 0 ? Number(value) : fallback; }
 
 /** @param {WebGL2RenderingContext} gl @returns {ShapeProgram} */
 function createShapeProgram(gl) { const program = linkProgram(gl, QUAD_VERTEX, SHAPE_FRAGMENT); const buffer = requiredBuffer(gl); return { program, buffer, positionLocation: gl.getAttribLocation(program, "a_position"), localLocation: gl.getAttribLocation(program, "a_local"), colorLocation: gl.getUniformLocation(program, "u_color"), shapeLocation: gl.getUniformLocation(program, "u_shape"), ringWidthLocation: gl.getUniformLocation(program, "u_ringWidth") }; }

@@ -170,6 +170,21 @@ renderer.uploadIconAtlas({ width: 4, height: 4, pixels: atlasPixels, entries: co
 const rendered = renderer.renderGameplayFrame({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [targetBase], blockedCells: [0], safeCells: [11] });
 assert.equal(rendered.status.state, "running");
 assert.ok(first.gl.drawCalls > 12);
+const drawsBeforeCursors = first.gl.drawCalls;
+const cursorResult = renderer.renderGameplayCursors([
+  { role:"right_wrist",x:0.8,y:0.7,confidence:0.9 },
+  { role:"nose",x:0.5,y:0.2,confidence:0.95 },
+  { role:"left_wrist",x:0.2,y:0.7,confidence:0.49 },
+  { role:"left_wrist",x:0.25,y:0.72,confidence:0.91 }
+], { grid:rendered.plan.grid,sizeCssPx:8 });
+assert.equal(cursorResult.cursorCount, 3);
+assert.deepEqual(cursorResult.roles, ["nose","left_wrist","right_wrist"], "semantic cursors must use canonical topmost draw order");
+assert.equal(first.gl.drawCalls - drawsBeforeCursors, 9, "each cursor must use black, white, and role-color layers");
+const lowConfidenceDraws = first.gl.drawCalls;
+const lowConfidenceResult = renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.2,confidence:0.49 }], { grid:rendered.plan.grid });
+assert.equal(lowConfidenceResult.cursorCount, 0);
+assert.equal(first.gl.drawCalls, lowConfidenceDraws, "low-confidence cursors must not draw");
+assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ ({})), /grid/u);
 assert.equal(second.gl.drawCalls, 0, "renderer instances must not leak draws");
 assert.equal(other.describe().tuningId, "aero.visual.default");
 assert.equal(other.describe().themeId, "aero.theme.default");
@@ -237,9 +252,11 @@ assert.equal(renderer.resize({ widthCssPx: 100, heightCssPx: 100, devicePixelRat
 
 first.dispatch("webglcontextlost", { preventDefault() {} });
 assert.equal(renderer.describe().state, "context_lost");
+assert.equal(renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount, 0, "context loss must reject cursor draws without retaining them");
 first.dispatch("webglcontextrestored", {});
 assert.equal(renderer.describe().state, "ready");
 assert.equal(renderer.describe().iconAtlasReady, true, "context restoration must rebuild private atlas texture");
+assert.equal(renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount, 1, "context restoration must rebuild cursor GPU resources on demand");
 renderer.renderGameplayFrame({ presentation: "flow", nowMs: 1000, targets: [] });
 renderer.detach();
 assert.equal(first.listenerCount(), 0);
@@ -251,6 +268,7 @@ renderer.setTuning({ id:"forbidden-after-destroy",version:"1",gridInset:0.1,grid
 renderer.setTheme(theme);
 assert.equal(renderer.describe().tuningId, terminalTuning);
 assert.equal(renderer.describe().state, "destroyed");
+assert.equal(renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount, 0, "destroyed renderers must remain terminal for cursor draws");
 assert.equal(first.listenerCount(), 0);
 assert.ok(first.gl.deletedPrograms > 0);
 assert.equal(renderer.describe().iconAtlasReady, false);

@@ -173,6 +173,76 @@ try {
     return { commands:result.plan.commands.length, lines:result.plan.commands.filter((entry) => entry.kind === "line").length, counts, bounded };
   });
   assert.equal(flowResult.commands, 62); assert.equal(flowResult.lines, 32); assert.deepEqual(flowResult.counts, { up:2,"up-right":8,right:2,"down-right":8,down:2,"down-left":8,left:2,"up-left":8 }); assert.equal(flowResult.bounded, true);
+
+  const cursorPixelEvidence = [];
+  for (const [viewport,width,height] of [["portrait",390,844],["landscape",844,390]]) for (const requestedDpr of [1,3]) {
+    const cursorPixels = await page.evaluate(({ width,height,requestedDpr }) => {
+      const test = globalThis.__AERO_RENDERER_TEST__; const renderer = test.renderers[0]; const canvas = document.querySelector("canvas");
+      renderer.resize({ widthCssPx:width,heightCssPx:height,devicePixelRatio:requestedDpr });
+      const gl = canvas.getContext("webgl2");
+      const plan = renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[] }).plan;
+      const grid = plan.grid;
+      const cursors = [
+        { role:"nose",x:0.5,y:0.22,confidence:0.95 },
+        { role:"left_wrist",x:0.2,y:0.72,confidence:0.9 },
+        { role:"right_wrist",x:0.8,y:0.72,confidence:0.9 }
+      ];
+      const backgrounds = [[0,0,0,1],[1,1,1,1]].map((background) => {
+        renderer.clear({ color:background }); const baseline = readPixels();
+        renderer.clear({ color:background }); const result = renderer.renderGameplayCursors(cursors, { grid,sizeCssPx:18,minConfidence:0.5 }); const actual = readPixels();
+        return { background:background[0] === 0 ? "black" : "white",cursorCount:result.cursorCount,roles:result.roles,probes:cursors.map((cursor) => probeCursor(cursor,baseline,actual,grid,renderer.describe().devicePixelRatio)) };
+      });
+      renderer.clear({ color:[0,0,0,1] }); const lowBaseline = readPixels();
+      const lowResult = renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:0.49 }], { grid,minConfidence:0.5 }); const lowActual = readPixels();
+      const lowChanged = changedCount(lowBaseline,lowActual);
+      const gameplay = renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[] });
+      const centerX = Math.round((gameplay.plan.grid.x + gameplay.plan.grid.width * 0.5) * gl.drawingBufferWidth);
+      const centerY = Math.round((1 - gameplay.plan.grid.y - gameplay.plan.grid.height * 0.5) * gl.drawingBufferHeight);
+      const beforeTopmost = sample(centerX,centerY);
+      renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:gameplay.plan.grid });
+      const afterTopmost = sample(centerX,centerY);
+      renderer.clear({ color:[0,0,0,1] }); const movementBaseline = readPixels();
+      renderer.clear({ color:[0,0,0,1] }); renderer.renderGameplayCursors([{ role:"nose",x:0.2,y:0.5,confidence:1 }], { grid }); const movementLeft = probeCursor({ role:"nose",x:0.2,y:0.5,confidence:1 },movementBaseline,readPixels(),grid,renderer.describe().devicePixelRatio);
+      renderer.clear({ color:[0,0,0,1] }); renderer.renderGameplayCursors([{ role:"nose",x:0.8,y:0.5,confidence:1 }], { grid }); const movementRight = probeCursor({ role:"nose",x:0.8,y:0.5,confidence:1 },movementBaseline,readPixels(),grid,renderer.describe().devicePixelRatio);
+      const firstDefault = renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[] }); const firstDefaultPixels = readPixels();
+      const secondDefault = renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[] }); const secondDefaultPixels = readPixels();
+      return { requestedDpr,effectiveDpr:renderer.describe().devicePixelRatio,drawingBufferWidth:gl.drawingBufferWidth,drawingBufferHeight:gl.drawingBufferHeight,backgrounds,lowCursorCount:lowResult.cursorCount,lowChanged,topmostDelta:maxChannelDelta(beforeTopmost,afterTopmost),topmostCenter:afterTopmost,movementLeft,movementRight,defaultStable:changedCount(firstDefaultPixels,secondDefaultPixels) === 0,defaultDrawDelta:secondDefault.status.drawCount-firstDefault.status.drawCount,defaultExpectedDraws:secondDefault.plan.commands.length };
+      function readPixels(){ const output=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4); gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,output); return output; }
+      function sample(x,y){ const output=new Uint8Array(4); gl.readPixels(Math.max(0,Math.min(gl.drawingBufferWidth-1,x)),Math.max(0,Math.min(gl.drawingBufferHeight-1,y)),1,1,gl.RGBA,gl.UNSIGNED_BYTE,output); return [...output]; }
+      function changedCount(before,after){ let count=0; for(let offset=0;offset<before.length;offset+=4) if(maxChannelDelta(before.subarray(offset,offset+3),after.subarray(offset,offset+3))>3) count+=1; return count; }
+      function maxChannelDelta(before,after){ return Math.max(Math.abs(before[0]-after[0]),Math.abs(before[1]-after[1]),Math.abs(before[2]-after[2])); }
+      function probeCursor(cursor,before,after,cursorGrid,effectiveDpr){
+        const expectedX=(cursorGrid.x+cursor.x*cursorGrid.width)*gl.drawingBufferWidth; const expectedY=(1-cursorGrid.y-cursor.y*cursorGrid.height)*gl.drawingBufferHeight; const radius=Math.ceil(11*effectiveDpr);
+        let count=0,minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,sumX=0,sumY=0,maxLuminanceDelta=0;
+        for(let y=Math.max(0,Math.floor(expectedY-radius));y<=Math.min(gl.drawingBufferHeight-1,Math.ceil(expectedY+radius));y+=1) for(let x=Math.max(0,Math.floor(expectedX-radius));x<=Math.min(gl.drawingBufferWidth-1,Math.ceil(expectedX+radius));x+=1){
+          const offset=(y*gl.drawingBufferWidth+x)*4; const difference=maxChannelDelta(before.subarray(offset,offset+3),after.subarray(offset,offset+3)); if(difference<=3) continue;
+          const beforeLuminance=before[offset]*0.2126+before[offset+1]*0.7152+before[offset+2]*0.0722; const afterLuminance=after[offset]*0.2126+after[offset+1]*0.7152+after[offset+2]*0.0722;
+          count+=1;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);sumX+=x+0.5;sumY+=y+0.5;maxLuminanceDelta=Math.max(maxLuminanceDelta,Math.abs(afterLuminance-beforeLuminance));
+        }
+        return { role:cursor.role,count,widthCss:count?(maxX-minX+1)/effectiveDpr:0,heightCss:count?(maxY-minY+1)/effectiveDpr:0,centroidX:count?sumX/count:null,centroidY:count?sumY/count:null,expectedX,expectedY,maxLuminanceDelta,center:sample(Math.round(expectedX),Math.round(expectedY)) };
+      }
+    }, { width,height,requestedDpr });
+    assert.equal(cursorPixels.requestedDpr, requestedDpr);
+    assert.equal(cursorPixels.effectiveDpr, Math.min(requestedDpr,2), `${viewport} renderer DPR cap must remain truthful`);
+    assert.equal(cursorPixels.lowCursorCount, 0); assert.equal(cursorPixels.lowChanged, 0, `${viewport} DPR${requestedDpr} low confidence must draw no pixels`);
+    assert.ok(cursorPixels.topmostDelta > 80, `${viewport} DPR${requestedDpr} cursors must be topmost over gameplay: ${JSON.stringify(cursorPixels)}`);
+    assert.equal(cursorPixels.defaultStable, true, `${viewport} DPR${requestedDpr} default gameplay must remain byte-stable without cursor call`);
+    assert.equal(cursorPixels.defaultDrawDelta, cursorPixels.defaultExpectedDraws, `${viewport} DPR${requestedDpr} cursor draws must retain no default gameplay state`);
+    assert.ok(Math.abs((cursorPixels.movementRight.centroidX-cursorPixels.movementLeft.centroidX)-(cursorPixels.movementRight.expectedX-cursorPixels.movementLeft.expectedX))/cursorPixels.effectiveDpr < 1, `${viewport} DPR${requestedDpr} cursor movement must follow supplied grid X`);
+    for (const background of cursorPixels.backgrounds) {
+      assert.equal(background.cursorCount, 3); assert.deepEqual(background.roles, ["nose","left_wrist","right_wrist"]);
+      assert.equal(new Set(background.probes.map((probe) => probe.center.slice(0,3).join(","))).size, 3, `${viewport} DPR${requestedDpr} ${background.background} role centers must remain distinct`);
+      for (const probe of background.probes) {
+        assert.ok(probe.widthCss >= 12 && probe.heightCss >= 12, `${viewport} DPR${requestedDpr} ${background.background} ${probe.role} must remain >=12 CSS px: ${JSON.stringify(probe)}`);
+        assert.ok(probe.count / (cursorPixels.effectiveDpr ** 2) >= 70, `${viewport} DPR${requestedDpr} ${background.background} ${probe.role} visible area too small: ${JSON.stringify(probe)}`);
+        assert.ok(Math.abs(probe.centroidX-probe.expectedX)/cursorPixels.effectiveDpr < 1 && Math.abs(probe.centroidY-probe.expectedY)/cursorPixels.effectiveDpr < 1, `${viewport} DPR${requestedDpr} ${background.background} ${probe.role} centroid drifted: ${JSON.stringify(probe)}`);
+        assert.ok(probe.maxLuminanceDelta > 90, `${viewport} DPR${requestedDpr} ${background.background} ${probe.role} lacks contrast: ${JSON.stringify(probe)}`);
+      }
+    }
+    cursorPixelEvidence.push({ viewport,...cursorPixels });
+  }
+  assert.equal(cursorPixelEvidence.length, 4);
+  console.log("Gameplay cursor framebuffer validation passed for DPR1/3 portrait/landscape over black/white backgrounds.");
   await page.screenshot({ path:join(root, "screenshots/task8-renderer-flow.png"), fullPage:true });
   await page.evaluate(() => globalThis.__AERO_RENDERER_TEST__.resize());
   const resized = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((entry) => ({ width: entry.width, height: entry.height })));
@@ -182,10 +252,16 @@ try {
     const canvas = document.querySelector("canvas");
     const gl = canvas.getContext("webgl2"); const extension = gl.getExtension("WEBGL_lose_context");
     if (!extension) return { supported:false, state:renderer.describe().state };
-    extension.loseContext(); await new Promise((resolve) => setTimeout(resolve, 40)); const lost = renderer.describe().state;
-    extension.restoreContext(); await new Promise((resolve) => setTimeout(resolve, 100)); return { supported:true,lost,restored:renderer.describe().state,atlas:renderer.describe().iconAtlasReady };
+    const cursor = [{ role:"nose",x:0.5,y:0.5,confidence:1 }]; const options = { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } };
+    extension.loseContext(); await new Promise((resolve) => setTimeout(resolve, 40)); const lost = renderer.describe().state; const lostCursorCount = renderer.renderGameplayCursors(cursor,options).cursorCount;
+    extension.restoreContext(); await new Promise((resolve) => setTimeout(resolve, 100)); const restoredCursorCount = renderer.renderGameplayCursors(cursor,options).cursorCount; return { supported:true,lost,lostCursorCount,restored:renderer.describe().state,restoredCursorCount,atlas:renderer.describe().iconAtlasReady };
   });
-  if (contextResult.supported) { assert.equal(contextResult.lost, "context_lost"); assert.equal(contextResult.restored, "ready"); assert.equal(contextResult.atlas, true); }
+  if (contextResult.supported) { assert.equal(contextResult.lost, "context_lost"); assert.equal(contextResult.lostCursorCount, 0); assert.equal(contextResult.restored, "running"); assert.equal(contextResult.restoredCursorCount, 1); assert.equal(contextResult.atlas, true); }
+  const terminalCursor = await page.evaluate(() => {
+    const Renderer = globalThis.__AERO_RENDERER_TEST__.renderers[0].constructor; const canvas = document.createElement("canvas"); const renderer = new Renderer(); renderer.attach(canvas); renderer.resize({ widthCssPx:100,heightCssPx:100,devicePixelRatio:1 });
+    const before = renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount; renderer.destroy(); const after = renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount; return { before,after,state:renderer.describe().state,attached:renderer.describe().attached };
+  });
+  assert.deepEqual(terminalCursor, { before:1,after:0,state:"destroyed",attached:false });
   await page.evaluate(() => globalThis.__AERO_RENDERER_TEST__.resize());
   assert.deepEqual(noise, []);
   console.log(`Chromium renderer visual/resize/context/multi-instance validation passed at http://127.0.0.1:${address.port}/.testbed/demo/index.html`);

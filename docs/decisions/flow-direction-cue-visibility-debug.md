@@ -1,5 +1,7 @@
 # Flow direction cue visibility debug record
 
+> Historical record, superseded by the selected semantic Flow masks in renderer Task 3 (`aerobeat-web-renderer-999`). Primitive shaft/head cues and their contrast path were removed; `flow.directional` now rotates for eight directions and `flow.directionless` is a separate unrotated mask.
+
 ## Exact Observed Failure
 
 Independent QA at renderer commit `d7b5029` found that `screenshots/task8-renderer-flow.png` displays eight plain filled Flow circles with no discernible arrows. The draw plan contains the expected cardinal and diagonal shaft/head commands, and geometry/count/bounds assertions pass, but the actual Chromium pixels do not expose direction.

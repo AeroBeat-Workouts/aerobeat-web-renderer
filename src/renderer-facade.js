@@ -25,7 +25,7 @@ export const aeroWebGl2RendererServiceId = "aero.renderer.webgl2";
 /** @typedef {{serviceId:"aero.renderer.webgl2",state:AeroRendererState,supported:boolean,attached:boolean,contextLost:boolean,destroyed:boolean,frameCount:number,drawCount:number,viewportWidth:number,viewportHeight:number,widthCssPx:number,heightCssPx:number,devicePixelRatio:number,themeId:string,themeVersion:string,themeHash:string,tuningId:string,tuningVersion:string,tuningHash:string,tuningRequiresRegeneration:false,visualProfile:import("./visual-profiles.js").AeroRendererVisualProfileSelection,visualProfileIdentity:import("./visual-profiles.js").AeroRendererVisualIdentity,visualProfileSettings:import("./visual-profiles.js").AeroRendererVisualSettings,experimental:true,iconAtlasReady:boolean,iconAtlasError:string|null,errorMessage:string|null}} AeroWebGl2RendererStatus */
 /** @typedef {{serviceId:"aero.renderer.webgl2",webgl2:boolean,exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:boolean,liveTuning:true,maxDevicePixelRatio:number,degradations:readonly string[]}} AeroWebGl2RendererCapabilities */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,shapeLocation:WebGLUniformLocation|null,ringWidthLocation:WebGLUniformLocation|null}} ShapeProgram */
-/** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,uvRectLocation:WebGLUniformLocation|null,samplerLocation:WebGLUniformLocation|null}} IconProgram */
+/** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,localLocation:number,colorLocation:WebGLUniformLocation|null,uvRectLocation:WebGLUniformLocation|null,samplerLocation:WebGLUniformLocation|null,rotationLocation:WebGLUniformLocation|null}} IconProgram */
 /** @typedef {{program:WebGLProgram,buffer:WebGLBuffer,positionLocation:number,colorLocation:WebGLUniformLocation|null,pointSizeLocation:WebGLUniformLocation|null}} OverlayProgram */
 
 /**
@@ -282,8 +282,9 @@ export class AeroWebGl2Renderer {
   configureViewport() { if (this.gl) this.gl.viewport(0, 0, this.gl.drawingBufferWidth || this.canvas?.width || 1, this.gl.drawingBufferHeight || this.canvas?.height || 1); }
   /** @param {import("./gameplay-plan.js").AeroGameplayDrawCommand} draw */
   drawCommand(draw) {
-    const color = draw.contrast ? this.cueContrastColor(draw.role, draw.alpha, draw.saturation) : this.roleColor(draw.role, draw.alpha, draw.saturation);
-    if (draw.kind === "icon" && draw.iconId && this.iconTexture && this.iconEntries.has(draw.iconId)) this.drawIcon(draw.rect, color, this.iconEntries.get(draw.iconId));
+    const roleColor = draw.contrast ? this.cueContrastColor(draw.role, draw.alpha, draw.saturation) : this.roleColor(draw.role, draw.alpha, draw.saturation);
+    const color = draw.colorMode === "white" ? /** @type {const} */ ([1,1,1,draw.alpha]) : blendWhite(roleColor, draw.whiten);
+    if (draw.kind === "icon" && draw.iconId && this.iconTexture && this.iconEntries.has(draw.iconId)) this.drawIcon(draw.rect, color, this.iconEntries.get(draw.iconId), draw.rotationRad);
     else this.drawShape(draw.rect, color, draw.kind === "circle" ? 1 : draw.kind === "ring" ? 2 : draw.kind === "hatch" ? 3 : 0, this.tuning.approachRingWidth);
     this.drawCount += 1;
   }
@@ -308,8 +309,8 @@ export class AeroWebGl2Renderer {
   drawCursorLayer(centerX, centerY, diameterCssPx, color) { const width = diameterCssPx / this.widthCssPx; const height = diameterCssPx / this.heightCssPx; this.drawShape({ x:centerX-width/2,y:centerY-height/2,width,height }, color, 1, 0); }
   /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {number} shape @param {number} ringWidth */
   drawShape(rect, color, shape, ringWidth) { const gl = this.gl; if (!gl) return; const program = this.shapeProgram ?? createShapeProgram(gl); this.shapeProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.uniform4f(program.colorLocation, ...color); gl.uniform1i(program.shapeLocation, shape); gl.uniform1f(program.ringWidthLocation, ringWidth); gl.drawArrays(gl.TRIANGLES, 0, 6); }
-  /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {import("./icon-atlas.js").AeroIconAtlasEntry|undefined} entry */
-  drawIcon(rect, color, entry) { const gl = this.gl; if (!gl || !entry || !this.iconTexture) return; const program = this.iconProgram ?? createIconProgram(gl); this.iconProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.iconTexture); gl.uniform1i(program.samplerLocation, 0); gl.uniform4f(program.colorLocation, ...color); gl.uniform4f(program.uvRectLocation, entry.u0, entry.v0, entry.u1, entry.v1); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+  /** @param {{x:number,y:number,width:number,height:number}} rect @param {readonly [number,number,number,number]} color @param {import("./icon-atlas.js").AeroIconAtlasEntry|undefined} entry @param {number} rotationRad */
+  drawIcon(rect, color, entry, rotationRad) { const gl = this.gl; if (!gl || !entry || !this.iconTexture) return; const program = this.iconProgram ?? createIconProgram(gl); this.iconProgram = program; uploadQuad(gl, program.buffer, program.positionLocation, program.localLocation, rect); gl.useProgram(program.program); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.iconTexture); gl.uniform1i(program.samplerLocation, 0); gl.uniform4f(program.colorLocation, ...color); gl.uniform4f(program.uvRectLocation, entry.u0, entry.v0, entry.u1, entry.v1); gl.uniform1f(program.rotationLocation, rotationRad); gl.drawArrays(gl.TRIANGLES, 0, 6); }
   /** @param {number} value */
   drawCountdown(value) { const segments = countdownSegments(value); for (const rect of segments) this.drawShape(rect, [1, 1, 1, 0.94], 0, 0.1); }
   deleteGpuResources() { const gl = this.gl; if (gl) { for (const program of [this.shapeProgram, this.iconProgram, this.overlayProgram]) { if (program) { gl.deleteBuffer(program.buffer); gl.deleteProgram(program.program); } } if (this.iconTexture) gl.deleteTexture(this.iconTexture); } this.releaseGpuReferences(true); }
@@ -394,7 +395,7 @@ function finitePositiveOrZero(value, fallback) { return Number.isFinite(value) &
 /** @param {WebGL2RenderingContext} gl @returns {ShapeProgram} */
 function createShapeProgram(gl) { const program = linkProgram(gl, QUAD_VERTEX, SHAPE_FRAGMENT); const buffer = requiredBuffer(gl); return { program, buffer, positionLocation: gl.getAttribLocation(program, "a_position"), localLocation: gl.getAttribLocation(program, "a_local"), colorLocation: gl.getUniformLocation(program, "u_color"), shapeLocation: gl.getUniformLocation(program, "u_shape"), ringWidthLocation: gl.getUniformLocation(program, "u_ringWidth") }; }
 /** @param {WebGL2RenderingContext} gl @returns {IconProgram} */
-function createIconProgram(gl) { const program = linkProgram(gl, QUAD_VERTEX, ICON_FRAGMENT); const buffer = requiredBuffer(gl); return { program, buffer, positionLocation: gl.getAttribLocation(program, "a_position"), localLocation: gl.getAttribLocation(program, "a_local"), colorLocation: gl.getUniformLocation(program, "u_color"), uvRectLocation: gl.getUniformLocation(program, "u_uvRect"), samplerLocation: gl.getUniformLocation(program, "u_mask") }; }
+function createIconProgram(gl) { const program = linkProgram(gl, QUAD_VERTEX, ICON_FRAGMENT); const buffer = requiredBuffer(gl); return { program, buffer, positionLocation: gl.getAttribLocation(program, "a_position"), localLocation: gl.getAttribLocation(program, "a_local"), colorLocation: gl.getUniformLocation(program, "u_color"), uvRectLocation: gl.getUniformLocation(program, "u_uvRect"), samplerLocation: gl.getUniformLocation(program, "u_mask"), rotationLocation: gl.getUniformLocation(program, "u_rotation") }; }
 /** @param {WebGL2RenderingContext} gl @returns {OverlayProgram} */
 function createOverlayProgram(gl) { const program = linkProgram(gl, `#version 300 es\nin vec2 a_position; uniform float u_pointSize; void main(){gl_Position=vec4(a_position,0.,1.);gl_PointSize=u_pointSize;}`, `#version 300 es\nprecision mediump float; uniform vec4 u_color; out vec4 outColor; void main(){outColor=u_color;}`); return { program, buffer: requiredBuffer(gl), positionLocation: gl.getAttribLocation(program, "a_position"), colorLocation: gl.getUniformLocation(program, "u_color"), pointSizeLocation: gl.getUniformLocation(program, "u_pointSize") }; }
 /** @param {WebGL2RenderingContext} gl @param {string} vertex @param {string} fragment */
@@ -411,6 +412,9 @@ function drawOverlay(gl, program, vertices, primitive, options) { if (vertices.l
 function countdownSegments(value) { const horizontal = (y) => ({x:0.43,y,width:0.14,height:0.025}); const left = (y) => ({x:0.43,y,width:0.025,height:0.12}); const right = (y) => ({x:0.545,y,width:0.025,height:0.12}); if (value === 1) return [right(0.36), right(0.51)]; if (value === 2) return [horizontal(0.34),right(0.36),horizontal(0.49),left(0.51),horizontal(0.64)]; return [horizontal(0.34),right(0.36),horizontal(0.49),right(0.51),horizontal(0.64)]; }
 /** @param {number} value */
 function finiteNonNegative(value) { return Number.isFinite(value) ? Math.max(0, value) : 0; }
+/** @param {readonly [number,number,number,number]} color @param {number} amount @returns {readonly [number,number,number,number]} */
+function blendWhite(color, amount) { const value = Math.max(0,Math.min(1,amount)); return [color[0]+(1-color[0])*value,color[1]+(1-color[1])*value,color[2]+(1-color[2])*value,color[3]]; }
+
 /** @param {number} red @param {number} green @param {number} blue */
 function relativeLuminance(red, green, blue) {
   const linear = (channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
@@ -423,5 +427,5 @@ const SHAPE_FRAGMENT = `#version 300 es
 precision mediump float; in vec2 v_local; uniform vec4 u_color; uniform int u_shape; uniform float u_ringWidth; out vec4 outColor;
 void main(){float d=distance(v_local,vec2(.5)); if(u_shape==1 && d>.5) discard; if(u_shape==2 && abs(d-.43)>u_ringWidth*.5) discard; vec4 color=u_color; if(u_shape==3 && mod(floor((v_local.x+v_local.y)*18.),2.)<1.) color.rgb*=.48; outColor=color;}`;
 const ICON_FRAGMENT = `#version 300 es
-precision mediump float; in vec2 v_local; uniform sampler2D u_mask; uniform vec4 u_color; uniform vec4 u_uvRect; out vec4 outColor;
-void main(){vec2 uv=mix(u_uvRect.xy,u_uvRect.zw,v_local);float alpha=texture(u_mask,uv).a; if(alpha<.02) discard;outColor=vec4(u_color.rgb,u_color.a*alpha);}`;
+precision mediump float; in vec2 v_local; uniform sampler2D u_mask; uniform vec4 u_color; uniform vec4 u_uvRect; uniform float u_rotation; out vec4 outColor;
+void main(){float c=cos(u_rotation);float s=sin(u_rotation);vec2 p=v_local-vec2(.5);vec2 q=vec2(c*p.x+s*p.y,-s*p.x+c*p.y)+vec2(.5);if(any(lessThan(q,vec2(0.)))||any(greaterThan(q,vec2(1.)))) discard;vec2 uv=mix(u_uvRect.xy,u_uvRect.zw,q);float alpha=texture(u_mask,uv).a;if(alpha<.02) discard;outColor=vec4(u_color.rgb,u_color.a*alpha);}`;

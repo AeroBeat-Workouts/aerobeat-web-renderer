@@ -14,6 +14,7 @@ import {
   gameplayIconIds,
   normalizeBrandingIconManifest,
   normalizeIconAtlasData,
+  normalizeRendererTuning,
   rasterizeBrandingIconAtlas
 } from "../src/index.js";
 import { rendererTuningFromVisualProfile } from "../src/visual-profiles.js";
@@ -37,14 +38,15 @@ assert.equal(applyNamedEasing(0.5, "linear"), 0.5);
 assert.equal(applyNamedEasing(0.5, "ease-in"), 0.25);
 assert.equal(applyNamedEasing(0.5, "ease-out"), 0.75);
 
+assert.deepEqual(normalizeRendererTuning(defaultRendererTuning),defaultRendererTuning,"default renderer tuning hash must exactly cover bounded visual tokens");
 const mappedDefaultTuning = rendererTuningFromVisualProfile(defaultRendererVisualProfile);
 const mappedCompactTuning = rendererTuningFromVisualProfile(compactRendererVisualProfile);
 assert.equal(mappedDefaultTuning.id, "aero.visual.default");
-assert.equal(mappedDefaultTuning.hash, "visual-a3e8d245");
+assert.equal(mappedDefaultTuning.hash, "visual-0c61b03b");
 assert.equal(mappedDefaultTuning.roleScale, 1);
-for (const key of ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap"]) assert.equal(mappedDefaultTuning[key], defaultRendererTuning[key], `default profile must preserve legacy renderer tuning ${key}`);
+for (const key of ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap", "flowFadeInMs", "flowOutlineScale", "feedbackDurationMs", "hitPulseMs", "hitPulseScale", "greatEndScale"]) assert.equal(mappedDefaultTuning[key], defaultRendererTuning[key], `default profile must preserve renderer tuning ${key}`);
 assert.equal(mappedCompactTuning.id, "aero.visual.compact");
-assert.equal(mappedCompactTuning.hash, "visual-99e2444c");
+assert.equal(mappedCompactTuning.hash, "visual-38c344f6");
 assert.equal(mappedCompactTuning.roleScale, 0.86);
 assert.ok(mappedCompactTuning.approachRingScale < mappedDefaultTuning.approachRingScale);
 assert.ok(mappedCompactTuning.approachRingWidth < mappedDefaultTuning.approachRingWidth);
@@ -73,50 +75,51 @@ const trackPlan = buildGameplayRenderPlan({ presentation: "boxing_semantic_track
 assert.equal(trackPlan.commands.filter((entry) => entry.layer === 0).length, 2);
 assert.equal(trackPlan.overlay.dim, 0.62);
 assert.equal(trackPlan.overlay.countdown, 3);
-const obstaclePlan = buildGameplayRenderPlan({ presentation: "flow", nowMs: 1000, blockedCells: [0], safeCells: [11], targets: [{ ...targetBase, id: "flow-up", kind: "flow", family: "flow", hand: "neutral", direction: "up" }] });
-assert.equal(obstaclePlan.commands.some((entry) => entry.targetId === "flow-up" && entry.kind === "line"), true);
+const obstaclePlan = buildGameplayRenderPlan({ presentation: "flow", nowMs: 1000, blockedCells: [0], safeCells: [11], targets: [{ ...targetBase, id: "flow-up", kind: "flow", family: "flow", hand: "left", direction: "up" }] });
+assert.equal(obstaclePlan.commands.some((entry) => entry.targetId === "flow-up" && (entry.kind === "line" || entry.kind === "circle")), false, "Flow direction must use the selected icon rather than primitive cues");
 assert.equal(obstaclePlan.commands.some((entry) => entry.role === "obstacle" && entry.hatch), true);
 assert.equal(obstaclePlan.commands.some((entry) => entry.role === "safe" && entry.hatch), true);
 
 const allDirections = /** @type {const} */ (["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"]);
-for (const direction of allDirections) {
+const expectedRotations = [-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4];
+for (let index=0; index<allDirections.length; index+=1) {
+  const direction = allDirections[index];
   const id = `flow-${direction}`;
-  const plan = buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[{ ...targetBase, id, kind:"flow", family:"flow", hand:"neutral", direction, judgement:"hit", feedbackProgress:0 }] });
-  const target = plan.commands.find((entry) => entry.targetId === id && entry.layer === 4);
-  const cues = plan.commands.filter((entry) => entry.targetId === id && entry.layer === 5);
-  assert.ok(target, `${direction} target must render`);
-  assert.equal(target.contrast, false, `${direction} target keeps role color`);
-  assert.equal(cues.length, direction.includes("-") ? 8 : 2, `${direction} cue command count`);
-  for (const cue of cues) {
-    assert.equal(cue.contrast, true, `${direction} cue must request theme-derived contrast`);
-    assertRectWithin(cue.rect, target.rect, `${direction} cue`);
-  }
-  if (!direction.includes("-")) {
-    assert.deepEqual(cues.map((entry) => ({ kind:entry.kind,rect:entry.rect })), legacyCardinalCues(target.rect, direction), `${direction} cardinal geometry must remain byte-identical`);
-  } else {
-    const lines = cues.filter((entry) => entry.kind === "line");
-    const head = cues.find((entry) => entry.kind === "circle");
-    assert.equal(lines.length, 7);
-    assert.ok(head);
-    const xCenters = lines.map((entry) => (entry.rect.x + entry.rect.width / 2 - target.rect.x) / target.rect.width);
-    const yCenters = lines.map((entry) => (entry.rect.y + entry.rect.height / 2 - target.rect.y) / target.rect.height);
-    const expectedX = direction.endsWith("right") ? [0.3, 11/30, 13/30, 0.5, 17/30, 19/30, 0.7] : [0.7, 19/30, 17/30, 0.5, 13/30, 11/30, 0.3];
-    const expectedY = direction.startsWith("down") ? [0.3, 11/30, 13/30, 0.5, 17/30, 19/30, 0.7] : [0.7, 19/30, 17/30, 0.5, 13/30, 11/30, 0.3];
-    assertCoordinates(xCenters, expectedX, `${direction} shaft X centers`);
-    assertCoordinates(yCenters, expectedY, `${direction} shaft Y centers`);
-    const headX = (head.rect.x + head.rect.width / 2 - target.rect.x) / target.rect.width;
-    const headY = (head.rect.y + head.rect.height / 2 - target.rect.y) / target.rect.height;
-    assert.ok(Math.abs(headX - (direction.endsWith("right") ? 0.8 : 0.2)) < 1e-12, `${direction} head X`);
-    assert.ok(Math.abs(headY - (direction.startsWith("down") ? 0.8 : 0.2)) < 1e-12, `${direction} head Y`);
-  }
+  const plan = buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[{ ...targetBase, id, kind:"flow", family:"flow", hand:"left", direction }] });
+  const outline = plan.commands.find((entry) => entry.targetId === id && entry.layer === 4);
+  const target = plan.commands.find((entry) => entry.targetId === id && entry.layer === 5);
+  assert.ok(outline && target, `${direction} outline and target must render`);
+  assert.equal(outline.iconId,"flow.directional"); assert.equal(target.iconId,"flow.directional");
+  assert.equal(outline.colorMode,"white"); assert.equal(target.colorMode,"role");
+  assert.equal(outline.scale,1.12); assert.equal(target.scale,1);
+  assert.equal(target.saturation,1); assert.equal(target.rotationRad,expectedRotations[index]); assert.equal(outline.rotationRad,expectedRotations[index]);
+  assert.ok(outline.rect.width > target.rect.width && outline.rect.height > target.rect.height);
 }
-assert.throws(() => buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[/** @type {import("../src/gameplay-plan.js").AeroRenderableTarget} */ ({ ...targetBase, kind:"flow", family:"flow", hand:"neutral", direction:"north" })] }), /Flow direction cue is unsupported/u);
+const directionless = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-dot",kind:"flow",family:"flow",hand:"right",direction:null }] }).commands.filter((entry) => entry.targetId === "flow-dot" && entry.kind === "icon");
+assert.deepEqual(directionless.map((entry)=>entry.iconId),["flow.directionless","flow.directionless"]);
+assert.ok(directionless.every((entry)=>entry.rotationRad===0 && entry.saturation===1));
+const flowSpawn = buildGameplayRenderPlan({ presentation:"flow",nowMs:100,targets:[{ ...targetBase,id:"flow-spawn",kind:"flow",family:"flow",hand:"left",direction:"right" }] }).commands.find((entry)=>entry.targetId==="flow-spawn"&&entry.layer===5);
+const flowVisible = buildGameplayRenderPlan({ presentation:"flow",nowMs:180,targets:[{ ...targetBase,id:"flow-visible",kind:"flow",family:"flow",hand:"left",direction:"right" }] }).commands.find((entry)=>entry.targetId==="flow-visible"&&entry.layer===5);
+assert.equal(flowSpawn?.scale,1); assert.equal(flowSpawn?.alpha,0); assert.equal(flowVisible?.alpha,1);
+const flowHitStart = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:0 }] });
+const flowHitMiddle = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:0.5 }] });
+const hitStart = flowHitStart.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5); const greatStart = flowHitStart.commands.find((entry)=>entry.iconId==="feedback.great");
+const hitMiddle = flowHitMiddle.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5); const greatMiddle = flowHitMiddle.commands.find((entry)=>entry.iconId==="feedback.great");
+assert.equal(hitStart?.whiten,1); assert.equal(greatStart?.scale,1); assert.equal(greatStart?.colorMode,"white");
+assert.ok(hitMiddle && greatMiddle && hitMiddle.alpha===greatMiddle.alpha && greatMiddle.scale>1 && greatMiddle.scale<1.25 && hitMiddle.whiten===0);
+const flowMiss = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",direction:null,judgement:"miss",feedbackProgress:0.5 }] });
+assert.equal(flowMiss.commands.some((entry)=>entry.iconId==="feedback.great"),false); assert.equal(flowMiss.commands.find((entry)=>entry.targetId==="flow-miss"&&entry.layer===5)?.alpha,hitMiddle.alpha);
+const flowHitCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-hit-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-hit-easing"&&entry.layer===5);
+const flowMissCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-miss-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"miss",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-miss-easing"&&entry.layer===5);
+assert.equal(flowHitCustomEasing?.alpha,flowMissCustomEasing?.alpha,"Flow hit/miss must share one fade easing even when a legacy Boxing miss easing differs");
+assert.throws(() => buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[/** @type {import("../src/gameplay-plan.js").AeroRenderableTarget} */ ({ ...targetBase, kind:"flow", family:"flow", hand:"neutral", direction:"north" })] }), /Flow direction icon is unsupported/u);
 
-const manifest = normalizeBrandingIconManifest({ schemaId: "aerobeat.branding.web-gameplay-icons.v1", schemaVersion: 1, colorContract: "currentColor", webglContract: "alpha-mask-atlas-input", assets: gameplayIconIds.map((id) => ({ id, file: `${id.replaceAll(".", "-")}.svg`, viewBox: id.includes("guard") ? "0 0 48 24" : "0 0 64 64" })) });
-assert.equal(manifest.assets.length, 13);
+const manifest = normalizeBrandingIconManifest({ schemaId: "aerobeat.branding.web-gameplay-icons.v1", schemaVersion: 1, colorContract: "currentColor", webglContract: "alpha-mask-atlas-input", assets: gameplayIconIds.map((id) => ({ id, file: `${id.replaceAll(".", "-")}.svg`, viewBox: id === "feedback.great" ? "0 0 128 32" : id.includes("guard") ? "0 0 48 24" : "0 0 64 64" })) });
+assert.equal(manifest.assets.length, 16);
 assert.throws(() => normalizeBrandingIconManifest({ ...manifest, assets: manifest.assets.slice(1) }));
 const completeAtlasEntries = gameplayIconIds.map((id) => ({ id, u0: 0, v0: 0, u1: 1, v1: 1 }));
-assert.equal(normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,255,255,255]), entries:completeAtlasEntries }).entries.length, 13);
+assert.equal(normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,255,255,255]), entries:completeAtlasEntries }).entries.length, 16);
+assert.throws(() => normalizeBrandingIconManifest({ ...manifest, assets:manifest.assets.map((entry)=>entry.id==="feedback.great"?{...entry,viewBox:"0 0 64 64"}:entry) }), /asset is invalid/u);
 assert.throws(() => normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,0,0,255]), entries:completeAtlasEntries }), /normalized white/u);
 assert.throws(() => normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,255,255,255]), entries:[{ id:"bogus",u0:0,v0:0,u1:1,v1:1 }] }), /entry/u);
 const abortController = new AbortController();
@@ -219,7 +222,7 @@ const theme = { schema: "aerobeat/theme_descriptor", version: 1, id: "theme.qa",
 renderer.setTheme(theme);
 assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
 assert.deepEqual(renderer.describe().visualProfile, defaultRendererVisualProfile);
-assert.equal(renderer.describe().tuningHash, "visual-a3e8d245");
+assert.equal(renderer.describe().tuningHash, "visual-0c61b03b");
 const defaultVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
 renderer.setTuning(compactRendererVisualProfile);
 assert.equal(renderer.describe().themeId, "theme.qa");
@@ -229,7 +232,7 @@ assert.deepEqual(renderer.exportTuning(), compactRendererVisualProfile);
 assert.deepEqual(renderer.getSnapshot().visualProfileIdentity, compactRendererVisualProfile.identity);
 assert.deepEqual(renderer.describe().visualProfileSettings, { motionIntensity:0.8, roleScale:0.86 });
 assert.equal(renderer.describe().tuningId, "aero.visual.compact");
-assert.equal(renderer.describe().tuningHash, "visual-99e2444c");
+assert.equal(renderer.describe().tuningHash, "visual-38c344f6");
 assert.equal(renderer.describe().tuningVersion, "1.0.0");
 assert.equal(renderer.describe().tuningRequiresRegeneration, false);
 assert.equal(renderer.describe().experimental, true);
@@ -300,31 +303,6 @@ assert.ok(first.gl.deletedPrograms > 0);
 assert.equal(renderer.describe().iconAtlasReady, false);
 
 console.log("Per-game renderer, plan, atlas, resize, context, and disposal validation passed.");
-
-/** @param {{x:number,y:number,width:number,height:number}} rect @param {"up"|"right"|"down"|"left"} direction */
-function legacyCardinalCues(rect, direction) {
-  const thickness = Math.min(rect.width, rect.height) * 0.09;
-  const horizontal = direction === "left" || direction === "right";
-  const shaft = horizontal
-    ? { x: rect.x + rect.width * 0.25, y: rect.y + rect.height * 0.5 - thickness / 2, width: rect.width * 0.5, height: thickness }
-    : { x: rect.x + rect.width * 0.5 - thickness / 2, y: rect.y + rect.height * 0.25, width: thickness, height: rect.height * 0.5 };
-  const size = thickness * 2.5;
-  const headX = direction === "left" ? rect.x + rect.width * 0.2 : direction === "right" ? rect.x + rect.width * 0.8 : rect.x + rect.width * 0.5;
-  const headY = direction === "up" ? rect.y + rect.height * 0.2 : direction === "down" ? rect.y + rect.height * 0.8 : rect.y + rect.height * 0.5;
-  return [{ kind:"line",rect:shaft },{ kind:"circle",rect:{ x:headX-size/2,y:headY-size/2,width:size,height:size } }];
-}
-
-/** @param {{x:number,y:number,width:number,height:number}} inner @param {{x:number,y:number,width:number,height:number}} outer @param {string} label */
-function assertRectWithin(inner, outer, label) {
-  const tolerance = Number.EPSILON * 64;
-  assert.ok(inner.x >= outer.x - tolerance && inner.y >= outer.y - tolerance && inner.x + inner.width <= outer.x + outer.width + tolerance && inner.y + inner.height <= outer.y + outer.height + tolerance, `${label} must remain inside target`);
-}
-
-/** @param {number[]} actual @param {number[]} expected @param {string} label */
-function assertCoordinates(actual, expected, label) {
-  assert.equal(actual.length, expected.length, `${label} length`);
-  for (let index = 0; index < actual.length; index += 1) assert.ok(Math.abs(actual[index] - expected[index]) < 1e-12, `${label}[${index}] expected ${expected[index]} got ${actual[index]}`);
-}
 
 function createHarness() {
   const listeners = new Map();

@@ -21,11 +21,11 @@ export function normalizeBrandingIconManifest(value) {
   const assets = [];
   const seen = new Set();
   for (const raw of value.assets) {
-    if (!isRecord(raw) || typeof raw.id !== "string" || !gameplayIconIds.includes(raw.id) || seen.has(raw.id) || typeof raw.file !== "string" || !/^[a-z0-9-]+\.svg$/u.test(raw.file) || (raw.viewBox !== "0 0 64 64" && raw.viewBox !== "0 0 48 24")) {
+    if (!isRecord(raw) || typeof raw.id !== "string" || !gameplayIconIds.includes(raw.id) || seen.has(raw.id) || typeof raw.file !== "string" || !/^[a-z0-9-]+\.svg$/u.test(raw.file) || raw.viewBox !== expectedViewBox(raw.id)) {
       throw new TypeError("Branding icon asset is invalid");
     }
     seen.add(raw.id);
-    assets.push(Object.freeze({ id: raw.id, file: raw.file, viewBox: raw.viewBox }));
+    assets.push(Object.freeze({ id: raw.id, file: raw.file, viewBox: String(raw.viewBox) }));
   }
   if (assets.length !== gameplayIconIds.length || gameplayIconIds.some((id) => !seen.has(id))) {
     throw new TypeError("Branding icon manifest does not contain the expected semantic set");
@@ -152,5 +152,8 @@ function throwIfAborted(signal) {
   if (typeof signal.throwIfAborted === "function") signal.throwIfAborted();
   throw new DOMException("Icon atlas rasterization was aborted", "AbortError");
 }
+/** @param {string} id */
+function expectedViewBox(id) { if (id === "feedback.great") return "0 0 128 32"; if (id.includes("guard")) return "0 0 48 24"; return "0 0 64 64"; }
+
 /** @param {unknown} value @returns {value is Record<string, unknown>} */
 function isRecord(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }

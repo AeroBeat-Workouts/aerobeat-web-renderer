@@ -100,18 +100,21 @@ try {
       const gl = canvas.getContext("webgl2");
       const directions = ["up","up-right","right","down-right","down","down-left","left","up-left"];
       const baseTarget = { id:"pixel-flow",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,judgement:"hit",feedbackProgress:0 };
-      const render = (direction) => renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[direction ? { ...baseTarget,direction } : baseTarget] });
-      const baselinePlan = render(null).plan;
+      const render = (direction) => renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[{ ...baseTarget,direction }] });
+      renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[] });
       const baseline = readPixels();
+      const baselinePlan = render("right").plan;
       const target = baselinePlan.commands.find((entry) => entry.targetId === "pixel-flow" && entry.layer === 4);
       if (!target) throw new Error("Pixel-probe Flow target is missing");
       const x0 = Math.max(0, Math.floor(target.rect.x * gl.drawingBufferWidth));
       const x1 = Math.min(gl.drawingBufferWidth, Math.ceil((target.rect.x + target.rect.width) * gl.drawingBufferWidth));
       const y0 = Math.max(0, Math.floor((1 - target.rect.y - target.rect.height) * gl.drawingBufferHeight));
       const y1 = Math.min(gl.drawingBufferHeight, Math.ceil((1 - target.rect.y) * gl.drawingBufferHeight));
+      let rightPixels;
       const results = directions.map((direction) => {
         render(direction);
         const actual = readPixels();
+        if (direction === "right") rightPixels = actual;
         let count = 0; let luminanceDelta = 0; let maxLuminanceDelta = 0; let sumX = 0; let sumY = 0;
         for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) {
           const offset = (y * gl.drawingBufferWidth + x) * 4;
@@ -127,39 +130,29 @@ try {
         }
         return { direction, count, targetPixels:(x1-x0)*(y1-y0), meanLuminanceDelta:count ? luminanceDelta/count : 0, maxLuminanceDelta, centroidX:count ? sumX/count : null, centroidY:count ? sumY/count : null };
       });
+      render(undefined); const directionlessPixels=readPixels(); let directionlessDelta=0;
+      for(let index=0;index<directionlessPixels.length;index+=4) if(Math.max(Math.abs(directionlessPixels[index]-rightPixels[index]),Math.abs(directionlessPixels[index+1]-rightPixels[index+1]),Math.abs(directionlessPixels[index+2]-rightPixels[index+2]))>3) directionlessDelta+=1;
       renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:directions.map((direction,index) => ({ ...baseTarget,id:`flow-${direction}`,cell:index,hand:index%2===0?"left":"right",direction })) });
-      return { drawingBufferWidth:gl.drawingBufferWidth,drawingBufferHeight:gl.drawingBufferHeight,results };
+      return { drawingBufferWidth:gl.drawingBufferWidth,drawingBufferHeight:gl.drawingBufferHeight,results,directionlessDelta };
       function readPixels() { const output = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4); gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,output); return output; }
     });
     assertDirectionPixels(pixels.results, name);
+    assert.ok(pixels.directionlessDelta >= 100, `${name} directionless mask must differ visibly from the directional mask`);
     flowPixelEvidence.push({ name, ...pixels });
     await page.locator(".surface").first().screenshot({ path:join(root, `screenshots/task12-renderer-flow-direction-${name}.png`) });
   }
   assert.equal(flowPixelEvidence.length, 3);
-  const themeContrast = await page.evaluate(() => {
-    const test = globalThis.__AERO_RENDERER_TEST__; const renderer = test.renderers[0]; const canvas = document.querySelector("canvas"); const gl = canvas.getContext("webgl2");
-    const target = { id:"theme-flow",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,judgement:"hit",feedbackProgress:0 };
-    const tokens = { leftHandColor:"#000000",rightHandColor:"#39c96b",guardColor:"#9a67ea",obstacleColor:"#e5484d",receptorColor:"#d9f5ff",approachLeadMs:900,targetStartScale:0.48,targetHitScale:1,approachEasing:"linear",hitEasing:"ease-out",missEasing:"ease-out" };
-    const results = ["#050505","#fafafa"].map((leftHandColor,index) => {
-      renderer.setTheme({ schema:"aerobeat/theme_descriptor",version:1,id:`theme.contrast.${index}`,themeVersion:"1",tokens:{ ...tokens,leftHandColor },contentHash:{ schema:"aerobeat/content_hash",version:1,algorithm:"sha256",value:String(index).repeat(64) } });
-      renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[target] });
-      const baselinePlan = renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[{ ...target,direction:"right" }] }).plan;
-      const head = baselinePlan.commands.find((entry) => entry.targetId === "theme-flow" && entry.layer === 5 && entry.kind === "circle");
-      if (!head) throw new Error("Theme contrast head is missing");
-      const x = Math.min(gl.drawingBufferWidth-1,Math.max(0,Math.floor((head.rect.x+head.rect.width/2)*gl.drawingBufferWidth)));
-      const y = Math.min(gl.drawingBufferHeight-1,Math.max(0,Math.floor((1-head.rect.y-head.rect.height/2)*gl.drawingBufferHeight)));
-      const directional = sample(x,y);
-      renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[target] });
-      const baseline = sample(x,y);
-      return { leftHandColor,directional,baseline,directionalLuminance:luminance(directional),baselineLuminance:luminance(baseline) };
-    });
-    renderer.setTheme(null);
-    return results;
-    function sample(x,y){ const output=new Uint8Array(4); gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,output); return [...output]; }
-    function luminance(pixel){ return pixel[0]*0.2126+pixel[1]*0.7152+pixel[2]*0.0722; }
+  const outlineEvidence = await page.evaluate(() => {
+    const test=globalThis.__AERO_RENDERER_TEST__; const renderer=test.renderers[0]; const canvas=document.querySelector("canvas"); const gl=canvas.getContext("webgl2"); renderer.setTheme(null);
+    const target={ id:"outline-flow",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,direction:"right",judgement:"pending",feedbackProgress:0 };
+    const result=renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[target] }); const pixels=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4); gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+    const outline=result.plan.commands.find((entry)=>entry.targetId==="outline-flow"&&entry.layer===4); const foreground=result.plan.commands.find((entry)=>entry.targetId==="outline-flow"&&entry.layer===5); if(!outline||!foreground) throw new Error("Flow outline commands are missing");
+    let white=0; let role=0; const x0=Math.floor(outline.rect.x*gl.drawingBufferWidth); const x1=Math.ceil((outline.rect.x+outline.rect.width)*gl.drawingBufferWidth); const y0=Math.floor((1-outline.rect.y-outline.rect.height)*gl.drawingBufferHeight); const y1=Math.ceil((1-outline.rect.y)*gl.drawingBufferHeight);
+    for(let y=y0;y<y1;y+=1) for(let x=x0;x<x1;x+=1){const offset=(y*gl.drawingBufferWidth+x)*4;const r=pixels[offset],g=pixels[offset+1],b=pixels[offset+2];if(r>235&&g>235&&b>235)white+=1;if(r<90&&g>105&&g<205&&b>210)role+=1;}
+    return { white,role,outlineScale:outline.scale,foregroundScale:foreground.scale,outlineWidth:outline.rect.width,foregroundWidth:foreground.rect.width,foregroundSaturation:foreground.saturation };
   });
-  assert.ok(themeContrast[0].directionalLuminance - themeContrast[0].baselineLuminance > 180, `dark theme cue must choose white: ${JSON.stringify(themeContrast[0])}`);
-  assert.ok(themeContrast[1].baselineLuminance - themeContrast[1].directionalLuminance > 180, `light theme cue must choose black: ${JSON.stringify(themeContrast[1])}`);
+  assert.ok(outlineEvidence.white>=30&&outlineEvidence.role>=100,`Flow must expose white backing and role fill pixels: ${JSON.stringify(outlineEvidence)}`);
+  assert.equal(outlineEvidence.outlineScale,1.12); assert.equal(outlineEvidence.foregroundScale,1); assert.ok(outlineEvidence.outlineWidth>outlineEvidence.foregroundWidth); assert.equal(outlineEvidence.foregroundSaturation,1);
 
   const flowResult = await page.evaluate(() => {
     const renderer = globalThis.__AERO_RENDERER_TEST__.renderers[0];
@@ -167,12 +160,34 @@ try {
     const result = renderer.renderGameplayFrame({ presentation:"flow", nowMs:1000, blockedCells:[3], safeCells:[8], overlay:"none", targets:directions.map((direction,index) => ({ id:`flow-${direction}`,kind:"flow",hand:index%2===0?"left":"right",family:"flow",cell:index,cells:[],lane:null,beatCenterMs:1000,direction,judgement:"hit",feedbackProgress:0 })) });
     const counts = Object.fromEntries(directions.map((direction) => [direction,result.plan.commands.filter((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5).length]));
     const bounded = directions.every((direction) => {
-      const target = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 4);
-      return target && result.plan.commands.filter((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5).every((entry) => entry.rect.x >= target.rect.x && entry.rect.y >= target.rect.y && entry.rect.x + entry.rect.width <= target.rect.x + target.rect.width + Number.EPSILON * 64 && entry.rect.y + entry.rect.height <= target.rect.y + target.rect.height + Number.EPSILON * 64);
+      const outline = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 4);
+      const target = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5);
+      return outline && target && target.rect.x >= outline.rect.x && target.rect.y >= outline.rect.y && target.rect.x + target.rect.width <= outline.rect.x + outline.rect.width + Number.EPSILON * 64 && target.rect.y + target.rect.height <= outline.rect.y + outline.rect.height + Number.EPSILON * 64;
     });
-    return { commands:result.plan.commands.length, lines:result.plan.commands.filter((entry) => entry.kind === "line").length, counts, bounded };
+    return { commands:result.plan.commands.length, primitiveFlowCues:result.plan.commands.filter((entry) => entry.targetId?.startsWith("flow-") && (entry.kind === "line" || entry.kind === "circle")).length, counts, bounded,great:result.plan.commands.filter((entry)=>entry.iconId==="feedback.great").length };
   });
-  assert.equal(flowResult.commands, 62); assert.equal(flowResult.lines, 32); assert.deepEqual(flowResult.counts, { up:2,"up-right":8,right:2,"down-right":8,down:2,"down-left":8,left:2,"up-left":8 }); assert.equal(flowResult.bounded, true);
+  assert.equal(flowResult.commands, 38); assert.equal(flowResult.primitiveFlowCues, 0); assert.deepEqual(flowResult.counts, { up:1,"up-right":1,right:1,"down-right":1,down:1,"down-left":1,left:1,"up-left":1 }); assert.equal(flowResult.bounded, true); assert.equal(flowResult.great,8);
+
+  const feedbackPixelEvidence=[];
+  for(const [viewport,width,height] of [["portrait",390,844],["landscape",844,390]]) for(const requestedDpr of [1,3]){
+    const feedback=await page.evaluate(({width,height,requestedDpr})=>{
+      const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0]; const canvas=document.querySelector("canvas"); renderer.resize({widthCssPx:width,heightCssPx:height,devicePixelRatio:requestedDpr}); const gl=canvas.getContext("webgl2");
+      const base={id:"feedback-flow",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,direction:"right"};
+      renderer.renderGameplayFrame({presentation:"flow",nowMs:1000,overlay:"none",targets:[]}); const baseline=read();
+      const probe=(target)=>{const result=renderer.renderGameplayFrame({presentation:"flow",nowMs:1000,overlay:"none",targets:[target]});const pixels=read();let changed=0,energy=0;for(let index=0;index<pixels.length;index+=4){const delta=Math.max(Math.abs(pixels[index]-baseline[index]),Math.abs(pixels[index+1]-baseline[index+1]),Math.abs(pixels[index+2]-baseline[index+2]));energy+=delta;if(delta>3)changed+=1;}return{changed,energy,commands:result.plan.commands.filter((entry)=>entry.targetId==="feedback-flow")};};
+      const pending=probe({...base,judgement:"pending",feedbackProgress:0}); const directionless=probe({...base,direction:null,judgement:"pending",feedbackProgress:0}); const hitStart=probe({...base,judgement:"hit",feedbackProgress:0}); const hitMiddle=probe({...base,judgement:"hit",feedbackProgress:.5}); const missMiddle=probe({...base,judgement:"miss",feedbackProgress:.5}); const hitEnd=probe({...base,judgement:"hit",feedbackProgress:1}); const missEnd=probe({...base,judgement:"miss",feedbackProgress:1});
+      return{effectiveDpr:renderer.describe().devicePixelRatio,pending,directionless,hitStart,hitMiddle,missMiddle,hitEnd,missEnd};
+      function read(){const output=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,output);return output;}
+    },{width,height,requestedDpr});
+    const startForeground=feedback.hitStart.commands.find((entry)=>entry.layer===5); const startGreat=feedback.hitStart.commands.find((entry)=>entry.iconId==="feedback.great"); const middleForeground=feedback.hitMiddle.commands.find((entry)=>entry.layer===5); const middleGreat=feedback.hitMiddle.commands.find((entry)=>entry.iconId==="feedback.great"); const missForeground=feedback.missMiddle.commands.find((entry)=>entry.layer===5);
+    assert.ok(feedback.pending.changed>100&&feedback.directionless.changed>100,`${viewport} DPR${requestedDpr} directional/directionless masks must be visible`);
+    assert.ok(startForeground&&startGreat&&middleForeground&&middleGreat&&missForeground,`${viewport} DPR${requestedDpr} feedback commands must be complete`);
+    assert.equal(startForeground.whiten,1); assert.equal(startGreat.scale,1); assert.ok(middleGreat.scale>1&&middleGreat.scale<1.25); assert.equal(middleGreat.alpha,middleForeground.alpha); assert.equal(missForeground.alpha,middleForeground.alpha); assert.equal(feedback.missMiddle.commands.some((entry)=>entry.iconId==="feedback.great"),false);
+    assert.ok(feedback.hitStart.energy>feedback.hitMiddle.energy&&feedback.hitMiddle.energy>0&&feedback.missMiddle.energy>0,`${viewport} DPR${requestedDpr} hit/miss fades must reduce framebuffer energy`); assert.equal(feedback.hitEnd.energy,0); assert.equal(feedback.missEnd.energy,0);
+    feedbackPixelEvidence.push({viewport,requestedDpr,effectiveDpr:feedback.effectiveDpr,hitStart:feedback.hitStart.changed,hitMiddle:feedback.hitMiddle.changed,missMiddle:feedback.missMiddle.changed});
+  }
+  assert.equal(feedbackPixelEvidence.length,4);
+  console.log("Flow semantic icon/outline/ring/GREAT/miss framebuffer validation passed for requested DPR1/3 portrait/landscape.");
 
   const cursorPixelEvidence = [];
   for (const [viewport,width,height] of [["portrait",390,844],["landscape",844,390]]) for (const requestedDpr of [1,3]) {
@@ -277,13 +292,11 @@ function assertDirectionPixels(results, viewport) {
     assert.ok(entry.meanLuminanceDelta >= 35, `${viewport} ${entry.direction} cue must have mean luminance contrast; ${JSON.stringify(entry)}`);
     assert.ok(entry.maxLuminanceDelta >= 80, `${viewport} ${entry.direction} cue must have peak luminance contrast; ${JSON.stringify(entry)}`);
     assert.equal(typeof entry.centroidX, "number"); assert.equal(typeof entry.centroidY, "number");
-    if (entry.direction.includes("left")) assert.ok(entry.centroidX < 0.47, `${viewport} ${entry.direction} pixel centroid must point left`);
-    if (entry.direction.includes("right")) assert.ok(entry.centroidX > 0.53, `${viewport} ${entry.direction} pixel centroid must point right`);
-    if (entry.direction.startsWith("up")) assert.ok(entry.centroidY < 0.47, `${viewport} ${entry.direction} pixel centroid must point up`);
-    if (entry.direction.startsWith("down")) assert.ok(entry.centroidY > 0.53, `${viewport} ${entry.direction} pixel centroid must point down`);
   }
-  const signatures = results.map((entry) => `${Math.round(Number(entry.centroidX) * 100)}:${Math.round(Number(entry.centroidY) * 100)}`);
-  assert.equal(new Set(signatures).size, 8, `${viewport} each direction must have a distinct pixel distribution: ${JSON.stringify(signatures)}`);
+  const signatures = results.map((entry) => `${entry.count}:${Math.round(Number(entry.centroidX) * 10000)}:${Math.round(Number(entry.centroidY) * 10000)}`);
+  assert.equal(new Set(signatures).size, 8, `${viewport} each shader rotation must have a distinct pixel distribution: ${JSON.stringify(signatures)}`);
+  const oppositePairs = [["up","down"],["up-right","down-left"],["right","left"],["down-right","up-left"]];
+  for(const [first,second] of oppositePairs) assert.notEqual(signatures[results.findIndex((entry)=>entry.direction===first)],signatures[results.findIndex((entry)=>entry.direction===second)],`${viewport} ${first}/${second} rotations must differ`);
 }
 
 /** @param {{left:number,top:number,right:number,bottom:number}} rect @param {{width:number,height:number}} viewport @param {string} label */

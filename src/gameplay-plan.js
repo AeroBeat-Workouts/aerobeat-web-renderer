@@ -3,11 +3,12 @@
 /** @typedef {"flow" | "boxing_spatial_grid" | "boxing_semantic_track"} AeroGameplayPresentation */
 /** @typedef {"left" | "right" | "guard" | "obstacle" | "neutral" | "safe"} AeroVisualRole */
 /** @typedef {"rect" | "circle" | "ring" | "hatch" | "icon" | "line"} AeroDrawKind */
+/** @typedef {"role" | "white"} AeroColorMode */
 /** @typedef {{x:number,y:number,width:number,height:number}} AeroNormalizedRect */
-/** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, contrast:boolean, layer:number, targetId:string|null}} AeroGameplayDrawCommand */
+/** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, contrast:boolean, layer:number, targetId:string|null, rotationRad:number, colorMode:AeroColorMode, whiten:number}} AeroGameplayDrawCommand */
 /** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
-/** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, roleScale:number, dprCap:number}} AeroRendererTuning */
+/** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, roleScale:number, dprCap:number, flowFadeInMs:number, flowOutlineScale:number, feedbackDurationMs:number, hitPulseMs:number, hitPulseScale:number, greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{commands:readonly AeroGameplayDrawCommand[], overlay:Readonly<{kind:string,dim:number,countdown:number|null}>, presentation:AeroGameplayPresentation, grid:Readonly<{x:number,y:number,width:number,height:number,columns:4,rows:3}>}} AeroGameplayRenderPlan */
 
@@ -15,7 +16,7 @@
 export const defaultRendererTuning = Object.freeze({
   id: "aero.renderer.prototype.default",
   version: "1",
-  hash: "visual-538685f6",
+  hash: "visual-5e8958e4",
   gridInset: 0.055,
   gridGap: 0.018,
   receptorAlpha: 0.22,
@@ -23,7 +24,13 @@ export const defaultRendererTuning = Object.freeze({
   approachRingWidth: 0.08,
   laneWidth: 0.22,
   roleScale: 1,
-  dprCap: 2
+  dprCap: 2,
+  flowFadeInMs: 80,
+  flowOutlineScale: 1.12,
+  feedbackDurationMs: 350,
+  hitPulseMs: 100,
+  hitPulseScale: 1.08,
+  greatEndScale: 1.25
 });
 
 /** @type {AeroRendererThemeTokens} */
@@ -55,7 +62,10 @@ export const gameplayIconIds = Object.freeze([
   "boxing.uppercut.right",
   "boxing.weave.left",
   "boxing.weave.right",
-  "calibration.tpose"
+  "calibration.tpose",
+  "feedback.great",
+  "flow.directional",
+  "flow.directionless"
 ]);
 
 /**
@@ -150,33 +160,41 @@ function addGridReceptors(commands, grid, tuning) {
 
 /** @param {AeroGameplayDrawCommand[]} commands @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{x:number,y:number,width:number,height:number}} grid @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
 function addTarget(commands, frame, target, grid, theme, tuning) {
-  const role = target.hand === "left" ? "left" : target.hand === "right" ? "right" : target.kind === "obstacle" ? "obstacle" : target.kind === "safe" ? "safe" : target.kind === "guard" ? "guard" : "neutral";
+  const role = /** @type {AeroVisualRole} */ (target.hand === "left" ? "left" : target.hand === "right" ? "right" : target.kind === "obstacle" ? "obstacle" : target.kind === "safe" ? "safe" : target.kind === "guard" ? "guard" : "neutral");
   const lead = Math.max(1, target.approachLeadMs ?? theme.approachLeadMs);
   const linearProgress = clamp(1 - (target.beatCenterMs - frame.nowMs) / lead, 0, 1);
   const progress = applyNamedEasing(linearProgress, theme.approachEasing);
-  const rawFeedback = clamp(target.feedbackProgress ?? 0, 0, 1);
-  const feedback = applyNamedEasing(rawFeedback, target.judgement === "miss" ? theme.missEasing : theme.hitEasing);
-  let scale = lerp(theme.targetStartScale, theme.targetHitScale, progress);
-  let alpha = lerp(0.35, 1, progress);
-  if (target.judgement === "hit") {
-    scale *= 1 - feedback * 0.65;
-    alpha *= 1 - feedback;
-  } else if (target.judgement === "miss") {
-    scale *= 1 + feedback * 0.12;
-    alpha *= 1 - feedback * 0.9;
-  }
+  const rawFeedback = finiteProgress(target.feedbackProgress);
+  const isFlow = target.kind === "flow";
+  const feedback = applyNamedEasing(rawFeedback, isFlow || target.judgement !== "miss" ? theme.hitEasing : theme.missEasing);
+  const arrivalElapsedMs = frame.nowMs - (target.beatCenterMs - lead);
+  const arrivalAlpha = isFlow ? clamp(arrivalElapsedMs / tuning.flowFadeInMs, 0, 1) : lerp(0.35, 1, progress);
+  const feedbackAlpha = target.judgement === "hit" || target.judgement === "miss" ? 1 - feedback : 1;
+  const pulseFraction = clamp(tuning.hitPulseMs / tuning.feedbackDurationMs, Number.EPSILON, 1);
+  const pulseProgress = target.judgement === "hit" ? clamp(rawFeedback / pulseFraction, 0, 1) : 1;
+  const pulseAmount = target.judgement === "hit" ? Math.sin(Math.PI * pulseProgress) : 0;
+  const whiten = target.judgement === "hit" ? 1 - pulseProgress : 0;
+  let scale = isFlow ? 1 : lerp(theme.targetStartScale, theme.targetHitScale, progress);
+  if (!isFlow && target.judgement === "hit") scale *= 1 - feedback * 0.65;
+  else if (!isFlow && target.judgement === "miss") scale *= 1 + feedback * 0.12;
+  if (target.judgement === "hit") scale *= lerp(1, tuning.hitPulseScale, pulseAmount);
+  const alpha = arrivalAlpha * feedbackAlpha;
+  const rotationRad = target.kind === "flow" ? flowDirectionRotation(target.direction ?? null) : 0;
   const rects = targetRects(frame.presentation, target, grid, tuning, frame.viewportAspect);
   for (const targetRect of rects) {
     const baseRect = scaledRect(targetRect, tuning.roleScale);
     const rect = scaledRect(baseRect, scale);
     const iconId = iconIdFor(target);
     const kind = target.kind === "obstacle" ? "hatch" : iconId ? "icon" : "circle";
-    commands.push(command(kind, /** @type {AeroVisualRole} */ (role), rect, alpha, scale, iconId, target.kind === "obstacle", 4, target.id, progress));
-    if (target.direction) {
-      for (const cue of directionCueRects(rect, target.direction)) commands.push(command(cue.kind, /** @type {AeroVisualRole} */ (role), cue.rect, alpha, scale, null, false, 5, target.id, progress, true));
-    }
+    if (isFlow && iconId) commands.push(command("icon", role, scaledRect(rect, tuning.flowOutlineScale), alpha, scale * tuning.flowOutlineScale, iconId, false, 4, target.id, 1, false, rotationRad, "white"));
+    commands.push(command(kind, role, rect, alpha, scale, iconId, target.kind === "obstacle", 5, target.id, isFlow ? 1 : progress, false, rotationRad, "role", whiten));
     if (target.judgement === undefined || target.judgement === "pending") {
-      commands.push(command("ring", /** @type {AeroVisualRole} */ (role), scaledRect(baseRect, lerp(tuning.approachRingScale, 1, progress)), 0.85, lerp(tuning.approachRingScale, 1, progress), null, false, 5, target.id, progress));
+      const ringScale = lerp(tuning.approachRingScale, 1, progress);
+      commands.push(command("ring", role, scaledRect(baseRect, ringScale), 0.85 * arrivalAlpha, ringScale, null, false, 6, target.id, 1));
+    }
+    if (target.judgement === "hit") {
+      const greatScale = lerp(1, tuning.greatEndScale, feedback);
+      commands.push(command("icon", role, feedbackWordmarkRect(baseRect, greatScale), alpha, greatScale, "feedback.great", false, 7, target.id, 1, false, 0, "white"));
     }
   }
 }
@@ -213,6 +231,7 @@ export function cellRect(cell, grid, gap = 0) {
 
 /** @param {AeroRenderableTarget} target @returns {string|null} */
 function iconIdFor(target) {
+  if (target.kind === "flow") return target.direction ? "flow.directional" : "flow.directionless";
   if (target.kind === "guard") return target.family === "crossed_guard" ? "boxing.guard.crossed" : "boxing.guard.standard";
   if (target.kind === "punch") return `boxing.${target.family}.${target.hand}`;
   if (target.family === "squat") return "boxing.squat";
@@ -220,45 +239,29 @@ function iconIdFor(target) {
   return null;
 }
 
-/** @param {AeroDrawKind} kind @param {AeroVisualRole} role @param {AeroNormalizedRect} rect @param {number} alpha @param {number} scale @param {string|null} iconId @param {boolean} hatch @param {number} layer @param {string|null} targetId @param {number} [saturation] @param {boolean} [contrast] @returns {AeroGameplayDrawCommand} */
-function command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, saturation = 1, contrast = false) {
-  return Object.freeze({ kind, role, rect: Object.freeze({ ...rect }), alpha, scale, saturation: clamp(saturation, 0, 1), iconId, hatch, contrast, layer, targetId });
+/** @param {AeroDrawKind} kind @param {AeroVisualRole} role @param {AeroNormalizedRect} rect @param {number} alpha @param {number} scale @param {string|null} iconId @param {boolean} hatch @param {number} layer @param {string|null} targetId @param {number} [saturation] @param {boolean} [contrast] @param {number} [rotationRad] @param {AeroColorMode} [colorMode] @param {number} [whiten] @returns {AeroGameplayDrawCommand} */
+function command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, saturation = 1, contrast = false, rotationRad = 0, colorMode = "role", whiten = 0) {
+  return Object.freeze({ kind, role, rect: Object.freeze({ ...rect }), alpha: clamp(alpha, 0, 1), scale, saturation: clamp(saturation, 0, 1), iconId, hatch, contrast, layer, targetId, rotationRad: Number.isFinite(rotationRad) ? rotationRad : 0, colorMode, whiten: clamp(whiten, 0, 1) });
 }
 
-/** @param {AeroNormalizedRect} rect @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection} direction @returns {readonly {kind:"line"|"circle",rect:AeroNormalizedRect}[]} */
-function directionCueRects(rect, direction) {
-  const supported = ["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"];
-  if (!supported.includes(direction)) throw new TypeError("Flow direction cue is unsupported");
-  const thickness = Math.min(rect.width, rect.height) * 0.09;
-  const diagonal = direction.includes("-");
-  if (!diagonal) {
-    // Preserve the original cardinal command geometry byte-for-byte.
-    const horizontal = direction === "left" || direction === "right";
-    const shaft = horizontal
-      ? { x: rect.x + rect.width * 0.25, y: rect.y + rect.height * 0.5 - thickness / 2, width: rect.width * 0.5, height: thickness }
-      : { x: rect.x + rect.width * 0.5 - thickness / 2, y: rect.y + rect.height * 0.25, width: thickness, height: rect.height * 0.5 };
-    const size = thickness * 2.5;
-    const headX = direction === "left" ? rect.x + rect.width * 0.2 : direction === "right" ? rect.x + rect.width * 0.8 : rect.x + rect.width * 0.5;
-    const headY = direction === "up" ? rect.y + rect.height * 0.2 : direction === "down" ? rect.y + rect.height * 0.8 : rect.y + rect.height * 0.5;
-    return Object.freeze([{ kind: "line", rect: Object.freeze(shaft) }, { kind: "circle", rect: Object.freeze({ x: headX - size / 2, y: headY - size / 2, width: size, height: size }) }]);
-  }
-  const xSign = direction.endsWith("right") ? 1 : -1;
-  const ySign = direction.startsWith("down") ? 1 : -1;
-  const segments = 7;
-  /** @type {{kind:"line"|"circle",rect:AeroNormalizedRect}[]} */
-  const cues = [];
-  for (let index = 0; index < segments; index += 1) {
-    const offset = -0.2 + index * (0.4 / (segments - 1));
-    const centerX = rect.x + rect.width * (0.5 + xSign * offset);
-    const centerY = rect.y + rect.height * (0.5 + ySign * offset);
-    cues.push({ kind: "line", rect: Object.freeze({ x: centerX - thickness / 2, y: centerY - thickness / 2, width: thickness, height: thickness }) });
-  }
-  const size = thickness * 2.5;
-  const headX = rect.x + rect.width * (0.5 + xSign * 0.3);
-  const headY = rect.y + rect.height * (0.5 + ySign * 0.3);
-  cues.push({ kind: "circle", rect: Object.freeze({ x: headX - size / 2, y: headY - size / 2, width: size, height: size }) });
-  return Object.freeze(cues);
+/** @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null} direction */
+function flowDirectionRotation(direction) {
+  if (direction === null) return 0;
+  const rotations = new Map([["right",0],["down-right",Math.PI/4],["down",Math.PI/2],["down-left",Math.PI*3/4],["left",Math.PI],["up-left",-Math.PI*3/4],["up",-Math.PI/2],["up-right",-Math.PI/4]]);
+  const rotation = rotations.get(direction);
+  if (rotation === undefined) throw new TypeError("Flow direction icon is unsupported");
+  return rotation;
 }
+
+/** @param {AeroNormalizedRect} rect @param {number} scale @returns {AeroNormalizedRect} */
+function feedbackWordmarkRect(rect, scale) {
+  const width = rect.width * 1.2 * scale;
+  const height = rect.height * 0.3 * scale;
+  return { x:rect.x+(rect.width-width)/2,y:rect.y+(rect.height-height)/2,width,height };
+}
+
+/** @param {number|undefined} value */
+function finiteProgress(value) { return typeof value === "number" && Number.isFinite(value) ? clamp(value, 0, 1) : 0; }
 
 /** @param {AeroNormalizedRect} rect @param {number} scale @returns {AeroNormalizedRect} */
 function scaledRect(rect, scale) {

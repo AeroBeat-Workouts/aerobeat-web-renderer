@@ -53,7 +53,7 @@ export function normalizeRendererTheme(value) {
  */
 export function normalizeRendererTuning(value) {
   if (!isRecord(value)) return defaultRendererTuning;
-  const numberNames = ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap"];
+  const numberNames = ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap", "flowFadeInMs", "flowOutlineScale", "feedbackDurationMs", "hitPulseMs", "hitPulseScale", "greatEndScale"];
   const requiredNames = ["id", "version", ...numberNames];
   const keys = Object.keys(value);
   if (!keys.every((key) => requiredNames.includes(key) || key === "hash") || !requiredNames.every((key) => keys.includes(key)) || typeof value.id !== "string" || value.id.length === 0 || typeof value.version !== "string" || value.version.length === 0 || !numberNames.every((name) => typeof value[name] === "number" && Number.isFinite(value[name]))) {
@@ -62,7 +62,8 @@ export function normalizeRendererTuning(value) {
   const normalized = {
     id: value.id, version: value.version,
     gridInset: clamp(Number(value.gridInset), 0, 0.25), gridGap: clamp(Number(value.gridGap), 0, 0.08), receptorAlpha: clamp(Number(value.receptorAlpha), 0, 1),
-    approachRingScale: clamp(Number(value.approachRingScale), 1, 3), approachRingWidth: clamp(Number(value.approachRingWidth), 0.01, 0.3), laneWidth: clamp(Number(value.laneWidth), 0.1, 0.4), roleScale: clamp(Number(value.roleScale), 0.5, 1.5), dprCap: clamp(Number(value.dprCap), 1, 4)
+    approachRingScale: clamp(Number(value.approachRingScale), 1, 3), approachRingWidth: clamp(Number(value.approachRingWidth), 0.01, 0.3), laneWidth: clamp(Number(value.laneWidth), 0.1, 0.4), roleScale: clamp(Number(value.roleScale), 0.5, 1.5), dprCap: clamp(Number(value.dprCap), 1, 4),
+    flowFadeInMs: clamp(Number(value.flowFadeInMs), 16, 250), flowOutlineScale: clamp(Number(value.flowOutlineScale), 1, 1.25), feedbackDurationMs: clamp(Number(value.feedbackDurationMs), 120, 1000), hitPulseMs: clamp(Number(value.hitPulseMs), 16, 250), hitPulseScale: clamp(Number(value.hitPulseScale), 1, 1.25), greatEndScale: clamp(Number(value.greatEndScale), 1, 1.5)
   };
   const hash = stableVisualHash(normalized);
   if (value.hash !== undefined && value.hash !== hash) return defaultRendererTuning;
@@ -105,7 +106,13 @@ export function rendererTuningFromVisualProfile(profile) {
     approachRingWidth: defaultRendererTuning.approachRingWidth * Math.max(0.5, motionIntensity),
     laneWidth: defaultRendererTuning.laneWidth,
     roleScale,
-    dprCap: defaultRendererTuning.dprCap
+    dprCap: defaultRendererTuning.dprCap,
+    flowFadeInMs: defaultRendererTuning.flowFadeInMs,
+    flowOutlineScale: defaultRendererTuning.flowOutlineScale,
+    feedbackDurationMs: defaultRendererTuning.feedbackDurationMs,
+    hitPulseMs: defaultRendererTuning.hitPulseMs,
+    hitPulseScale: defaultRendererTuning.hitPulseScale,
+    greatEndScale: defaultRendererTuning.greatEndScale
   });
 }
 

@@ -74,6 +74,7 @@ export class AeroPlayCanvasRenderer {
     const canvas=this.canvas;const on=(target,type,listener,options)=>{target.addEventListener(type,listener,options);this.debugListeners.push(()=>target.removeEventListener(type,listener,options));};
     on(canvas,"contextmenu",(event)=>{if(this.debugEnabled)event.preventDefault();});
     on(canvas,"mousedown",(event)=>{if(this.debugEnabled&&event.button===2)canvas.requestPointerLock?.();});
+    on(document,"mouseup",(event)=>{if(this.debugEnabled&&event.button===2&&document.pointerLockElement===canvas)document.exitPointerLock?.();});
     on(document,"mousemove",(event)=>{if(!this.debugEnabled||document.pointerLockElement!==canvas)return;this.debugYaw-=event.movementX*0.0025;this.debugPitch=clamp(this.debugPitch-event.movementY*0.0025,-1.35,1.35);this.applyDebugPose();});
     on(window,"keydown",(event)=>{if(!this.debugEnabled||!["KeyW","KeyA","KeyS","KeyD","KeyQ","KeyE","ShiftLeft","ShiftRight"].includes(event.code))return;const speed=event.shiftKey?1.2:0.35;if(event.code==="KeyW")this.debugPosition.z+=speed;if(event.code==="KeyS")this.debugPosition.z-=speed;if(event.code==="KeyA")this.debugPosition.x-=speed;if(event.code==="KeyD")this.debugPosition.x+=speed;if(event.code==="KeyQ")this.debugPosition.y-=speed;if(event.code==="KeyE")this.debugPosition.y+=speed;this.applyDebugPose();});
     return this.describe();

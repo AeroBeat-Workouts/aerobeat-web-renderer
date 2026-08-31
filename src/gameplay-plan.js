@@ -1,14 +1,14 @@
 // @ts-check
 
-/** @typedef {"flow" | "boxing_spatial_grid" | "boxing_semantic_track"} AeroGameplayPresentation */
+/** @typedef {"flow" | "boxing_spatial_grid" | "boxing_lanes"} AeroGameplayPresentation */
 /** @typedef {"left" | "right" | "guard" | "obstacle" | "neutral" | "safe"} AeroVisualRole */
 /** @typedef {"rect" | "circle" | "ring" | "hatch" | "icon" | "line"} AeroDrawKind */
 /** @typedef {"role" | "white"} AeroColorMode */
 /** @typedef {{x:number,y:number,width:number,height:number}} AeroNormalizedRect */
 /** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, contrast:boolean, layer:number, targetId:string|null, rotationRad:number, colorMode:AeroColorMode, whiten:number}} AeroGameplayDrawCommand */
 /** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
-/** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
-/** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, roleScale:number, dprCap:number, flowFadeInMs:number, flowOutlineScale:number, feedbackDurationMs:number, hitPulseMs:number, hitPulseScale:number, greatEndScale:number}} AeroRendererTuning */
+/** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], timingWindowBeforeMs?:number, timingWindowAfterMs?:number, blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
+/** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, laneHitCenterY:number, laneTimingBandAlpha:number, roleScale:number, dprCap:number, flowFadeInMs:number, flowOutlineScale:number, feedbackDurationMs:number, hitPulseMs:number, hitPulseScale:number, greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{commands:readonly AeroGameplayDrawCommand[], overlay:Readonly<{kind:string,dim:number,countdown:number|null}>, presentation:AeroGameplayPresentation, grid:Readonly<{x:number,y:number,width:number,height:number,columns:4,rows:3}>}} AeroGameplayRenderPlan */
 
@@ -16,13 +16,15 @@
 export const defaultRendererTuning = Object.freeze({
   id: "aero.renderer.prototype.default",
   version: "1",
-  hash: "visual-5e8958e4",
+  hash: "visual-acd094a5",
   gridInset: 0.055,
   gridGap: 0.018,
   receptorAlpha: 0.22,
   approachRingScale: 1.55,
   approachRingWidth: 0.08,
   laneWidth: 0.22,
+  laneHitCenterY: 0.25,
+  laneTimingBandAlpha: 0.22,
   roleScale: 1,
   dprCap: 2,
   flowFadeInMs: 80,
@@ -84,18 +86,20 @@ export function buildGameplayRenderPlan(frame, theme = defaultRendererThemeToken
   const grid = fitPlayfieldGrid(tuning.gridInset, frame.viewportAspect);
   /** @type {AeroGameplayDrawCommand[]} */
   const commands = [];
-  if (frame.presentation === "boxing_semantic_track") {
-    addTrack(commands, tuning, frame.viewportAspect);
+  if (frame.presentation === "boxing_lanes") {
+    addBoxingLanes(commands, frame, theme, tuning);
   } else {
     addGridReceptors(commands, grid, tuning);
   }
-  for (const cell of frame.safeCells ?? []) {
-    const rect = cellRect(cell, grid, tuning.gridGap);
-    if (rect) commands.push(command("hatch", "safe", rect, 0.22, 1, null, true, 1, null));
-  }
-  for (const cell of frame.blockedCells ?? []) {
-    const rect = cellRect(cell, grid, tuning.gridGap);
-    if (rect) commands.push(command("hatch", "obstacle", rect, 0.72, 1, null, true, 3, null));
+  if (frame.presentation !== "boxing_lanes") {
+    for (const cell of frame.safeCells ?? []) {
+      const rect = cellRect(cell, grid, tuning.gridGap);
+      if (rect) commands.push(command("hatch", "safe", rect, 0.22, 1, null, true, 1, null));
+    }
+    for (const cell of frame.blockedCells ?? []) {
+      const rect = cellRect(cell, grid, tuning.gridGap);
+      if (rect) commands.push(command("hatch", "obstacle", rect, 0.72, 1, null, true, 3, null));
+    }
   }
   for (const target of frame.targets) {
     addTarget(commands, frame, target, grid, theme, tuning);
@@ -127,27 +131,31 @@ export function fitPlayfieldGrid(inset, viewportAspect) {
   return Object.freeze({ x: (1 - width) / 2, y: (1 - height) / 2, width, height, columns: /** @type {4} */ (4), rows: /** @type {3} */ (3) });
 }
 
-/** @param {AeroGameplayDrawCommand[]} commands @param {AeroRendererTuning} tuning @param {number|undefined} viewportAspect */
-function addTrack(commands, tuning, viewportAspect) {
-  const track = trackGeometry(tuning, viewportAspect);
-  commands.push(command("rect", "left", { x: track.leftX, y: track.y, width: track.width, height: track.height }, 0.12, 1, null, false, 0, null));
-  commands.push(command("rect", "right", { x: track.rightX, y: track.y, width: track.width, height: track.height }, 0.12, 1, null, false, 0, null));
-  const lineHeight = Math.min(0.008, track.targetHeight * 0.05);
-  commands.push(command("line", "neutral", { x: track.leftX, y: track.receptorY + track.targetHeight / 2, width: track.width, height: lineHeight }, 0.68, 1, null, false, 1, null));
-  commands.push(command("line", "neutral", { x: track.rightX, y: track.receptorY + track.targetHeight / 2, width: track.width, height: lineHeight }, 0.68, 1, null, false, 1, null));
+/** @param {AeroGameplayDrawCommand[]} commands @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
+function addBoxingLanes(commands, frame, theme, tuning) {
+  const lanes = boxingLanesGeometry(tuning, frame.viewportAspect);
+  const beforeMs = authoritativeWindow(frame.timingWindowBeforeMs, "timingWindowBeforeMs");
+  const afterMs = authoritativeWindow(frame.timingWindowAfterMs, "timingWindowAfterMs");
+  const lead = sharedLaneLead(frame.targets, theme.approachLeadMs);
+  const velocity = laneVelocity(lanes.targetHeight * tuning.roleScale * theme.targetHitScale, tuning.laneHitCenterY, lead);
+  commands.push(command("rect", "left", { x: lanes.leftX, y: 0, width: lanes.width, height: 1 }, 0.12, 1, null, false, 0, null));
+  commands.push(command("rect", "right", { x: lanes.rightX, y: 0, width: lanes.width, height: 1 }, 0.12, 1, null, false, 0, null));
+  commands.push(command("rect", "neutral", {
+    x: lanes.leftX,
+    y: tuning.laneHitCenterY - velocity * afterMs,
+    width: lanes.rightX + lanes.width - lanes.leftX,
+    height: velocity * (beforeMs + afterMs)
+  }, tuning.laneTimingBandAlpha, 1, null, false, 1, null));
 }
 
 /** @param {AeroRendererTuning} tuning @param {number|undefined} viewportAspect */
-function trackGeometry(tuning, viewportAspect) {
+function boxingLanesGeometry(tuning, viewportAspect) {
   const aspect = Number.isFinite(viewportAspect) && Number(viewportAspect) > 0 ? Number(viewportAspect) : 4 / 3;
   const gap = 0.1;
-  const y = 0.08;
-  const height = 0.84;
-  const width = Math.min(tuning.laneWidth, height * 0.32 / aspect);
+  const width = Math.min(tuning.laneWidth, 0.2688 / aspect);
   const leftX = 0.5 - gap / 2 - width;
   const rightX = 0.5 + gap / 2;
-  const targetHeight = width * aspect;
-  return { width, leftX, rightX, y, height, targetHeight, receptorY: y + height - targetHeight };
+  return { width, leftX, rightX, targetHeight: width * aspect };
 }
 
 /** @param {AeroGameplayDrawCommand[]} commands @param {{x:number,y:number,width:number,height:number}} grid @param {AeroRendererTuning} tuning */
@@ -160,7 +168,8 @@ function addGridReceptors(commands, grid, tuning) {
 
 /** @param {AeroGameplayDrawCommand[]} commands @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{x:number,y:number,width:number,height:number}} grid @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
 function addTarget(commands, frame, target, grid, theme, tuning) {
-  const role = /** @type {AeroVisualRole} */ (target.hand === "left" ? "left" : target.hand === "right" ? "right" : target.kind === "obstacle" ? "obstacle" : target.kind === "safe" ? "safe" : target.kind === "guard" ? "guard" : "neutral");
+  const laneRole = frame.presentation === "boxing_lanes" && (target.lane === "left" || target.lane === "right") ? target.lane : null;
+  const role = /** @type {AeroVisualRole} */ (target.hand === "left" || laneRole === "left" ? "left" : target.hand === "right" || laneRole === "right" ? "right" : target.kind === "obstacle" ? "obstacle" : target.kind === "safe" ? "safe" : target.kind === "guard" ? "guard" : "neutral");
   const lead = Math.max(1, target.approachLeadMs ?? theme.approachLeadMs);
   const linearProgress = clamp(1 - (target.beatCenterMs - frame.nowMs) / lead, 0, 1);
   const progress = applyNamedEasing(linearProgress, theme.approachEasing);
@@ -180,15 +189,15 @@ function addTarget(commands, frame, target, grid, theme, tuning) {
   if (target.judgement === "hit") scale *= lerp(1, tuning.hitPulseScale, pulseAmount);
   const alpha = arrivalAlpha * feedbackAlpha;
   const rotationRad = target.kind === "flow" ? flowDirectionRotation(target.direction ?? null) : 0;
-  const rects = targetRects(frame.presentation, target, grid, tuning, frame.viewportAspect);
+  const rects = targetRects(frame, target, grid, theme, tuning);
   for (const targetRect of rects) {
     const baseRect = scaledRect(targetRect, tuning.roleScale);
     const rect = scaledRect(baseRect, scale);
     const iconId = iconIdFor(target);
-    const kind = target.kind === "obstacle" ? "hatch" : iconId ? "icon" : "circle";
+    const kind = target.kind === "obstacle" && frame.presentation !== "boxing_lanes" ? "hatch" : iconId ? "icon" : "circle";
     if (isFlow && iconId) commands.push(command("icon", role, scaledRect(rect, tuning.flowOutlineScale), alpha, scale * tuning.flowOutlineScale, iconId, false, 4, target.id, 1, false, rotationRad, "white"));
     commands.push(command(kind, role, rect, alpha, scale, iconId, target.kind === "obstacle", 5, target.id, isFlow ? 1 : progress, false, rotationRad, "role", whiten));
-    if (target.judgement === undefined || target.judgement === "pending") {
+    if (frame.presentation !== "boxing_lanes" && (target.judgement === undefined || target.judgement === "pending")) {
       const ringScale = lerp(tuning.approachRingScale, 1, progress);
       commands.push(command("ring", role, scaledRect(baseRect, ringScale), 0.85 * arrivalAlpha, ringScale, null, false, 6, target.id, 1));
     }
@@ -199,13 +208,19 @@ function addTarget(commands, frame, target, grid, theme, tuning) {
   }
 }
 
-/** @param {AeroGameplayPresentation} presentation @param {AeroRenderableTarget} target @param {{x:number,y:number,width:number,height:number}} grid @param {AeroRendererTuning} tuning @param {number|undefined} viewportAspect @returns {AeroNormalizedRect[]} */
-function targetRects(presentation, target, grid, tuning, viewportAspect) {
-  if (presentation === "boxing_semantic_track" && target.kind !== "obstacle") {
-    const track = trackGeometry(tuning, viewportAspect);
-    if (target.kind === "guard") return [{ x: track.leftX, y: track.receptorY, width: track.rightX + track.width - track.leftX, height: track.targetHeight }];
-    const x = (target.lane ?? target.hand) === "left" ? track.leftX : track.rightX;
-    return [{ x, y: track.receptorY, width: track.width, height: track.targetHeight }];
+/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{x:number,y:number,width:number,height:number}} grid @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning @returns {AeroNormalizedRect[]} */
+function targetRects(frame, target, grid, theme, tuning) {
+  if (frame.presentation === "boxing_lanes") {
+    const lanes = boxingLanesGeometry(tuning, frame.viewportAspect);
+    const lead = Math.max(1, target.approachLeadMs ?? theme.approachLeadMs);
+    const velocity = laneVelocity(lanes.targetHeight * tuning.roleScale * theme.targetHitScale, tuning.laneHitCenterY, lead);
+    const y = tuning.laneHitCenterY - lanes.targetHeight / 2 - velocity * (frame.nowMs - target.beatCenterMs);
+    if (target.kind === "guard" || target.family === "squat") return [
+      { x: lanes.leftX, y, width: lanes.width, height: lanes.targetHeight },
+      { x: lanes.rightX, y, width: lanes.width, height: lanes.targetHeight }
+    ];
+    const x = (target.lane ?? target.hand) === "left" ? lanes.leftX : lanes.rightX;
+    return [{ x, y, width: lanes.width, height: lanes.targetHeight }];
   }
   const cells = target.cells.length > 0 ? target.cells : target.cell === null ? [] : [target.cell];
   if (target.kind === "guard" && cells.length >= 2) {
@@ -232,10 +247,13 @@ export function cellRect(cell, grid, gap = 0) {
 /** @param {AeroRenderableTarget} target @returns {string|null} */
 function iconIdFor(target) {
   if (target.kind === "flow") return target.direction ? "flow.directional" : "flow.directionless";
+  if (target.family === "squat") return "boxing.squat";
+  if (target.family === "weave") {
+    const direction = target.lane ?? (target.hand === "left" || target.hand === "right" ? target.hand : null);
+    return direction ? `boxing.weave.${direction}` : null;
+  }
   if (target.kind === "guard") return target.family === "crossed_guard" ? "boxing.guard.crossed" : "boxing.guard.standard";
   if (target.kind === "punch") return `boxing.${target.family}.${target.hand}`;
-  if (target.family === "squat") return "boxing.squat";
-  if (target.family === "weave" && (target.hand === "left" || target.hand === "right")) return `boxing.weave.${target.hand}`;
   return null;
 }
 
@@ -263,6 +281,22 @@ function feedbackWordmarkRect(rect, scale) {
 /** @param {number|undefined} value */
 function finiteProgress(value) { return typeof value === "number" && Number.isFinite(value) ? clamp(value, 0, 1) : 0; }
 
+/** @param {number|undefined} value @param {string} name */
+function authoritativeWindow(value, name) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 10_000) throw new TypeError(`Boxing Lanes ${name} is invalid`);
+  return value;
+}
+
+/** @param {readonly AeroRenderableTarget[]} targets @param {number} themeLead */
+function sharedLaneLead(targets, themeLead) {
+  const leads = new Set(targets.map((target) => Math.max(1, target.approachLeadMs ?? themeLead)));
+  if (leads.size > 1) throw new TypeError("Boxing Lanes targets must share one approach lead");
+  return leads.values().next().value ?? Math.max(1, themeLead);
+}
+
+/** @param {number} targetHeight @param {number} hitCenterY @param {number} leadMs */
+function laneVelocity(targetHeight, hitCenterY, leadMs) { return (1 + targetHeight / 2 - hitCenterY) / leadMs; }
+
 /** @param {AeroNormalizedRect} rect @param {number} scale @returns {AeroNormalizedRect} */
 function scaledRect(rect, scale) {
   const width = rect.width * scale;
@@ -271,7 +305,7 @@ function scaledRect(rect, scale) {
 }
 
 /** @param {unknown} value @returns {value is AeroGameplayPresentation} */
-function isPresentation(value) { return value === "flow" || value === "boxing_spatial_grid" || value === "boxing_semantic_track"; }
+function isPresentation(value) { return value === "flow" || value === "boxing_spatial_grid" || value === "boxing_lanes"; }
 /** @param {number|undefined|null} value @returns {number|null} */
 function normalizeCountdown(value) { return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 3 ? Number(value) : null; }
 /** @param {number} value @param {number} minimum @param {number} maximum */

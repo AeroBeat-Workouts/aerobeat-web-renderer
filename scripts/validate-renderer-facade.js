@@ -31,9 +31,36 @@ for (const [width, height] of [[390, 844], [844, 390], [240, 1200], [1600, 300]]
 }
 const trackProbeTarget = { id:"track-probe",kind:/** @type {const} */("punch"),hand:/** @type {const} */("left"),family:/** @type {const} */("straight"),cell:null,cells:[],lane:/** @type {const} */("left"),beatCenterMs:0 };
 for (const [width, height] of [[240,1200],[1600,300]]) {
-  const command = buildGameplayRenderPlan({ presentation:"boxing_semantic_track",nowMs:0,targets:[trackProbeTarget],viewportAspect:width/height }).commands.find((entry) => entry.targetId === "track-probe" && entry.kind === "icon");
-  assert.ok(command && Math.abs(command.rect.width * width - command.rect.height * height) < 1e-9, `Track icon must remain physically square at ${width}x${height}`);
+  const command = buildGameplayRenderPlan({ presentation:"boxing_lanes",nowMs:0,targets:[trackProbeTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180,viewportAspect:width/height }).commands.find((entry) => entry.targetId === "track-probe" && entry.kind === "icon");
+  assert.ok(command && Math.abs(command.rect.width * width - command.rect.height * height) < 1e-9, `Boxing Lanes icon must remain physically square at ${width}x${height}`);
 }
+const laneTarget = { ...trackProbeTarget, id:"lane-equations", beatCenterMs:1000, approachLeadMs:900, judgement:/** @type {const} */("pending") };
+const laneFrame = (nowMs) => ({ presentation:/** @type {const} */("boxing_lanes"),nowMs,targets:[laneTarget],timingWindowBeforeMs:120,timingWindowAfterMs:240,viewportAspect:390/844 });
+const laneCenterPlan = buildGameplayRenderPlan(laneFrame(1000));
+const laneCenter = laneCenterPlan.commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+const laneBand = laneCenterPlan.commands.find((entry)=>entry.targetId===null&&entry.role==="neutral"&&entry.layer===1);
+assert.ok(laneCenter&&laneBand);
+const laneHeight=laneCenter.rect.height; const laneVelocity=(1+laneHeight/2-defaultRendererTuning.laneHitCenterY)/900;
+assertClose(laneCenter.rect.y,defaultRendererTuning.laneHitCenterY-laneHeight/2,"center target top");
+assertClose(laneBand.rect.y,defaultRendererTuning.laneHitCenterY-laneVelocity*240,"asymmetric band top");
+assertClose(laneBand.rect.height,laneVelocity*(120+240),"asymmetric band height");
+const laneEarly=buildGameplayRenderPlan(laneFrame(880)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+const laneLate=buildGameplayRenderPlan(laneFrame(1240)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+assert.ok(laneEarly&&laneLate);
+assertClose(laneEarly.rect.y+laneEarly.rect.height/2,laneBand.rect.y+laneBand.rect.height,"early center touches lower band edge");
+assertClose(laneLate.rect.y+laneLate.rect.height/2,laneBand.rect.y,"late center touches upper band edge");
+const deltaA=buildGameplayRenderPlan(laneFrame(700)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+const deltaB=buildGameplayRenderPlan(laneFrame(750)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+const deltaC=buildGameplayRenderPlan(laneFrame(800)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+assert.ok(deltaA&&deltaB&&deltaC); assertClose(deltaA.rect.y-deltaB.rect.y,deltaB.rect.y-deltaC.rect.y,"equal timeline deltas move equally upward");
+const laneStart=buildGameplayRenderPlan(laneFrame(100)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+const laneBeforeStart=buildGameplayRenderPlan(laneFrame(99)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+const fullyAboveMs=1000+(defaultRendererTuning.laneHitCenterY+laneHeight/2)/laneVelocity;
+const laneAbove=buildGameplayRenderPlan(laneFrame(fullyAboveMs)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
+assert.ok(laneStart&&laneBeforeStart&&laneAbove); assertClose(laneStart.rect.y+laneStart.rect.height/2-laneHeight/2,1,"base target starts fully below"); assert.ok(laneStart.rect.y>=1&&laneBeforeStart.rect.y>laneStart.rect.y); assertClose(laneAbove.rect.y+laneAbove.rect.height,0,"target exits fully above");
+assert.equal(laneCenterPlan.commands.filter((entry)=>entry.layer===0).length,2); assert.equal(laneCenterPlan.commands.filter((entry)=>entry.targetId===null&&entry.layer===1).length,1); assert.equal(laneCenterPlan.commands.some((entry)=>entry.kind==="ring"||entry.kind==="line"),false); assert.equal(laneBand.alpha,0.22);
+assert.throws(()=>buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:0,targets:[]}),/timingWindowBeforeMs/u);
+assert.throws(()=>buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:0,targets:[laneTarget,{...laneTarget,id:"mixed-lead",approachLeadMs:800}],timingWindowBeforeMs:180,timingWindowAfterMs:180}),/share one approach lead/u);
 assert.equal(applyNamedEasing(0.5, "linear"), 0.5);
 assert.equal(applyNamedEasing(0.5, "ease-in"), 0.25);
 assert.equal(applyNamedEasing(0.5, "ease-out"), 0.75);
@@ -42,11 +69,11 @@ assert.deepEqual(normalizeRendererTuning(defaultRendererTuning),defaultRendererT
 const mappedDefaultTuning = rendererTuningFromVisualProfile(defaultRendererVisualProfile);
 const mappedCompactTuning = rendererTuningFromVisualProfile(compactRendererVisualProfile);
 assert.equal(mappedDefaultTuning.id, "aero.visual.default");
-assert.equal(mappedDefaultTuning.hash, "visual-0c61b03b");
+assert.equal(mappedDefaultTuning.hash, "visual-cd5b4f10");
 assert.equal(mappedDefaultTuning.roleScale, 1);
-for (const key of ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "roleScale", "dprCap", "flowFadeInMs", "flowOutlineScale", "feedbackDurationMs", "hitPulseMs", "hitPulseScale", "greatEndScale"]) assert.equal(mappedDefaultTuning[key], defaultRendererTuning[key], `default profile must preserve renderer tuning ${key}`);
+for (const key of ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "laneHitCenterY", "laneTimingBandAlpha", "roleScale", "dprCap", "flowFadeInMs", "flowOutlineScale", "feedbackDurationMs", "hitPulseMs", "hitPulseScale", "greatEndScale"]) assert.equal(mappedDefaultTuning[key], defaultRendererTuning[key], `default profile must preserve renderer tuning ${key}`);
 assert.equal(mappedCompactTuning.id, "aero.visual.compact");
-assert.equal(mappedCompactTuning.hash, "visual-38c344f6");
+assert.equal(mappedCompactTuning.hash, "visual-ee36f83b");
 assert.equal(mappedCompactTuning.roleScale, 0.86);
 assert.ok(mappedCompactTuning.approachRingScale < mappedDefaultTuning.approachRingScale);
 assert.ok(mappedCompactTuning.approachRingWidth < mappedDefaultTuning.approachRingWidth);
@@ -71,10 +98,31 @@ assert.ok(missCommand && pendingCommand && missCommand.scale > pendingCommand.sc
 const guardPlan = buildGameplayRenderPlan({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [{ ...targetBase, id: "guard", kind: "guard", hand: "both", family: "crossed_guard", cell: null, cells: [5, 6], lane: null }] });
 const guard = guardPlan.commands.find((entry) => entry.iconId === "boxing.guard.crossed");
 assert.ok(guard && guard.rect.width > guard.rect.height);
-const trackPlan = buildGameplayRenderPlan({ presentation: "boxing_semantic_track", nowMs: 1000, blockedCells: [1], targets: [{ ...targetBase, lane: "right", hand: "right", family: "hook" }], overlay: "paused", countdown: 3 });
+const trackPlan = buildGameplayRenderPlan({ presentation: "boxing_lanes", nowMs: 1000, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, blockedCells: [1], targets: [{ ...targetBase, lane: "right", hand: "right", family: "hook" }], overlay: "paused", countdown: 3 });
 assert.equal(trackPlan.commands.filter((entry) => entry.layer === 0).length, 2);
+assert.equal(trackPlan.commands.some((entry)=>entry.kind==="hatch"||entry.kind==="ring"||entry.kind==="line"),false,"Boxing Lanes must not leak grid hatches, approach rings, or receptor lines");
 assert.equal(trackPlan.overlay.dim, 0.62);
 assert.equal(trackPlan.overlay.countdown, 3);
+const laneCues = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
+  { ...targetBase,id:"straight-left",hand:"left",lane:"left",family:"straight" },
+  { ...targetBase,id:"hook-right",hand:"right",lane:"right",family:"hook" },
+  { ...targetBase,id:"uppercut-left",hand:"left",lane:"left",family:"uppercut" },
+  { ...targetBase,id:"guard-standard",kind:"guard",hand:"both",lane:null,family:"guard",cell:null },
+  { ...targetBase,id:"guard-crossed",kind:"guard",hand:"both",lane:null,family:"crossed_guard",cell:null },
+  { ...targetBase,id:"squat",kind:"obstacle",hand:"neutral",lane:null,family:"squat",cell:null },
+  { ...targetBase,id:"weave-left",kind:"obstacle",hand:"neutral",lane:"left",family:"weave",cell:null },
+  { ...targetBase,id:"weave-right",kind:"obstacle",hand:"neutral",lane:"right",family:"weave",cell:null }
+]);
+const allLanePlan=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1000,targets:laneCues,timingWindowBeforeMs:180,timingWindowAfterMs:180});
+const expectedLaneIcons={"straight-left":["boxing.straight.left"],"hook-right":["boxing.hook.right"],"uppercut-left":["boxing.uppercut.left"],"guard-standard":["boxing.guard.standard","boxing.guard.standard"],"guard-crossed":["boxing.guard.crossed","boxing.guard.crossed"],squat:["boxing.squat","boxing.squat"],"weave-left":["boxing.weave.left"],"weave-right":["boxing.weave.right"]};
+for(const [id,icons] of Object.entries(expectedLaneIcons)){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.deepEqual(commands.map((entry)=>entry.iconId),icons,`${id} canonical lane icons`);for(const entry of commands)assertClose(entry.rect.width*4/3,entry.rect.height,`${id} square normalized at default aspect`);}
+for(const id of ["guard-standard","guard-crossed","squat"]){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.equal(commands.length,2);assert.ok(commands[0].rect.x<0.5&&commands[1].rect.x>0.5,`${id} must duplicate exactly once per lane`);}
+const movingHitTarget={...laneCues[0],id:"moving-hit",judgement:/** @type {const} */("hit"),feedbackProgress:.5};
+const movingHitEarly=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1000,targets:[movingHitTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180});
+const movingHitLate=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1050,targets:[movingHitTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180});
+const movingCueEarly=movingHitEarly.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.layer===5);const movingGreatEarly=movingHitEarly.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.iconId==="feedback.great");const movingCueLate=movingHitLate.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.layer===5);const movingGreatLate=movingHitLate.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.iconId==="feedback.great");
+assert.ok(movingCueEarly&&movingGreatEarly&&movingCueLate&&movingGreatLate);assert.ok(movingCueLate.rect.y<movingCueEarly.rect.y&&movingGreatLate.rect.y<movingGreatEarly.rect.y,"cue and GREAT feedback must continue moving upward together");assertClose((movingGreatEarly.rect.y+movingGreatEarly.rect.height/2)-(movingCueEarly.rect.y+movingCueEarly.rect.height/2),0,"GREAT remains centered on moving cue");
+assert.equal(defaultRendererTuning.feedbackDurationMs,350,"caller projection feedback lifetime remains 350ms");
 const obstaclePlan = buildGameplayRenderPlan({ presentation: "flow", nowMs: 1000, blockedCells: [0], safeCells: [11], targets: [{ ...targetBase, id: "flow-up", kind: "flow", family: "flow", hand: "left", direction: "up" }] });
 assert.equal(obstaclePlan.commands.some((entry) => entry.targetId === "flow-up" && (entry.kind === "line" || entry.kind === "circle")), false, "Flow direction must use the selected icon rather than primitive cues");
 assert.equal(obstaclePlan.commands.some((entry) => entry.role === "obstacle" && entry.hatch), true);
@@ -222,7 +270,7 @@ const theme = { schema: "aerobeat/theme_descriptor", version: 1, id: "theme.qa",
 renderer.setTheme(theme);
 assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
 assert.deepEqual(renderer.describe().visualProfile, defaultRendererVisualProfile);
-assert.equal(renderer.describe().tuningHash, "visual-0c61b03b");
+assert.equal(renderer.describe().tuningHash, "visual-cd5b4f10");
 const defaultVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
 renderer.setTuning(compactRendererVisualProfile);
 assert.equal(renderer.describe().themeId, "theme.qa");
@@ -232,7 +280,7 @@ assert.deepEqual(renderer.exportTuning(), compactRendererVisualProfile);
 assert.deepEqual(renderer.getSnapshot().visualProfileIdentity, compactRendererVisualProfile.identity);
 assert.deepEqual(renderer.describe().visualProfileSettings, { motionIntensity:0.8, roleScale:0.86 });
 assert.equal(renderer.describe().tuningId, "aero.visual.compact");
-assert.equal(renderer.describe().tuningHash, "visual-38c344f6");
+assert.equal(renderer.describe().tuningHash, "visual-ee36f83b");
 assert.equal(renderer.describe().tuningVersion, "1.0.0");
 assert.equal(renderer.describe().tuningRequiresRegeneration, false);
 assert.equal(renderer.describe().experimental, true);
@@ -303,6 +351,9 @@ assert.ok(first.gl.deletedPrograms > 0);
 assert.equal(renderer.describe().iconAtlasReady, false);
 
 console.log("Per-game renderer, plan, atlas, resize, context, and disposal validation passed.");
+
+/** @param {number} actual @param {number} expected @param {string} label */
+function assertClose(actual,expected,label) { assert.ok(Math.abs(actual-expected)<1e-12,`${label}: ${actual} !== ${expected}`); }
 
 function createHarness() {
   const listeners = new Map();

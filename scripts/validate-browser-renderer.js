@@ -42,7 +42,7 @@ try {
   }));
   assert.equal(initial.test.primary.state, "running"); assert.equal(initial.test.secondary.state, "running");
   assert.equal(initial.test.primary.iconAtlasReady, true); assert.equal(initial.test.secondary.iconAtlasReady, true);
-  assert.ok(initial.test.primaryCommands >= 20); assert.ok(initial.test.secondaryCommands >= 8);
+  assert.ok(initial.test.primaryCommands >= 20); assert.ok(initial.test.secondaryCommands >= 5);
   assert.notEqual(initial.sizes[0].width, initial.sizes[1].width);
   const evidence = [
     ["desktop", 1180, 760],
@@ -188,6 +188,32 @@ try {
   }
   assert.equal(feedbackPixelEvidence.length,4);
   console.log("Flow semantic icon/outline/ring/GREAT/miss framebuffer validation passed for requested DPR1/3 portrait/landscape.");
+
+  const lanePixelEvidence=[];
+  for(const [viewport,width,height] of [["portrait",390,844],["landscape",844,390]]) for(const requestedDpr of [1,3]){
+    const lanes=await page.evaluate(({width,height,requestedDpr})=>{
+      const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0];const canvas=document.querySelector("canvas");renderer.resetTuning();renderer.setTheme(null);renderer.resize({widthCssPx:width,heightCssPx:height,devicePixelRatio:requestedDpr});const gl=canvas.getContext("webgl2");
+      const frame={presentation:"boxing_lanes",nowMs:1000,overlay:"none",timingWindowBeforeMs:180,timingWindowAfterMs:180,targets:[]};
+      renderer.renderGameplayFrame({...frame,timingWindowBeforeMs:0,timingWindowAfterMs:0});const noBand=read();
+      const bandResult=renderer.renderGameplayFrame(frame);const bandPixels=read();const band=bandResult.plan.commands.find((entry)=>entry.targetId===null&&entry.role==="neutral"&&entry.layer===1);if(!band)throw new Error("Boxing Lanes band is missing");
+      const xSamples=[band.rect.x+band.rect.width*.1,band.rect.x+band.rect.width*.5,band.rect.x+band.rect.width*.9];const bandScans=xSamples.map((normalizedX)=>scanColumn(normalizedX,noBand,bandPixels));
+      const cue={id:"lane-pixel",kind:"punch",hand:"left",family:"straight",cell:null,cells:[],lane:"left",beatCenterMs:1000,judgement:"pending",feedbackProgress:0};
+      const cueResult=renderer.renderGameplayFrame({...frame,targets:[cue]});const cuePixels=read();const icon=cueResult.plan.commands.find((entry)=>entry.targetId==="lane-pixel"&&entry.kind==="icon");if(!icon)throw new Error("Boxing Lanes cue icon is missing");
+      let iconChanged=0,outsideIconChanged=0,sumX=0,sumY=0;for(let y=0;y<gl.drawingBufferHeight;y+=1)for(let x=0;x<gl.drawingBufferWidth;x+=1){const offset=(y*gl.drawingBufferWidth+x)*4;if(delta(cuePixels,bandPixels,offset)<=3)continue;const nx=(x+.5)/gl.drawingBufferWidth;const ny=1-(y+.5)/gl.drawingBufferHeight;if(nx>=icon.rect.x&&nx<=icon.rect.x+icon.rect.width&&ny>=icon.rect.y&&ny<=icon.rect.y+icon.rect.height){iconChanged+=1;sumX+=nx;sumY+=ny;}else outsideIconChanged+=1;}
+      const flow=renderer.renderGameplayFrame({presentation:"flow",nowMs:1000,targets:[{...cue,id:"flow-regression",kind:"flow",family:"flow",cell:5,lane:null,direction:"right"}]});
+      const grid=renderer.renderGameplayFrame({presentation:"boxing_spatial_grid",nowMs:1000,blockedCells:[0],safeCells:[11],targets:[{...cue,id:"grid-regression",cell:5}]});
+      return{effectiveDpr:renderer.describe().devicePixelRatio,band,bandScans,backgrounds:bandResult.plan.commands.filter((entry)=>entry.layer===0).length,lines:bandResult.plan.commands.filter((entry)=>entry.kind==="line").length,rings:cueResult.plan.commands.filter((entry)=>entry.kind==="ring").length,icon,iconChanged,outsideIconChanged,iconCentroidX:iconChanged?sumX/iconChanged:null,iconCentroidY:iconChanged?sumY/iconChanged:null,flowRings:flow.plan.commands.filter((entry)=>entry.kind==="ring").length,gridReceptors:grid.plan.commands.filter((entry)=>entry.layer===0).length,gridRings:grid.plan.commands.filter((entry)=>entry.kind==="ring").length,gridHatches:grid.plan.commands.filter((entry)=>entry.kind==="hatch").length,drawingBufferHeight:gl.drawingBufferHeight};
+      function read(){const output=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,output);return output;}
+      function delta(a,b,offset){return Math.max(Math.abs(a[offset]-b[offset]),Math.abs(a[offset+1]-b[offset+1]),Math.abs(a[offset+2]-b[offset+2]));}
+      function scanColumn(normalizedX,before,after){const x=Math.max(0,Math.min(gl.drawingBufferWidth-1,Math.floor(normalizedX*gl.drawingBufferWidth)));let count=0,minTop=Infinity,maxTop=-Infinity,sumTop=0,maxDelta=0;for(let y=0;y<gl.drawingBufferHeight;y+=1){const offset=(y*gl.drawingBufferWidth+x)*4;const difference=delta(before,after,offset);if(difference<=3)continue;const top=1-(y+.5)/gl.drawingBufferHeight;count+=1;minTop=Math.min(minTop,top);maxTop=Math.max(maxTop,top);sumTop+=top;maxDelta=Math.max(maxDelta,difference);}return{count,minTop,maxTop,centroidTop:count?sumTop/count:null,maxDelta};}
+    },{width,height,requestedDpr});
+    assert.equal(lanes.effectiveDpr,Math.min(requestedDpr,2));assert.equal(lanes.backgrounds,2);assert.equal(lanes.lines,0);assert.equal(lanes.rings,0);assert.equal(lanes.band.alpha,.22);assert.ok(lanes.band.rect.width>lanes.icon.rect.width*2,`${viewport} DPR${requestedDpr} band must span both lanes and gap`);
+    for(const scan of lanes.bandScans){assert.ok(scan.count>0&&scan.maxDelta>3&&scan.maxDelta<100,`${viewport} DPR${requestedDpr} shared band must be visibly semi-transparent: ${JSON.stringify(scan)}`);assert.ok(Math.abs(scan.centroidTop-(lanes.band.rect.y+lanes.band.rect.height/2))*lanes.drawingBufferHeight<1.5,`${viewport} DPR${requestedDpr} band centroid mismatch`);assert.ok(scan.maxTop<=lanes.band.rect.y+lanes.band.rect.height+2/lanes.drawingBufferHeight&&scan.minTop>=lanes.band.rect.y-2/lanes.drawingBufferHeight,`${viewport} DPR${requestedDpr} band bounds mismatch`);}
+    assert.ok(lanes.iconChanged>20,`${viewport} DPR${requestedDpr} canonical lane icon must draw`);assert.equal(lanes.outsideIconChanged,0,`${viewport} DPR${requestedDpr} pending lane cue must emit no approach-ring pixels`);assert.ok(lanes.iconCentroidX>=lanes.icon.rect.x&&lanes.iconCentroidX<=lanes.icon.rect.x+lanes.icon.rect.width&&lanes.iconCentroidY>=lanes.icon.rect.y&&lanes.iconCentroidY<=lanes.icon.rect.y+lanes.icon.rect.height);
+    assert.equal(lanes.flowRings,1,`${viewport} DPR${requestedDpr} Flow ring regression`);assert.equal(lanes.gridReceptors,12);assert.equal(lanes.gridRings,1);assert.equal(lanes.gridHatches,2,`${viewport} DPR${requestedDpr} Boxing Grid hatches regression`);lanePixelEvidence.push({viewport,requestedDpr,...lanes});
+  }
+  assert.equal(lanePixelEvidence.length,4);
+  console.log("Boxing Lanes shared band/icon/no-ring framebuffer validation passed for DPR1/3 portrait/landscape; Flow/Grid regressions retained.");
 
   const cursorPixelEvidence = [];
   for (const [viewport,width,height] of [["portrait",390,844],["landscape",844,390]]) for (const requestedDpr of [1,3]) {

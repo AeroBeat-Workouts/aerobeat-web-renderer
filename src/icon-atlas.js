@@ -1,6 +1,6 @@
 // @ts-check
 
-import { gameplayIconIds } from "./gameplay-plan.js";
+import { gameplayIconIds } from "./gameplay-scene-model.js";
 
 /** @typedef {{id:string,file:string,viewBox:string}} AeroBrandingIconAsset */
 /** @typedef {{schemaId:string,schemaVersion:number,colorContract:string,webglContract:string,assets:readonly AeroBrandingIconAsset[]}} AeroBrandingIconManifest */

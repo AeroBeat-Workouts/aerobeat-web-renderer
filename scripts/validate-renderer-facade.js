@@ -1,494 +1,53 @@
 // @ts-check
 
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import {
-  aeroWebGl2RendererServiceId,
-  applyNamedEasing,
-  buildGameplayRenderPlan,
-  cellRect,
-  compactRendererVisualProfile,
-  createAeroWebGl2Renderer,
-  defaultRendererTuning,
-  defaultRendererVisualProfile,
-  fitPlayfieldGrid,
-  flowApproachProgress,
-  flowDefaultApproachLeadMs,
-  flowStartScale,
-  flowVanishingPoint,
-  gameplayIconIds,
-  projectFlowRect,
-  normalizeBrandingIconManifest,
-  normalizeIconAtlasData,
-  normalizeRendererTuning,
-  rasterizeBrandingIconAtlas
+  aeroPlayCanvasRendererServiceId,buildGameplaySceneModel,compactRendererVisualProfile,defaultRendererTuning,gameplayIconIds,
+  gameplayWorldGrid,normalizeBrandingIconManifest,normalizeIconAtlasData,rasterizeBrandingIconAtlas,timestampToWorldZ,worldPositionForCell
 } from "../src/index.js";
-import { rendererTuningFromVisualProfile } from "../src/visual-profiles.js";
 
-assert.deepEqual(cellRect(0, { x: 0, y: 0, width: 1, height: 1 }, 0), { x: 0, y: 0, width: 0.25, height: 1 / 3 });
-assert.deepEqual(cellRect(11, { x: 0, y: 0, width: 1, height: 1 }, 0), { x: 0.75, y: 2 / 3, width: 0.25, height: 1 / 3 });
-assert.equal(cellRect(12, { x: 0, y: 0, width: 1, height: 1 }, 0), null);
-for (const [width, height] of [[390, 844], [844, 390], [240, 1200], [1600, 300]]) {
-  const fitted = fitPlayfieldGrid(0.055, width / height);
-  const physicalCellWidth = fitted.width * width / 4;
-  const physicalCellHeight = fitted.height * height / 3;
-  assert.ok(Math.abs(physicalCellWidth - physicalCellHeight) < 1e-9, `4x3 cells must remain physically square at ${width}x${height}`);
-  assert.ok(fitted.x >= 0 && fitted.y >= 0 && fitted.x + fitted.width <= 1 && fitted.y + fitted.height <= 1);
-}
-const trackProbeTarget = { id:"track-probe",kind:/** @type {const} */("punch"),hand:/** @type {const} */("left"),family:/** @type {const} */("straight"),cell:null,cells:[],lane:/** @type {const} */("left"),beatCenterMs:0 };
-for (const [width, height] of [[240,1200],[1600,300]]) {
-  const command = buildGameplayRenderPlan({ presentation:"boxing_lanes",nowMs:0,targets:[trackProbeTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180,viewportAspect:width/height }).commands.find((entry) => entry.targetId === "track-probe" && entry.kind === "icon");
-  assert.ok(command && Math.abs(command.rect.width * width - command.rect.height * height) < 1e-9, `Boxing Lanes icon must remain physically square at ${width}x${height}`);
-}
-const laneTarget = { ...trackProbeTarget, id:"lane-equations", beatCenterMs:1000, approachLeadMs:900, judgement:/** @type {const} */("pending") };
-const laneFrame = (nowMs) => ({ presentation:/** @type {const} */("boxing_lanes"),nowMs,targets:[laneTarget],timingWindowBeforeMs:120,timingWindowAfterMs:240,viewportAspect:390/844 });
-const laneCenterPlan = buildGameplayRenderPlan(laneFrame(1000));
-const laneCenter = laneCenterPlan.commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-const laneBand = laneCenterPlan.commands.find((entry)=>entry.targetId===null&&entry.role==="neutral"&&entry.layer===1);
-assert.ok(laneCenter&&laneBand);
-const laneHeight=laneCenter.rect.height; const laneVelocity=(1+laneHeight/2-defaultRendererTuning.laneHitCenterY)/900;
-assertClose(laneCenter.rect.y,defaultRendererTuning.laneHitCenterY-laneHeight/2,"center target top");
-assertClose(laneBand.rect.y,defaultRendererTuning.laneHitCenterY-laneVelocity*240,"asymmetric band top");
-assertClose(laneBand.rect.height,laneVelocity*(120+240),"asymmetric band height");
-const laneEarly=buildGameplayRenderPlan(laneFrame(880)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-const laneLate=buildGameplayRenderPlan(laneFrame(1240)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-assert.ok(laneEarly&&laneLate);
-assertClose(laneEarly.rect.y+laneEarly.rect.height/2,laneBand.rect.y+laneBand.rect.height,"early center touches lower band edge");
-assertClose(laneLate.rect.y+laneLate.rect.height/2,laneBand.rect.y,"late center touches upper band edge");
-const deltaA=buildGameplayRenderPlan(laneFrame(700)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-const deltaB=buildGameplayRenderPlan(laneFrame(750)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-const deltaC=buildGameplayRenderPlan(laneFrame(800)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-assert.ok(deltaA&&deltaB&&deltaC); assertClose(deltaA.rect.y-deltaB.rect.y,deltaB.rect.y-deltaC.rect.y,"equal timeline deltas move equally upward");
-const laneStart=buildGameplayRenderPlan(laneFrame(100)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-const laneBeforeStart=buildGameplayRenderPlan(laneFrame(99)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-const fullyAboveMs=1000+(defaultRendererTuning.laneHitCenterY+laneHeight/2)/laneVelocity;
-const laneAbove=buildGameplayRenderPlan(laneFrame(fullyAboveMs)).commands.find((entry)=>entry.targetId==="lane-equations"&&entry.kind==="icon");
-assert.ok(laneStart&&laneBeforeStart&&laneAbove); assertClose(laneStart.rect.y+laneStart.rect.height/2-laneHeight/2,1,"base target starts fully below"); assert.ok(laneStart.rect.y>=1&&laneBeforeStart.rect.y>laneStart.rect.y); assertClose(laneAbove.rect.y+laneAbove.rect.height,0,"target exits fully above");
-assert.equal(laneCenterPlan.commands.filter((entry)=>entry.layer===0).length,2); assert.equal(laneCenterPlan.commands.filter((entry)=>entry.targetId===null&&entry.layer===1).length,1); assert.equal(laneCenterPlan.commands.some((entry)=>entry.kind==="ring"||entry.kind==="line"),false); assert.equal(laneBand.alpha,0.22);
-assert.throws(()=>buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:0,targets:[]}),/timingWindowBeforeMs/u);
-assert.throws(()=>buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:0,targets:[laneTarget,{...laneTarget,id:"mixed-lead",approachLeadMs:800}],timingWindowBeforeMs:180,timingWindowAfterMs:180}),/share one approach lead/u);
-assert.equal(applyNamedEasing(0.5, "linear"), 0.5);
-assert.equal(applyNamedEasing(0.5, "ease-in"), 0.25);
-assert.equal(applyNamedEasing(0.5, "ease-out"), 0.75);
-
-assert.equal(flowApproachProgress(0, 1000, 1000), 0);
-assert.equal(flowApproachProgress(250, 1000, 1000), 0.25);
-assert.equal(flowApproachProgress(500, 1000, 1000), 0.5);
-assert.equal(flowApproachProgress(750, 1000, 1000), 0.75);
-assert.equal(flowApproachProgress(1000, 1000, 1000), 1);
-assert.throws(() => flowApproachProgress(0, 1000, 0), /timeline is invalid/u);
-const flowEndpoint = cellRect(5, fitPlayfieldGrid(defaultRendererTuning.gridInset, 4 / 3), defaultRendererTuning.gridGap);
-assert.ok(flowEndpoint);
-const projectedSpawn = projectFlowRect(flowEndpoint, 0);
-const projectedQuarter = projectFlowRect(flowEndpoint, 0.25);
-const projectedHalf = projectFlowRect(flowEndpoint, 0.5);
-const projectedThreeQuarter = projectFlowRect(flowEndpoint, 0.75);
-const projectedImpact = projectFlowRect(flowEndpoint, 1);
-assertClose(projectedSpawn.x + projectedSpawn.width / 2, flowVanishingPoint.x, "Flow spawn center X");
-assertClose(projectedSpawn.y + projectedSpawn.height / 2, flowVanishingPoint.y, "Flow spawn center Y");
-assertClose(projectedSpawn.width, flowEndpoint.width * flowStartScale, "Flow spawn width");
-assert.deepEqual(projectedImpact,flowEndpoint,"Flow progress 1 must preserve the exact authoritative endpoint record");
-assert.deepEqual(projectFlowRect(flowEndpoint,2),flowEndpoint,"Flow progress above 1 must clamp to the exact authoritative endpoint record");
-for(const [width,height] of [[390,844],[844,390],[240,1200],[1600,300]]){
-  const grid=fitPlayfieldGrid(defaultRendererTuning.gridInset,width/height);
-  for(let cell=0;cell<12;cell+=1){
-    const endpoint=cellRect(cell,grid,defaultRendererTuning.gridGap);assert.ok(endpoint);
-    assert.deepEqual(projectFlowRect(endpoint,1),endpoint,`cell ${cell} at ${width}x${height} must retain strict endpoint identity`);
-    const impactPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,viewportAspect:width/height,targets:[{id:`exact-${cell}`,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell,cells:[],lane:null,beatCenterMs:1000,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")} ]});
-    const foreground=impactPlan.commands.find((entry)=>entry.targetId===`exact-${cell}`&&entry.sequence===1);assert.ok(foreground);
-    assert.deepEqual(foreground.rect,endpoint,`Flow cue cell ${cell} at ${width}x${height} must land on the exact cellRect output`);
-  }
-}
-assertClose((projectedHalf.x + projectedHalf.width / 2) - (projectedQuarter.x + projectedQuarter.width / 2), (projectedThreeQuarter.x + projectedThreeQuarter.width / 2) - (projectedHalf.x + projectedHalf.width / 2), "equal Flow deltas move center X equally");
-assertClose(projectedHalf.width - projectedQuarter.width, projectedThreeQuarter.width - projectedHalf.width, "equal Flow deltas scale equally");
-const sameCellTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
-  { id:"same-near",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,approachLeadMs:1000,direction:"right",judgement:"pending" },
-  { id:"same-far",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1600,approachLeadMs:1000,direction:"right",judgement:"pending" },
-  { id:"same-middle",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1300,approachLeadMs:1000,direction:"right",judgement:"pending" }
-]);
-const sameCellPlan = buildGameplayRenderPlan({ presentation:"flow",nowMs:700,targets:sameCellTargets });
-const sameCellFills = sameCellPlan.commands.filter((entry) => entry.layer === 5 && entry.sequence === 1);
-assert.deepEqual(sameCellFills.map((entry) => entry.targetId), ["same-far","same-middle","same-near"], "Flow cues must draw far-first and near-last independently of source order");
-for (const [index,expected] of [0.1,0.4,0.7].entries()) assertClose(Number(sameCellFills[index].depth),expected,`same-cell depth ${index}`);
-assert.equal(new Set(sameCellFills.map((entry) => `${entry.rect.x}:${entry.rect.y}:${entry.rect.width}:${entry.rect.height}`)).size, 3, "three same-cell cues must remain spatially separate");
-const sameCellRings = sameCellPlan.commands.filter((entry) => entry.kind === "ring");
-assert.equal(sameCellRings.length, 3);
-assert.equal(flowDefaultApproachLeadMs,2500);
-const horizonPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:0,targets:[500,1500,2500].map((beatCenterMs,index)=>({id:`horizon-${index}`,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell:5,cells:[],lane:null,beatCenterMs,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")}))});
-const horizonFills=horizonPlan.commands.filter((entry)=>entry.layer===5&&entry.sequence===1);
-assert.deepEqual(horizonFills.map((entry)=>entry.targetId),["horizon-2","horizon-1","horizon-0"],"default Flow horizon must separate and far-first sort the complete +2500ms assembly projection window");
-for(const [index,expected] of [0,0.4,0.8].entries())assertClose(Number(horizonFills[index].depth),expected,`full-horizon depth ${index}`);
-assert.equal(horizonFills.filter((entry)=>entry.depth===0).length,1,"only an event exactly at the +2500ms publication boundary may occupy the exact vanishing rectangle");
-assert.equal(new Set(horizonFills.map((entry)=>`${entry.rect.x}:${entry.rect.y}:${entry.rect.width}:${entry.rect.height}`)).size,3,"published future Flow cues must not stack at the vanishing point");
-for (const ring of sameCellRings) {
-  assertClose(ring.rect.x + ring.rect.width / 2, flowEndpoint.x + flowEndpoint.width / 2, `${ring.targetId} ring endpoint center X`);
-  assertClose(ring.rect.y + ring.rect.height / 2, flowEndpoint.y + flowEndpoint.height / 2, `${ring.targetId} ring endpoint center Y`);
-}
-const flowObstacleTarget = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget} */ ({ id:"flow-obstacle",kind:"obstacle",hand:"neutral",family:"obstacle",cell:null,cells:[0,5],lane:null,beatCenterMs:1000,approachLeadMs:1000,endMs:1600 });
-const obstacleApproach = buildGameplayRenderPlan({ presentation:"flow",nowMs:500,targets:[flowObstacleTarget] }).commands.filter((entry) => entry.targetId === "flow-obstacle");
-const obstacleImpact = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[flowObstacleTarget] }).commands.filter((entry) => entry.targetId === "flow-obstacle");
-assert.equal(obstacleApproach.length, 2); assert.ok(obstacleApproach.every((entry) => entry.kind === "plane" && entry.depth === 0.5 && entry.alpha === 0.58 && entry.intervalStartMs === 1000 && entry.intervalEndMs === 1600));
-for (let index = 0; index < obstacleImpact.length; index += 1) {
-  const endpoint = cellRect(flowObstacleTarget.cells[index], sameCellPlan.grid, defaultRendererTuning.gridGap); assert.ok(endpoint);
-  assert.deepEqual(obstacleImpact[index].rect,endpoint,`Flow obstacle ${index} impact must retain strict endpoint identity`);
-}
-const obstacleAfterFeedbackWindow=buildGameplayRenderPlan({presentation:"flow",nowMs:1351,targets:[flowObstacleTarget]}).commands.filter((entry)=>entry.targetId==="flow-obstacle");
-const obstacleWithSyntheticFeedback=buildGameplayRenderPlan({presentation:"flow",nowMs:1351,targets:[{...flowObstacleTarget,judgement:"hit",feedbackProgress:1}]}).commands.filter((entry)=>entry.targetId==="flow-obstacle");
-assert.equal(obstacleAfterFeedbackWindow.length,2,"obstacle interval must persist beyond the unrelated 350ms cue feedback lifetime");
-assert.deepEqual(obstacleWithSyntheticFeedback,obstacleAfterFeedbackWindow,"synthetic cue feedback must not change obstacle plane geometry, alpha, depth, or interval persistence");
-assert.ok(obstacleWithSyntheticFeedback.every((entry)=>entry.kind==="plane"&&entry.iconId===null),"Flow obstacles must emit planes only");
-assert.equal(obstacleWithSyntheticFeedback.some((entry)=>entry.kind==="ring"||entry.iconId==="feedback.great"),false,"Flow obstacles must never emit a misleading ring or GREAT wordmark");
-assert.equal(buildGameplayRenderPlan({ presentation:"flow",nowMs:1601,targets:[flowObstacleTarget] }).commands.some((entry) => entry.targetId === "flow-obstacle"), false, "Flow obstacle must not outlive its truthful endMs");
-assert.throws(() => buildGameplayRenderPlan({ presentation:"flow",nowMs:0,targets:[{ ...flowObstacleTarget,endMs:900 }] }), /interval is invalid/u);
-assert.throws(() => buildGameplayRenderPlan({ presentation:"flow",nowMs:0,targets:[{ ...flowObstacleTarget,intervalEndMs:1700 }] }), /end bounds conflict/u);
-
-assert.deepEqual(normalizeRendererTuning(defaultRendererTuning),defaultRendererTuning,"default renderer tuning hash must exactly cover bounded visual tokens");
-const mappedDefaultTuning = rendererTuningFromVisualProfile(defaultRendererVisualProfile);
-const mappedCompactTuning = rendererTuningFromVisualProfile(compactRendererVisualProfile);
-assert.equal(mappedDefaultTuning.id, "aero.visual.default");
-assert.equal(mappedDefaultTuning.hash, "visual-cd5b4f10");
-assert.equal(mappedDefaultTuning.roleScale, 1);
-for (const key of ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "laneHitCenterY", "laneTimingBandAlpha", "roleScale", "dprCap", "flowFadeInMs", "flowOutlineScale", "feedbackDurationMs", "hitPulseMs", "hitPulseScale", "greatEndScale"]) assert.equal(mappedDefaultTuning[key], defaultRendererTuning[key], `default profile must preserve renderer tuning ${key}`);
-assert.equal(mappedCompactTuning.id, "aero.visual.compact");
-assert.equal(mappedCompactTuning.hash, "visual-ee36f83b");
-assert.equal(mappedCompactTuning.roleScale, 0.86);
-assert.ok(mappedCompactTuning.approachRingScale < mappedDefaultTuning.approachRingScale);
-assert.ok(mappedCompactTuning.approachRingWidth < mappedDefaultTuning.approachRingWidth);
-
-const targetBase = { id: "target", kind: /** @type {const} */ ("punch"), hand: /** @type {const} */ ("left"), family: /** @type {const} */ ("straight"), cell: 5, cells: [], lane: /** @type {const} */ ("left"), beatCenterMs: 1000 };
-const spawn = buildGameplayRenderPlan({ presentation: "boxing_spatial_grid", nowMs: 100, targets: [targetBase] });
-const beat = buildGameplayRenderPlan({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [targetBase] });
-assert.equal(spawn.commands.filter((entry) => entry.layer === 0).length, 12);
-assert.equal(spawn.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon")?.scale, 0.48);
-assert.equal(spawn.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon")?.saturation, 0);
-assert.equal(beat.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon")?.scale, 1);
-assert.equal(beat.commands.find((entry) => entry.targetId === "target" && entry.kind === "ring")?.scale, 1);
-const easeTheme = { .../** @type {import("../src/gameplay-plan.js").AeroRendererThemeTokens} */ ({ leftHandColor:"#2693ff",rightHandColor:"#39c96b",guardColor:"#9a67ea",obstacleColor:"#e5484d",receptorColor:"#d9f5ff",approachLeadMs:1000,targetStartScale:0.1,targetHitScale:1,approachEasing:"ease-in",hitEasing:"ease-out",missEasing:"ease-in" }) };
-const eased = buildGameplayRenderPlan({ presentation:"boxing_spatial_grid", nowMs:500, targets:[targetBase] }, easeTheme);
-assert.equal(eased.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon")?.scale, 0.325);
-const pendingCommand = beat.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
-const hitCommand = buildGameplayRenderPlan({ presentation:"boxing_spatial_grid",nowMs:1000,targets:[{ ...targetBase,judgement:"hit",feedbackProgress:0.5 }] }).commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
-const missCommand = buildGameplayRenderPlan({ presentation:"boxing_spatial_grid",nowMs:1000,targets:[{ ...targetBase,judgement:"miss",feedbackProgress:0.5 }] }).commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
-assert.ok(hitCommand && pendingCommand && hitCommand.scale < pendingCommand.scale && hitCommand.alpha < pendingCommand.alpha);
-assert.ok(missCommand && pendingCommand && missCommand.scale > pendingCommand.scale && missCommand.alpha < pendingCommand.alpha);
-
-const guardPlan = buildGameplayRenderPlan({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [{ ...targetBase, id: "guard", kind: "guard", hand: "both", family: "crossed_guard", cell: null, cells: [5, 6], lane: null }] });
-const guard = guardPlan.commands.find((entry) => entry.iconId === "boxing.guard.crossed");
-assert.ok(guard && guard.rect.width > guard.rect.height);
-const trackPlan = buildGameplayRenderPlan({ presentation: "boxing_lanes", nowMs: 1000, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, blockedCells: [1], targets: [{ ...targetBase, lane: "right", hand: "right", family: "hook" }], overlay: "paused", countdown: 3 });
-assert.equal(trackPlan.commands.filter((entry) => entry.layer === 0).length, 2);
-assert.equal(trackPlan.commands.some((entry)=>entry.kind==="hatch"||entry.kind==="ring"||entry.kind==="line"),false,"Boxing Lanes must not leak grid hatches, approach rings, or receptor lines");
-assert.equal(trackPlan.overlay.dim, 0.62);
-assert.equal(trackPlan.overlay.countdown, 3);
-const laneCues = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
-  { ...targetBase,id:"straight-left",hand:"left",lane:"left",family:"straight" },
-  { ...targetBase,id:"hook-right",hand:"right",lane:"right",family:"hook" },
-  { ...targetBase,id:"uppercut-left",hand:"left",lane:"left",family:"uppercut" },
-  { ...targetBase,id:"guard-standard",kind:"guard",hand:"both",lane:null,family:"guard",cell:null },
-  { ...targetBase,id:"guard-crossed",kind:"guard",hand:"both",lane:null,family:"crossed_guard",cell:null },
-  { ...targetBase,id:"squat",kind:"obstacle",hand:"neutral",lane:null,family:"squat",cell:null },
-  { ...targetBase,id:"weave-left",kind:"obstacle",hand:"neutral",lane:"left",family:"weave",cell:null },
-  { ...targetBase,id:"weave-right",kind:"obstacle",hand:"neutral",lane:"right",family:"weave",cell:null }
-]);
-const allLanePlan=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1000,targets:laneCues,timingWindowBeforeMs:180,timingWindowAfterMs:180});
-const expectedLaneIcons={"straight-left":["boxing.straight.left"],"hook-right":["boxing.hook.right"],"uppercut-left":["boxing.uppercut.left"],"guard-standard":["boxing.guard.standard","boxing.guard.standard"],"guard-crossed":["boxing.guard.crossed","boxing.guard.crossed"],squat:["boxing.squat","boxing.squat"],"weave-left":["boxing.weave.left"],"weave-right":["boxing.weave.right"]};
-for(const [id,icons] of Object.entries(expectedLaneIcons)){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.deepEqual(commands.map((entry)=>entry.iconId),icons,`${id} canonical lane icons`);assert.ok(commands.every((entry)=>entry.hatch===false),`${id} lane icons must carry no hatch semantics`);for(const entry of commands)assertClose(entry.rect.width*4/3,entry.rect.height,`${id} square normalized at default aspect`);}
-for(const id of ["guard-standard","guard-crossed","squat"]){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.equal(commands.length,2);assert.ok(commands[0].rect.x<0.5&&commands[1].rect.x>0.5,`${id} must duplicate exactly once per lane`);}
-const movingHitTarget={...laneCues[0],id:"moving-hit",judgement:/** @type {const} */("hit"),feedbackProgress:.5};
-const movingHitEarly=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1000,targets:[movingHitTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180});
-const movingHitLate=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1050,targets:[movingHitTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180});
-const movingCueEarly=movingHitEarly.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.layer===5);const movingGreatEarly=movingHitEarly.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.iconId==="feedback.great");const movingCueLate=movingHitLate.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.layer===5);const movingGreatLate=movingHitLate.commands.find((entry)=>entry.targetId==="moving-hit"&&entry.iconId==="feedback.great");
-assert.ok(movingCueEarly&&movingGreatEarly&&movingCueLate&&movingGreatLate);assert.ok(movingCueLate.rect.y<movingCueEarly.rect.y&&movingGreatLate.rect.y<movingGreatEarly.rect.y,"cue and GREAT feedback must continue moving upward together");assertClose((movingGreatEarly.rect.y+movingGreatEarly.rect.height/2)-(movingCueEarly.rect.y+movingCueEarly.rect.height/2),0,"GREAT remains centered on moving cue");
-assert.equal(defaultRendererTuning.feedbackDurationMs,350,"caller projection feedback lifetime remains 350ms");
-const obstaclePlan = buildGameplayRenderPlan({ presentation: "flow", nowMs: 1000, blockedCells: [0], safeCells: [11], targets: [{ ...targetBase, id: "flow-up", kind: "flow", family: "flow", hand: "left", direction: "up" }] });
-assert.equal(obstaclePlan.commands.some((entry) => entry.targetId === "flow-up" && (entry.kind === "line" || entry.kind === "circle")), false, "Flow direction must use the selected icon rather than primitive cues");
-assert.equal(obstaclePlan.commands.some((entry) => entry.role === "obstacle" && entry.hatch), true);
-assert.equal(obstaclePlan.commands.some((entry) => entry.role === "safe" && entry.hatch), true);
-const gridObstaclePlan=buildGameplayRenderPlan({presentation:"boxing_spatial_grid",nowMs:1000,targets:[{...targetBase,id:"grid-squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[5],lane:null}]});
-const gridObstacle=gridObstaclePlan.commands.find((entry)=>entry.targetId==="grid-squat");assert.ok(gridObstacle);assert.equal(gridObstacle.kind,"hatch");assert.equal(gridObstacle.hatch,true);assert.equal(gridObstacle.iconId,"boxing.squat","Boxing Grid retains squat semantic metadata while drawing its blocked-region hatch");
-const representativeGridTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
-  { ...targetBase,id:"grid-punch-left",cell:1 },
-  { ...targetBase,id:"grid-guard",kind:"guard",hand:"both",family:"crossed_guard",cell:null,cells:[5,6],lane:null },
-  { ...targetBase,id:"grid-squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[9],lane:null },
-  { ...targetBase,id:"grid-weave-left",kind:"obstacle",hand:"neutral",family:"weave",cell:null,cells:[4],lane:"left" },
-  { ...targetBase,id:"grid-weave-right",kind:"obstacle",hand:"neutral",family:"weave",cell:null,cells:[7],lane:"right" },
-  { ...targetBase,id:"grid-safe",kind:"safe",hand:"neutral",family:"safe",cell:null,cells:[10],lane:null }
-]);
-const representativeGridPlan=buildGameplayRenderPlan({presentation:"boxing_spatial_grid",nowMs:550,targets:representativeGridTargets,blockedCells:[0],safeCells:[11],countdown:2,overlay:"paused",calibrationDim:.4,viewportAspect:16/9});
-for(const id of ["grid-weave-left","grid-weave-right"]){const commands=representativeGridPlan.commands.filter((entry)=>entry.targetId===id);assert.equal(commands[0]?.kind,"hatch");assert.equal(commands[0]?.hatch,true);assert.equal(commands[0]?.iconId,null,`${id} Grid hatch must retain its pre-lanes null iconId`);assert.equal(commands[1]?.kind,"ring");}
-assert.equal(createHash("sha256").update(JSON.stringify(representativeGridPlan)).digest("hex"),"01b05e00ed61f70efbb02c23d7205e7183bc56789266dc0a4035bf816f3b1e11","representative Boxing Grid plan must remain byte-identical to e8764f5^ behavior");
-const representativeFlowTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
-  { ...targetBase,id:"flow-directional",kind:"flow",family:"flow",hand:"left",cell:1,lane:null,direction:"down-right" },
-  { ...targetBase,id:"flow-directionless",kind:"flow",family:"flow",hand:"right",cell:6,lane:null,direction:null },
-  { ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",cell:9,lane:null,direction:"up",judgement:"hit",feedbackProgress:.4 },
-  { ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",cell:10,lane:null,direction:"left",judgement:"miss",feedbackProgress:.4 }
-]);
-const representativeFlowPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:representativeFlowTargets,blockedCells:[0],safeCells:[11],countdown:2,overlay:"paused",calibrationDim:.4,viewportAspect:16/9});
-assert.equal(createHash("sha256").update(JSON.stringify(representativeFlowPlan)).digest("hex"),"7ea1adfd3080853adcc43006aad71dcd823c2492eb8c7bd5c527a2588c44b373","representative perspective Flow plan must remain deterministic");
-
-const allDirections = /** @type {const} */ (["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"]);
-const expectedRotations = [-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4];
-for (let index=0; index<allDirections.length; index+=1) {
-  const direction = allDirections[index];
-  const id = `flow-${direction}`;
-  const plan = buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[{ ...targetBase, id, kind:"flow", family:"flow", hand:"left", direction }] });
-  const outline = plan.commands.find((entry) => entry.targetId === id && entry.layer === 5 && entry.sequence === 0);
-  const target = plan.commands.find((entry) => entry.targetId === id && entry.layer === 5 && entry.sequence === 1);
-  assert.ok(outline && target, `${direction} outline and target must render`);
-  assert.equal(outline.iconId,"flow.directional"); assert.equal(target.iconId,"flow.directional");
-  assert.equal(outline.colorMode,"white"); assert.equal(target.colorMode,"role");
-  assert.equal(outline.scale,1.12); assert.equal(target.scale,1);
-  assert.equal(target.saturation,1); assert.equal(target.rotationRad,expectedRotations[index]); assert.equal(outline.rotationRad,expectedRotations[index]);
-  assert.ok(outline.rect.width > target.rect.width && outline.rect.height > target.rect.height);
-}
-const directionless = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-dot",kind:"flow",family:"flow",hand:"right",direction:null }] }).commands.filter((entry) => entry.targetId === "flow-dot" && entry.kind === "icon");
-assert.deepEqual(directionless.map((entry)=>entry.iconId),["flow.directionless","flow.directionless"]);
-assert.ok(directionless.every((entry)=>entry.rotationRad===0 && entry.saturation===1));
-const flowSpawn = buildGameplayRenderPlan({ presentation:"flow",nowMs:100,targets:[{ ...targetBase,id:"flow-spawn",kind:"flow",family:"flow",hand:"left",direction:"right",approachLeadMs:900 }] }).commands.find((entry)=>entry.targetId==="flow-spawn"&&entry.layer===5&&entry.sequence===1);
-const flowVisible = buildGameplayRenderPlan({ presentation:"flow",nowMs:180,targets:[{ ...targetBase,id:"flow-visible",kind:"flow",family:"flow",hand:"left",direction:"right",approachLeadMs:900 }] }).commands.find((entry)=>entry.targetId==="flow-visible"&&entry.layer===5&&entry.sequence===1);
-assert.equal(flowSpawn?.scale,flowStartScale); assert.equal(flowSpawn?.alpha,0); assert.equal(flowVisible?.alpha,1); assert.ok(Number(flowVisible?.scale)>flowStartScale&&Number(flowVisible?.scale)<1);
-const flowHitStart = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:0 }] });
-const flowHitMiddle = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:0.5 }] });
-const hitStart = flowHitStart.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5&&entry.sequence===1); const greatStart = flowHitStart.commands.find((entry)=>entry.iconId==="feedback.great");
-const hitMiddle = flowHitMiddle.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5&&entry.sequence===1); const greatMiddle = flowHitMiddle.commands.find((entry)=>entry.iconId==="feedback.great");
-assert.equal(hitStart?.whiten,1); assert.equal(greatStart?.scale,1); assert.equal(greatStart?.colorMode,"white");
-assert.ok(hitMiddle && greatMiddle && hitMiddle.alpha===greatMiddle.alpha && greatMiddle.scale>1 && greatMiddle.scale<1.25 && hitMiddle.whiten===0);
-const flowMiss = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",direction:null,judgement:"miss",feedbackProgress:0.5 }] });
-assert.equal(flowMiss.commands.some((entry)=>entry.iconId==="feedback.great"),false); assert.equal(flowMiss.commands.find((entry)=>entry.targetId==="flow-miss"&&entry.layer===5&&entry.sequence===1)?.alpha,hitMiddle.alpha);
-const flowHitCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-hit-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-hit-easing"&&entry.layer===5&&entry.sequence===1);
-const flowMissCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-miss-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"miss",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-miss-easing"&&entry.layer===5&&entry.sequence===1);
-assert.equal(flowHitCustomEasing?.alpha,flowMissCustomEasing?.alpha,"Flow hit/miss must share one fade easing even when a legacy Boxing miss easing differs");
-assert.throws(() => buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[/** @type {import("../src/gameplay-plan.js").AeroRenderableTarget} */ ({ ...targetBase, kind:"flow", family:"flow", hand:"neutral", direction:"north" })] }), /Flow direction icon is unsupported/u);
-
-const manifest = normalizeBrandingIconManifest({ schemaId: "aerobeat.branding.web-gameplay-icons.v1", schemaVersion: 1, colorContract: "currentColor", webglContract: "alpha-mask-atlas-input", assets: gameplayIconIds.map((id) => ({ id, file: `${id.replaceAll(".", "-")}.svg`, viewBox: id === "feedback.great" ? "0 0 128 32" : id.includes("guard") ? "0 0 48 24" : "0 0 64 64" })) });
-assert.equal(manifest.assets.length, 16);
-assert.throws(() => normalizeBrandingIconManifest({ ...manifest, assets: manifest.assets.slice(1) }));
-const completeAtlasEntries = gameplayIconIds.map((id) => ({ id, u0: 0, v0: 0, u1: 1, v1: 1 }));
-assert.equal(normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,255,255,255]), entries:completeAtlasEntries }).entries.length, 16);
-assert.throws(() => normalizeBrandingIconManifest({ ...manifest, assets:manifest.assets.map((entry)=>entry.id==="feedback.great"?{...entry,viewBox:"0 0 64 64"}:entry) }), /asset is invalid/u);
-assert.throws(() => normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,0,0,255]), entries:completeAtlasEntries }), /normalized white/u);
-assert.throws(() => normalizeIconAtlasData({ width:1, height:1, pixels:new Uint8Array([255,255,255,255]), entries:[{ id:"bogus",u0:0,v0:0,u1:1,v1:1 }] }), /entry/u);
-const abortController = new AbortController();
-let resolveBitmap;
-let markBitmapRequested;
-let bitmapClosed = false;
-const bitmapPromise = new Promise((resolve) => { resolveBitmap = resolve; });
-const bitmapRequested = new Promise((resolve) => { markBitmapRequested = resolve; });
-const lateRaster = rasterizeBrandingIconAtlas(manifest, {
-  signal:abortController.signal,
-  resolveUrl:() => "https://assets.invalid/icon.svg",
-  fetch:async () => new Response(new Blob(["<svg/>"]), { status:200 }),
-  createCanvas:(width,height) => /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ ({ getContext:() => ({ clearRect(){}, drawImage(){}, getImageData(){ return { data:new Uint8ClampedArray(width * height * 4) }; } }) })),
-  createBitmap:async () => { markBitmapRequested?.(); return bitmapPromise; }
-});
-await bitmapRequested;
-abortController.abort();
-resolveBitmap?.({ close(){ bitmapClosed = true; } });
-await assert.rejects(lateRaster, (error) => error instanceof DOMException && error.name === "AbortError");
-assert.equal(bitmapClosed, true, "late decoded bitmap must close after cancellation");
-let crispAtlasCanvas = { width:0,height:0 };
-const crispAtlas = await rasterizeBrandingIconAtlas(manifest, {
-  resolveUrl:() => "https://assets.invalid/icon.svg",
-  fetch:async () => new Response(new Blob(["<svg/>"]), { status:200 }),
-  createCanvas:(width,height) => { crispAtlasCanvas={width,height}; return /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ ({ getContext:() => ({ clearRect(){},drawImage(){},getImageData(){return{data:new Uint8ClampedArray(width*height*4)};} }) })); },
-  createBitmap:async () => ({ close(){} })
-});
-assert.deepEqual(crispAtlasCanvas,{width:1024,height:1024},"default 16-icon atlas must use four bounded 256px cells per side");
-assert.equal(crispAtlas.width,1024); assert.equal(crispAtlas.height,1024); assert.equal(crispAtlas.pixels.length,1024*1024*4);
-
-const first = createHarness();
-const second = createHarness();
-const renderer = createAeroWebGl2Renderer();
-const other = createAeroWebGl2Renderer();
-assert.notEqual(renderer, other);
-assert.equal(renderer.attach(first.canvas).serviceId, aeroWebGl2RendererServiceId);
-assert.equal(other.attach(second.canvas).state, "ready");
-renderer.resize({ widthCssPx: 390, heightCssPx: 844, devicePixelRatio: 3 });
-other.resize({ widthCssPx: 1200, heightCssPx: 500, devicePixelRatio: 1.25 });
-assert.equal(first.canvas.width, 780);
-assert.equal(first.canvas.height, 1688);
-assert.equal(second.canvas.width, 1500);
-assert.equal(second.canvas.height, 625);
-assert.equal(renderer.describe().devicePixelRatio, 2);
-assert.equal(other.describe().devicePixelRatio, 1.25);
-renderer.resize({ widthCssPx:0, heightCssPx:0, devicePixelRatio:4 });
-assert.equal(first.canvas.width, 1); assert.equal(first.canvas.height, 1);
-for (const [width, height] of [[1,999],[1600,240],[390,844]]) renderer.resize({ widthCssPx:width, heightCssPx:height, devicePixelRatio:3 });
-assert.equal(first.canvas.width, 780); assert.equal(first.canvas.height, 1688);
-
-const atlasPixels = new Uint8Array(4 * 4 * 4).fill(255);
-renderer.uploadIconAtlas({ width: 4, height: 4, pixels: atlasPixels, entries: completeAtlasEntries });
-assert.equal(renderer.getCapabilities().alphaMaskIcons, true);
-assert.equal(first.gl.unpackFlipY, 0, "top-left atlas UV rows must not be vertically inverted");
-renderer.uploadIconAtlas({ width: 1, height: 1, pixels: new Uint8Array([255, 0, 0, 255]), entries: completeAtlasEntries });
-assert.equal(renderer.describe().iconAtlasReady, false);
-assert.match(renderer.describe().iconAtlasError ?? "", /normalized white/u);
-assert.ok(renderer.getCapabilities().degradations.includes("icon_atlas_invalid_fallback_shapes"));
-renderer.uploadIconAtlas({ width: 4, height: 4, pixels: atlasPixels, entries: completeAtlasEntries });
-const rendered = renderer.renderGameplayFrame({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [targetBase], blockedCells: [0], safeCells: [11] });
-assert.equal(rendered.status.state, "running");
-assert.ok(first.gl.drawCalls > 12);
-const drawsBeforeCursors = first.gl.drawCalls;
-const cursorResult = renderer.renderGameplayCursors([
-  { role:"right_wrist",x:0.8,y:0.7,confidence:0.9 },
-  { role:"nose",x:0.5,y:0.2,confidence:0.95 },
-  { role:"left_wrist",x:0.2,y:0.7,confidence:0.49 },
-  { role:"left_wrist",x:0.25,y:0.72,confidence:0.91 }
-], { grid:rendered.plan.grid,sizeCssPx:8 });
-assert.equal(cursorResult.cursorCount, 3);
-assert.deepEqual(cursorResult.roles, ["nose","left_wrist","right_wrist"], "semantic cursors must use canonical topmost draw order");
-assert.equal(first.gl.drawCalls - drawsBeforeCursors, 9, "each cursor must use black, white, and role-color layers");
-const lowConfidenceDraws = first.gl.drawCalls;
-const lowConfidenceResult = renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.2,confidence:0.49 }], { grid:rendered.plan.grid });
-assert.equal(lowConfidenceResult.cursorCount, 0);
-assert.equal(first.gl.drawCalls, lowConfidenceDraws, "low-confidence cursors must not draw");
-let cursorAccessorInvoked = false;
-const accessorCursor = {};
-Object.defineProperty(accessorCursor, "role", { enumerable:true,get(){ cursorAccessorInvoked = true; return "nose"; } });
-for (const [key,value] of [["x",0.5],["y",0.5],["confidence",1]]) Object.defineProperty(accessorCursor,key,{ enumerable:true,value });
-const boundedDraws = first.gl.drawCalls;
-const boundedResult = renderer.renderGameplayCursors([
-  accessorCursor,
-  { role:"unknown",x:0.5,y:0.5,confidence:1 },
-  { role:"nose",x:0.4,y:0.4,confidence:1,extra:true },
-  { role:"nose",x:0.45,y:0.45,confidence:1 },
-  { role:"nose",x:0.55,y:0.55,confidence:1 }
-], { grid:rendered.plan.grid,sizeCssPx:Number.MAX_VALUE });
-assert.equal(cursorAccessorInvoked, false, "cursor validation must not invoke accessors");
-assert.deepEqual(boundedResult.roles, ["nose"], "invalid, unknown, and repeated semantic candidates must be omitted");
-assert.equal(first.gl.drawCalls-boundedDraws, 3, "only the first valid canonical role may draw");
-assert.throws(() => renderer.renderGameplayCursors(Array.from({ length:13 }, () => ({ role:"nose",x:0.5,y:0.5,confidence:1 })), { grid:rendered.plan.grid }), /cannot exceed 12/u);
-let optionsAccessorInvoked = false;
-const accessorOptions = {};
-Object.defineProperty(accessorOptions,"grid",{ enumerable:true,get(){ optionsAccessorInvoked = true; return rendered.plan.grid; } });
-assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ (accessorOptions)), /grid/u);
-assert.equal(optionsAccessorInvoked, false, "cursor option validation must not invoke accessors");
-let gridAccessorInvoked = false;
-const accessorGrid = { y:0.1,width:0.8,height:0.8 };
-Object.defineProperty(accessorGrid,"x",{ enumerable:true,get(){ gridAccessorInvoked = true; return 0.1; } });
-assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ ({ grid:accessorGrid })), /grid/u);
-assert.equal(gridAccessorInvoked, false, "cursor grid validation must not invoke accessors");
-assert.throws(() => renderer.renderGameplayCursors([], /** @type {never} */ ({})), /grid/u);
-assert.equal(second.gl.drawCalls, 0, "renderer instances must not leak draws");
-assert.equal(other.describe().tuningId, "aero.visual.default");
-assert.equal(other.describe().themeId, "aero.theme.default");
-
-const theme = { schema: "aerobeat/theme_descriptor", version: 1, id: "theme.qa", themeVersion: "1", tokens: { leftHandColor: "#1122ff", rightHandColor: "#22ff44", guardColor: "#aa44ee", obstacleColor: "#ee3344", receptorColor: "#eeeeee", approachLeadMs: 1200, targetStartScale: 0.3, targetHitScale: 1, approachEasing: "linear", hitEasing: "ease-out", missEasing: "ease-out" }, contentHash: { schema: "aerobeat/content_hash", version: 1, algorithm: "sha256", value: "0".repeat(64) } };
-renderer.setTheme(theme);
-assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
-assert.deepEqual(renderer.describe().visualProfile, defaultRendererVisualProfile);
-assert.equal(renderer.describe().tuningHash, "visual-cd5b4f10");
-const defaultVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
-renderer.setTuning(compactRendererVisualProfile);
-assert.equal(renderer.describe().themeId, "theme.qa");
-assert.equal(renderer.describe().themeVersion, "1");
-assert.equal(renderer.describe().themeHash, "0".repeat(64));
-assert.deepEqual(renderer.exportTuning(), compactRendererVisualProfile);
-assert.deepEqual(renderer.getSnapshot().visualProfileIdentity, compactRendererVisualProfile.identity);
-assert.deepEqual(renderer.describe().visualProfileSettings, { motionIntensity:0.8, roleScale:0.86 });
-assert.equal(renderer.describe().tuningId, "aero.visual.compact");
-assert.equal(renderer.describe().tuningHash, "visual-ee36f83b");
-assert.equal(renderer.describe().tuningVersion, "1.0.0");
-assert.equal(renderer.describe().tuningRequiresRegeneration, false);
-assert.equal(renderer.describe().experimental, true);
-const compactVisualPlan = renderer.renderGameplayFrame({ presentation:"boxing_spatial_grid",nowMs:650,targets:[targetBase] }).plan;
-const defaultIcon = defaultVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
-const compactIcon = compactVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "icon");
-const defaultRing = defaultVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "ring");
-const compactRing = compactVisualPlan.commands.find((entry) => entry.targetId === "target" && entry.kind === "ring");
-assert.ok(defaultIcon && compactIcon && compactIcon.rect.width < defaultIcon.rect.width && compactIcon.rect.height < defaultIcon.rect.height, "compact roleScale must apply live without recreating the renderer");
-assert.ok(defaultRing && compactRing && compactRing.scale < defaultRing.scale, "compact motionIntensity must reduce ring travel");
-assert.deepEqual(other.exportTuning(), defaultRendererVisualProfile, "visual selections must remain instance-local");
-const exportedTuning = renderer.exportTuning();
-renderer.resetTuning();
-assert.deepEqual(renderer.exportTuning(), defaultRendererVisualProfile);
-renderer.importTuning(exportedTuning);
-assert.deepEqual(renderer.exportTuning(), exportedTuning);
-const acceptedBeforeInvalid = renderer.exportTuning();
-let getterInvoked = false;
-const accessorSelection = {};
-Object.defineProperty(accessorSelection, "identity", { enumerable:true, get(){ getterInvoked = true; return compactRendererVisualProfile.identity; } });
-Object.defineProperty(accessorSelection, "settings", { enumerable:true, value:compactRendererVisualProfile.settings });
-const malformedSelections = [
-  accessorSelection,
-  { identity:{ ...compactRendererVisualProfile.identity, class:"between_run_ruleset" },settings:compactRendererVisualProfile.settings },
-  { identity:{ ...compactRendererVisualProfile.identity, class:"converter_regeneration",regenerationRequired:true },settings:compactRendererVisualProfile.settings },
-  { identity:{ ...compactRendererVisualProfile.identity, contentHash:"0".repeat(64) },settings:compactRendererVisualProfile.settings },
-  { identity:{ ...compactRendererVisualProfile.identity, profileId:"x".repeat(129) },settings:compactRendererVisualProfile.settings },
-  { identity:compactRendererVisualProfile.identity,settings:{ motionIntensity:0.8 } },
-  { identity:compactRendererVisualProfile.identity,settings:{ ...compactRendererVisualProfile.settings, extra:true } },
-  { identity:compactRendererVisualProfile.identity,settings:{ motionIntensity:3,roleScale:0.86 } },
-  { identity:compactRendererVisualProfile.identity,settings:new Uint8Array([1,2]) },
-  { identity:compactRendererVisualProfile.identity,settings:{ motionIntensity:{ nested:{ too:{ deep:true } } },roleScale:0.86 } },
-  Object.assign(Object.create({}), compactRendererVisualProfile),
-  { identity:compactRendererVisualProfile.identity,settings:compactRendererVisualProfile.settings,extra:true }
+assert.equal(aeroPlayCanvasRendererServiceId,"aero.renderer.playcanvas");
+assert.equal(timestampToWorldZ(1500,1000),3);assert.equal(timestampToWorldZ(500,1000),-3);
+assert.deepEqual(worldPositionForCell(0),{x:-2.4,y:2.4});assert.deepEqual(worldPositionForCell(3),{x:2.4,y:2.4});assert.deepEqual(worldPositionForCell(8),{x:-2.4,y:0});assert.deepEqual(worldPositionForCell(11),{x:2.4,y:0});assert.equal(worldPositionForCell(12),null);
+assert.deepEqual(gameplayWorldGrid.columnX,[-2.4,-0.8,0.8,2.4]);assert.deepEqual(gameplayWorldGrid.rowY,[2.4,1.2,0]);
+const target=(id,cell,beatCenterMs=1000)=>({id,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell,cells:[],lane:null,beatCenterMs,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")});
+const flow=buildGameplaySceneModel({presentation:"flow",nowMs:1000,timingWindowBeforeMs:120,timingWindowAfterMs:240,targets:[target("near",5,1100),target("far",5,1700),target("active",0,1000)]});
+assert.equal(flow.camera.fov,48);assert.ok(flow.camera.position.z<0&&flow.camera.target.z>0,"fixed athlete camera must look down positive time depth");
+assert.equal(flow.timingZone.startZ,-1.44);assert.equal(flow.timingZone.endZ,.72);assert.deepEqual(flow.timingZone.segments.map((entry)=>entry.name),["late","active","early"]);assert.equal(flow.timingZone.segments[0].startZ,flow.timingZone.startZ);assert.equal(flow.timingZone.segments[2].endZ,flow.timingZone.endZ);
+const flowTargets=flow.objects.filter((entry)=>entry.targetId);assert.deepEqual(flowTargets.map((entry)=>entry.targetId),["far","near","active"],"transparent targets must be deterministic far-near");assert.deepEqual(flowTargets.map((entry)=>entry.position.z),[4.2,.6,0]);assert.ok(flowTargets.every((entry)=>entry.transparent));
+assert.equal(flowTargets.find((entry)=>entry.targetId==="active")?.state,"active");
+const spent=buildGameplaySceneModel({presentation:"flow",nowMs:1201,timingWindowBeforeMs:120,timingWindowAfterMs:200,targets:[target("spent",5,1000)]});assert.equal(spent.objects.find((entry)=>entry.targetId==="spent")?.state,"spent");
+const culled=buildGameplaySceneModel({presentation:"flow",nowMs:1801,timingWindowBeforeMs:120,timingWindowAfterMs:200,targets:[target("culled",5,1000)]});assert.deepEqual(culled.culledTargetIds,["culled"]);assert.equal(culled.objects.some((entry)=>entry.targetId==="culled"),false);
+const obstacle={id:"wall",kind:/** @type {const} */("obstacle"),hand:/** @type {const} */("neutral"),family:/** @type {const} */("obstacle"),cell:null,cells:[0,5],lane:null,beatCenterMs:1500,intervalStartMs:1400,intervalEndMs:1900};
+const obstacleModel=buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:[obstacle]});const volumes=obstacleModel.objects.filter((entry)=>entry.targetId==="wall");assert.equal(volumes.length,2);assert.ok(volumes.every((entry)=>entry.kind==="obstacle"&&entry.intervalStartMs===1400&&entry.intervalEndMs===1900&&Math.abs(entry.scale.z-3)<1e-12));assert.ok(volumes.every((entry)=>entry.iconId===null&&entry.transparent));
+assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:0,targets:[{...obstacle,intervalEndMs:1300}]}),/interval/u);
+const directions=["up","up-right","right","down-right","down","down-left","left","up-left"];
+const directionModel=buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:directions.map((direction,index)=>({...target(`d${index}`,index),direction}))});assert.deepEqual(directionModel.objects.filter((entry)=>entry.targetId).map((entry)=>entry.rotationZRad).sort((a,b)=>a-b),[-Math.PI*3/4,-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI].sort((a,b)=>a-b));
+const directionless=buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:[{...target("dot",5),direction:null}]}).objects.find((entry)=>entry.targetId==="dot");assert.equal(directionless?.iconId,"flow.directionless");
+for(const unsupported of ["bomb","arc","burst"])assert.equal(directionModel.objects.some((entry)=>entry.iconId?.includes(unsupported)),false);
+const gridTargets=[
+  {id:"punch",kind:"punch",hand:"left",family:"straight",cell:1,cells:[],lane:"left",beatCenterMs:1000},
+  {id:"guard",kind:"guard",hand:"both",family:"crossed_guard",cell:null,cells:[5,6],lane:null,beatCenterMs:1000},
+  {id:"squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[9],lane:null,beatCenterMs:1000}
 ];
-for (const malformed of malformedSelections) {
-  assert.throws(() => renderer.importTuning(malformed), TypeError);
-  assert.deepEqual(renderer.exportTuning(), acceptedBeforeInvalid, "rejected tuning imports must be atomic");
-}
-assert.equal(getterInvoked, false, "visual tuning validation must not invoke accessors");
-const invalidTheme = { ...theme, id:"theme.invalid", tokens:{ ...theme.tokens, leftHandColor:"not-a-renderer-color", approachEasing:"spring" } };
-renderer.setTheme(invalidTheme);
-assert.equal(renderer.describe().themeId, "aero.theme.default", "unsupported external theme tokens must not retain external identity");
-renderer.setTheme(theme);
-assert.equal(renderer.resize({ widthCssPx: 100, heightCssPx: 100, devicePixelRatio: 4 }).devicePixelRatio, 2);
+const grid=buildGameplaySceneModel(/** @type {import("../src/gameplay-scene-model.js").AeroGameplayFrame} */({presentation:"boxing_spatial_grid",nowMs:1000,blockedCells:[0],safeCells:[11],targets:gridTargets}));assert.equal(grid.objects.filter((entry)=>entry.kind==="cell").length,14);assert.deepEqual(grid.objects.filter((entry)=>entry.targetId).map((entry)=>entry.iconId).sort(),["boxing.guard.crossed","boxing.squat","boxing.straight.left"]);
+const laneTargets=[
+  {id:"straight",kind:"punch",hand:"left",family:"straight",cell:null,cells:[],lane:"left",beatCenterMs:1000},
+  {id:"hook",kind:"punch",hand:"right",family:"hook",cell:null,cells:[],lane:"right",beatCenterMs:1000},
+  {id:"upper",kind:"punch",hand:"left",family:"uppercut",cell:null,cells:[],lane:"left",beatCenterMs:1000},
+  {id:"guard",kind:"guard",hand:"both",family:"guard",cell:null,cells:[],lane:null,beatCenterMs:1000},
+  {id:"cross",kind:"guard",hand:"both",family:"crossed_guard",cell:null,cells:[],lane:null,beatCenterMs:1000},
+  {id:"squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[],lane:null,beatCenterMs:1000},
+  {id:"wl",kind:"obstacle",hand:"neutral",family:"weave",cell:null,cells:[],lane:"left",beatCenterMs:1000},
+  {id:"wr",kind:"obstacle",hand:"neutral",family:"weave",cell:null,cells:[],lane:"right",beatCenterMs:1000}
+];
+const lanes=buildGameplaySceneModel(/** @type {import("../src/gameplay-scene-model.js").AeroGameplayFrame} */({presentation:"boxing_lanes",nowMs:1000,timingWindowBeforeMs:120,timingWindowAfterMs:240,targets:laneTargets}));assert.equal(lanes.objects.filter((entry)=>entry.kind==="lane").length,2);assert.equal(lanes.objects.filter((entry)=>entry.targetId==="guard").length,2);assert.equal(lanes.objects.filter((entry)=>entry.targetId==="squat").length,2);assert.deepEqual(new Set(lanes.objects.filter((entry)=>entry.targetId).map((entry)=>entry.iconId)),new Set(["boxing.straight.left","boxing.hook.right","boxing.uppercut.left","boxing.guard.standard","boxing.guard.crossed","boxing.squat","boxing.weave.left","boxing.weave.right"]));
+assert.throws(()=>buildGameplaySceneModel({presentation:"boxing_lanes",nowMs:0,targets:[]}),/timing window/u);
+assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:0,targets:Array.from({length:129},(_,index)=>target(String(index),0))}),/128/u);
+assert.equal(flow.objects.some((entry)=>entry.kind==="ring"),false,"timing rings must not exist in world truth");
+assert.equal(defaultRendererTuning.feedbackDurationMs,350);assert.equal(compactRendererVisualProfile.identity.profileId,"aero.visual.compact");
 
-first.dispatch("webglcontextlost", { preventDefault() {} });
-assert.equal(renderer.describe().state, "context_lost");
-assert.equal(renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount, 0, "context loss must reject cursor draws without retaining them");
-first.dispatch("webglcontextrestored", {});
-assert.equal(renderer.describe().state, "ready");
-assert.equal(renderer.describe().iconAtlasReady, true, "context restoration must rebuild private atlas texture");
-assert.equal(renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount, 1, "context restoration must rebuild cursor GPU resources on demand");
-renderer.renderGameplayFrame({ presentation: "flow", nowMs: 1000, targets: [] });
-renderer.detach();
-assert.equal(first.listenerCount(), 0);
-renderer.attach(first.canvas);
-renderer.destroy();
-renderer.destroy();
-const terminalTuning = renderer.describe().tuningId;
-renderer.setTuning({ id:"forbidden-after-destroy",version:"1",gridInset:0.1,gridGap:0.01,receptorAlpha:0.2,approachRingScale:1.5,approachRingWidth:0.1,laneWidth:0.2,dprCap:2 });
-renderer.setTheme(theme);
-assert.equal(renderer.describe().tuningId, terminalTuning);
-assert.equal(renderer.describe().state, "destroyed");
-assert.equal(renderer.renderGameplayCursors([{ role:"nose",x:0.5,y:0.5,confidence:1 }], { grid:{ x:0.1,y:0.1,width:0.8,height:0.8 } }).cursorCount, 0, "destroyed renderers must remain terminal for cursor draws");
-assert.equal(first.listenerCount(), 0);
-assert.ok(first.gl.deletedPrograms > 0);
-assert.equal(renderer.describe().iconAtlasReady, false);
-
-console.log("Per-game renderer, plan, atlas, resize, context, and disposal validation passed.");
-
-/** @param {number} actual @param {number} expected @param {string} label */
-function assertClose(actual,expected,label) { assert.ok(Math.abs(actual-expected)<1e-12,`${label}: ${actual} !== ${expected}`); }
-
-function createHarness() {
-  const listeners = new Map();
-  const gl = createFakeGl();
-  const canvas = {
-    width: 320, height: 180, style: { width: "", height: "" },
-    getContext(type) { assert.equal(type, "webgl2"); return gl; },
-    addEventListener(type, listener) { listeners.set(type, listener); },
-    removeEventListener(type, listener) { if (listeners.get(type) === listener) listeners.delete(type); }
-  };
-  return {
-    canvas: /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), gl,
-    dispatch(type, event) { listeners.get(type)?.(event); }, listenerCount() { return listeners.size; }
-  };
-}
-
-function createFakeGl() {
-  let objectId = 0;
-  return {
-    COLOR_BUFFER_BIT: 0x4000, ARRAY_BUFFER: 0x8892, STREAM_DRAW: 0x88e0, FLOAT: 0x1406, LINES: 1, POINTS: 0, TRIANGLES: 4, BLEND: 0x0be2, SRC_ALPHA: 0x0302, ONE_MINUS_SRC_ALPHA: 0x0303,
-    VERTEX_SHADER: 0x8b31, FRAGMENT_SHADER: 0x8b30, COMPILE_STATUS: 0x8b81, LINK_STATUS: 0x8b82,
-    TEXTURE_2D: 0x0de1, TEXTURE_MIN_FILTER: 0x2801, TEXTURE_MAG_FILTER: 0x2800, TEXTURE_WRAP_S: 0x2802, TEXTURE_WRAP_T: 0x2803,
-    LINEAR: 0x2601, CLAMP_TO_EDGE: 0x812f, RGBA: 0x1908, UNSIGNED_BYTE: 0x1401, UNPACK_PREMULTIPLY_ALPHA_WEBGL: 0x9241, UNPACK_FLIP_Y_WEBGL: 0x9240, TEXTURE0: 0x84c0,
-    drawingBufferWidth: 320, drawingBufferHeight: 180, drawCalls: 0, deletedPrograms: 0, unpackFlipY: -1,
-    viewport() {}, clearColor() {}, clear() {}, enable() {}, blendFunc() {}, createShader(type) { return { id: ++objectId, type }; }, shaderSource() {}, compileShader() {}, getShaderParameter() { return true; }, getShaderInfoLog() { return ""; }, deleteShader() {},
-    createProgram() { return { id: ++objectId }; }, attachShader() {}, linkProgram() {}, getProgramParameter() { return true; }, getProgramInfoLog() { return ""; }, deleteProgram() { this.deletedPrograms += 1; },
-    createBuffer() { return { id: ++objectId }; }, deleteBuffer() {}, getAttribLocation(_program, name) { return name === "a_position" ? 0 : 1; }, getUniformLocation(_program, name) { return { name }; },
-    useProgram() {}, bindBuffer() {}, bufferData() {}, enableVertexAttribArray() {}, vertexAttribPointer() {}, uniform4f() {}, uniform1f() {}, uniform1i() {}, drawArrays() { this.drawCalls += 1; },
-    createTexture() { return { id: ++objectId }; }, deleteTexture() {}, bindTexture() {}, pixelStorei(name, value) { if (name === this.UNPACK_FLIP_Y_WEBGL) this.unpackFlipY = value; }, texParameteri() {}, texImage2D() {}, activeTexture() {}
-  };
-}
+const manifest=normalizeBrandingIconManifest({schemaId:"aerobeat.branding.web-gameplay-icons.v1",schemaVersion:1,colorContract:"currentColor",webglContract:"alpha-mask-atlas-input",assets:gameplayIconIds.map((id)=>({id,file:`${id.replaceAll(".","-")}.svg`,viewBox:id==="feedback.great"?"0 0 128 32":id.includes("guard")?"0 0 48 24":"0 0 64 64"}))});assert.equal(manifest.assets.length,16);
+const entries=gameplayIconIds.map((id)=>({id,u0:0,v0:0,u1:1,v1:1}));assert.equal(normalizeIconAtlasData({width:1,height:1,pixels:new Uint8Array([255,255,255,255]),entries}).entries.length,16);
+let canvasSize={width:0,height:0};const atlas=await rasterizeBrandingIconAtlas(manifest,{resolveUrl:()=>"https://assets.invalid/a.svg",fetch:async()=>new Response(new Blob(["<svg/>"])),createCanvas:(width,height)=>{canvasSize={width,height};return /** @type {HTMLCanvasElement} */(/** @type {unknown} */({getContext:()=>({clearRect(){},drawImage(){},getImageData(){return{data:new Uint8ClampedArray(width*height*4)};}})}));},createBitmap:async()=>({close(){}})});assert.deepEqual(canvasSize,{width:1024,height:1024});assert.equal(atlas.width,1024);
+console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cull, and bounded-target validation passed.");

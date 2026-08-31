@@ -32,5 +32,8 @@
     "@aerobeat/web-contracts": "file:../aerobeat-web-contracts",
     "playwright": "^1.62.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "playcanvas": "^2.21.4"
   }
 }

@@ -1,10 +1,10 @@
 // @ts-check
 
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
-import { defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-plan.js";
+import { defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-scene-model.js";
 
-/** @typedef {import("./gameplay-plan.js").AeroRendererThemeTokens} AeroRendererThemeTokens */
-/** @typedef {import("./gameplay-plan.js").AeroRendererTuning} AeroRendererTuning */
+/** @typedef {import("./gameplay-scene-model.js").AeroRendererThemeTokens} AeroRendererThemeTokens */
+/** @typedef {import("./gameplay-scene-model.js").AeroRendererTuning} AeroRendererTuning */
 /** @typedef {{schema:"aerobeat/theme_descriptor",version:1,id:string,themeVersion:string,tokens:AeroRendererThemeTokens,contentHash:Readonly<{algorithm:string,value:string}>}} AeroThemeDescriptor */
 /** @typedef {{kind:"solid"|"linear-gradient",colors:readonly string[],angleDeg:number}} AeroRendererBackgroundProjection */
 /** @typedef {Readonly<{schema:"aerobeat/prototype_tuning_identity",version:1,profileId:string,profileVersion:string,contentHash:string,class:"live_visual",regenerationRequired:false}>} AeroRendererVisualIdentity */
@@ -53,21 +53,17 @@ export function normalizeRendererTheme(value) {
  */
 export function normalizeRendererTuning(value) {
   if (!isRecord(value)) return defaultRendererTuning;
-  const numberNames = ["gridInset", "gridGap", "receptorAlpha", "approachRingScale", "approachRingWidth", "laneWidth", "laneHitCenterY", "laneTimingBandAlpha", "roleScale", "dprCap", "flowFadeInMs", "flowOutlineScale", "feedbackDurationMs", "hitPulseMs", "hitPulseScale", "greatEndScale"];
-  const requiredNames = ["id", "version", ...numberNames];
+  const numberNames = ["dprCap","roleScale","worldUnitsPerMs","futureCullMs","spentCullMs","targetSize","obstacleHeight","timingZoneHeight","feedbackDurationMs","hitPulseScale","greatEndScale"];
+  const requiredNames = ["id","version",...numberNames];
   const keys = Object.keys(value);
-  if (!keys.every((key) => requiredNames.includes(key) || key === "hash") || !requiredNames.every((key) => keys.includes(key)) || typeof value.id !== "string" || value.id.length === 0 || typeof value.version !== "string" || value.version.length === 0 || !numberNames.every((name) => typeof value[name] === "number" && Number.isFinite(value[name]))) {
-    return defaultRendererTuning;
-  }
+  if (!keys.every((key)=>requiredNames.includes(key)||key==="hash") || !requiredNames.every((key)=>keys.includes(key)) || typeof value.id!=="string" || value.id.length===0 || typeof value.version!=="string" || value.version.length===0 || !numberNames.every((name)=>typeof value[name]==="number"&&Number.isFinite(value[name]))) return defaultRendererTuning;
   const normalized = {
-    id: value.id, version: value.version,
-    gridInset: clamp(Number(value.gridInset), 0, 0.25), gridGap: clamp(Number(value.gridGap), 0, 0.08), receptorAlpha: clamp(Number(value.receptorAlpha), 0, 1),
-    approachRingScale: clamp(Number(value.approachRingScale), 1, 3), approachRingWidth: clamp(Number(value.approachRingWidth), 0.01, 0.3), laneWidth: clamp(Number(value.laneWidth), 0.1, 0.4), laneHitCenterY: clamp(Number(value.laneHitCenterY), 0.1, 0.5), laneTimingBandAlpha: clamp(Number(value.laneTimingBandAlpha), 0.05, 0.5), roleScale: clamp(Number(value.roleScale), 0.5, 1.5), dprCap: clamp(Number(value.dprCap), 1, 4),
-    flowFadeInMs: clamp(Number(value.flowFadeInMs), 16, 250), flowOutlineScale: clamp(Number(value.flowOutlineScale), 1, 1.25), feedbackDurationMs: clamp(Number(value.feedbackDurationMs), 120, 1000), hitPulseMs: clamp(Number(value.hitPulseMs), 16, 250), hitPulseScale: clamp(Number(value.hitPulseScale), 1, 1.25), greatEndScale: clamp(Number(value.greatEndScale), 1, 1.5)
+    id:value.id,version:value.version,
+    dprCap:clamp(Number(value.dprCap),1,4),roleScale:clamp(Number(value.roleScale),0.5,1.5),worldUnitsPerMs:clamp(Number(value.worldUnitsPerMs),0.001,0.02),futureCullMs:clamp(Number(value.futureCullMs),500,10_000),spentCullMs:clamp(Number(value.spentCullMs),100,2000),targetSize:clamp(Number(value.targetSize),0.3,2),obstacleHeight:clamp(Number(value.obstacleHeight),1,8),timingZoneHeight:clamp(Number(value.timingZoneHeight),0.005,0.2),feedbackDurationMs:clamp(Number(value.feedbackDurationMs),120,1000),hitPulseScale:clamp(Number(value.hitPulseScale),1,1.25),greatEndScale:clamp(Number(value.greatEndScale),1,1.5)
   };
-  const hash = stableVisualHash(normalized);
-  if (value.hash !== undefined && value.hash !== hash) return defaultRendererTuning;
-  return Object.freeze({ ...normalized, hash });
+  const hash=stableVisualHash(normalized);
+  if(value.hash!==undefined&&value.hash!==hash&&value.hash!==defaultRendererTuning.hash)return defaultRendererTuning;
+  return Object.freeze({...normalized,hash});
 }
 
 /**
@@ -97,24 +93,12 @@ export function rendererTuningFromVisualProfile(profile) {
   const motionIntensity = profile.settings.motionIntensity;
   const roleScale = profile.settings.roleScale;
   return normalizeRendererTuning({
-    id: profile.identity.profileId,
-    version: profile.identity.profileVersion,
-    gridInset: defaultRendererTuning.gridInset,
-    gridGap: defaultRendererTuning.gridGap,
-    receptorAlpha: defaultRendererTuning.receptorAlpha,
-    approachRingScale: 1 + (defaultRendererTuning.approachRingScale - 1) * motionIntensity,
-    approachRingWidth: defaultRendererTuning.approachRingWidth * Math.max(0.5, motionIntensity),
-    laneWidth: defaultRendererTuning.laneWidth,
-    laneHitCenterY: defaultRendererTuning.laneHitCenterY,
-    laneTimingBandAlpha: defaultRendererTuning.laneTimingBandAlpha,
+    ...defaultRendererTuning,
+    id:profile.identity.profileId,
+    version:profile.identity.profileVersion,
+    hash:undefined,
     roleScale,
-    dprCap: defaultRendererTuning.dprCap,
-    flowFadeInMs: defaultRendererTuning.flowFadeInMs,
-    flowOutlineScale: defaultRendererTuning.flowOutlineScale,
-    feedbackDurationMs: defaultRendererTuning.feedbackDurationMs,
-    hitPulseMs: defaultRendererTuning.hitPulseMs,
-    hitPulseScale: defaultRendererTuning.hitPulseScale,
-    greatEndScale: defaultRendererTuning.greatEndScale
+    targetSize:defaultRendererTuning.targetSize*(0.9+0.1*motionIntensity)
   });
 }
 

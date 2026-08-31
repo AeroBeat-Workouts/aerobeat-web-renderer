@@ -20,7 +20,7 @@ export class AeroPlayCanvasRenderer {
     this.state="unsupported";this.contextLost=false;this.destroyed=false;this.errorMessage=null;this.frameCount=0;this.drawCount=0;this.contextRestoreCount=0;
     this.widthCssPx=0;this.heightCssPx=0;this.devicePixelRatio=1;this.theme=defaultRendererThemeTokens;this.visualProfile=defaultRendererVisualProfile;this.tuning=rendererTuningFromVisualProfile(this.visualProfile);
     this.themeId="aero.theme.default";this.themeVersion="1";this.themeHash="theme-default";this.background=normalizeBackgroundProjection(null);this.lastModel=null;
-    this.debugEnabled=false;this.debugYaw=0;this.debugPitch=0;this.debugPosition={x:0,y:3.15,z:-7.8};this.debugListeners=[];
+    this.debugEnabled=false;this.debugYaw=Math.PI;this.debugPitch=-0.13;this.debugPosition={x:0,y:3.15,z:-7.8};this.debugListeners=[];
     this.onContextLost=(event)=>{event.preventDefault();this.contextLost=true;this.state="context_lost";this.atlasRestorePending=Boolean(this.iconAtlasData);this.iconTexture?.destroy();this.iconTexture=null;};
     this.onContextRestored=()=>{if(this.destroyed||!this.app)return;this.contextLost=false;this.contextRestoreCount+=1;this.state="ready";};
   }
@@ -79,7 +79,7 @@ export class AeroPlayCanvasRenderer {
     on(window,"keydown",(event)=>{if(!this.debugEnabled||!["KeyW","KeyA","KeyS","KeyD","KeyQ","KeyE","ShiftLeft","ShiftRight"].includes(event.code))return;const speed=event.shiftKey?1.2:0.35;if(event.code==="KeyW")this.debugPosition.z+=speed;if(event.code==="KeyS")this.debugPosition.z-=speed;if(event.code==="KeyA")this.debugPosition.x-=speed;if(event.code==="KeyD")this.debugPosition.x+=speed;if(event.code==="KeyQ")this.debugPosition.y-=speed;if(event.code==="KeyE")this.debugPosition.y+=speed;this.applyDebugPose();});
     return this.describe();
   }
-  resetDebugCamera(){this.debugYaw=0;this.debugPitch=-0.13;this.debugPosition={x:0,y:3.15,z:-7.8};if(this.cameraEntity){this.cameraEntity.setPosition(this.debugPosition.x,this.debugPosition.y,this.debugPosition.z);this.cameraEntity.lookAt(0,1.05,8);}return this.describe();}
+  resetDebugCamera(){this.debugYaw=Math.PI;this.debugPitch=-0.13;this.debugPosition={x:0,y:3.15,z:-7.8};this.applyDebugPose();return this.describe();}
   removeDebugListeners(){for(const remove of this.debugListeners.splice(0))remove();}
   applyDebugPose(){if(!this.cameraEntity)return;this.cameraEntity.setPosition(this.debugPosition.x,this.debugPosition.y,this.debugPosition.z);this.cameraEntity.setEulerAngles(this.debugPitch*180/Math.PI,this.debugYaw*180/Math.PI,0);}
   applyCamera(model){if(!this.cameraEntity)return;if(this.debugEnabled){this.applyDebugPose();return;}const p=model.camera.position,t=model.camera.target;this.cameraEntity.setPosition(p.x,p.y,p.z);this.cameraEntity.lookAt(t.x,t.y,t.z);this.cameraEntity.camera.fov=model.camera.fov;}

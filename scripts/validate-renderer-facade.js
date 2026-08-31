@@ -1,12 +1,14 @@
 // @ts-check
 
 import assert from "node:assert/strict";
+import * as pc from "playcanvas";
 import {
-  aeroPlayCanvasRendererServiceId,buildGameplaySceneModel,compactRendererVisualProfile,defaultRendererTuning,gameplayIconIds,
+  aeroPlayCanvasRendererServiceId,buildGameplaySceneModel,compactRendererVisualProfile,createAeroPlayCanvasRenderer,defaultRendererTuning,gameplayIconIds,
   gameplayWorldGrid,normalizeBrandingIconManifest,normalizeIconAtlasData,rasterizeBrandingIconAtlas,timestampToWorldZ,worldPositionForCell
 } from "../src/index.js";
 
 assert.equal(aeroPlayCanvasRendererServiceId,"aero.renderer.playcanvas");
+const debugRenderer=createAeroPlayCanvasRenderer();debugRenderer.resetDebugCamera();const debugRotation=new pc.Quat().setFromEulerAngles(debugRenderer.debugPitch*180/Math.PI,debugRenderer.debugYaw*180/Math.PI,0),debugForward=debugRotation.transformVector(new pc.Vec3(0,0,-1));assert.ok(debugForward.z>0.99,"reset debug camera must face positive-Z gameplay");assert.ok(debugForward.y<0,"reset debug camera must pitch toward the floor");assert.equal(debugRenderer.debugYaw,Math.PI);
 assert.equal(timestampToWorldZ(1500,1000),3);assert.equal(timestampToWorldZ(500,1000),-3);
 assert.deepEqual(worldPositionForCell(0),{x:-2.4,y:2.4});assert.deepEqual(worldPositionForCell(3),{x:2.4,y:2.4});assert.deepEqual(worldPositionForCell(8),{x:-2.4,y:0});assert.deepEqual(worldPositionForCell(11),{x:2.4,y:0});assert.equal(worldPositionForCell(12),null);
 assert.deepEqual(gameplayWorldGrid.columnX,[-2.4,-0.8,0.8,2.4]);assert.deepEqual(gameplayWorldGrid.rowY,[2.4,1.2,0]);

@@ -76,11 +76,11 @@ function addPresentationFloor(objects,frame){
     objects.push(sceneObject("lane-left","lane","left",null,{x:-1.35,y:gameplayWorldGrid.floorY,z:15},{x:2.2,y:0.03,z:44},null,0,0.12,null,true,null,null,15));
     objects.push(sceneObject("lane-right","lane","right",null,{x:1.35,y:gameplayWorldGrid.floorY,z:15},{x:2.2,y:0.03,z:44},null,0,0.12,null,true,null,null,15));
   } else {
-    for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:gameplayWorldGrid.floorY,z:0},{x:1.5,y:0.025,z:1.05},null,0,0.14,null,true,null,null,0));}
+    for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:p.y,z:0},{x:1.5,y:1.05,z:0.025},null,0,0.14,null,true,null,null,0));}
   }
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */
-function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:gameplayWorldGrid.floorY+0.02,z:0},{x:1.5,y:0.035,z:1.05},null,0,role==="safe"?0.28:0.55,null,true,null,null,0));}
+function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:-0.02},{x:1.5,y:1.05,z:0.035},null,0,role==="safe"?0.28:0.55,null,true,null,null,0));}
 
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
 function targetObjects(frame,target,window,theme,tuning){
@@ -100,7 +100,7 @@ function targetObjects(frame,target,window,theme,tuning){
     const cells=target.cells.length?target.cells:target.cell===null?[]:[target.cell];
     const z0=timestampToWorldZ(interval.startMs,frame.nowMs,tuning.worldUnitsPerMs),z1=timestampToWorldZ(interval.endMs,frame.nowMs,tuning.worldUnitsPerMs);
     const center=(z0+z1)/2,depth=Math.max(0.12,Math.abs(z1-z0));
-    return cells.map((cell,index)=>{const p=worldPositionForCell(cell);return p?sceneObject(`${target.id}:${index}`,"obstacle",role,target.id,{x:p.x,y:(gameplayWorldGrid.floorY+tuning.obstacleHeight/2),z:center},{x:1.5,y:tuning.obstacleHeight,z:depth},null,0,state==="spent"?0.18:0.42,state,true,interval.startMs,interval.endMs,center):null;}).filter(Boolean);
+    return cells.map((cell,index)=>{const p=worldPositionForCell(cell);return p?sceneObject(`${target.id}:${index}`,"obstacle",role,target.id,{x:p.x,y:p.y,z:center},{x:1.5,y:1.05,z:depth},null,0,state==="spent"?0.18:0.42,state,true,interval.startMs,interval.endMs,center):null;}).filter(Boolean);
   }
   const positions=targetPositions(frame,target);
   const z=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);

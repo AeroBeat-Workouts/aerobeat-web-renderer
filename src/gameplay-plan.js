@@ -194,9 +194,10 @@ function addTarget(commands, frame, target, grid, theme, tuning) {
     const baseRect = scaledRect(targetRect, tuning.roleScale);
     const rect = scaledRect(baseRect, scale);
     const iconId = iconIdFor(target);
-    const kind = target.kind === "obstacle" && frame.presentation !== "boxing_lanes" ? "hatch" : iconId ? "icon" : "circle";
+    const isGridObstacle = target.kind === "obstacle" && frame.presentation !== "boxing_lanes";
+    const kind = isGridObstacle ? "hatch" : iconId ? "icon" : "circle";
     if (isFlow && iconId) commands.push(command("icon", role, scaledRect(rect, tuning.flowOutlineScale), alpha, scale * tuning.flowOutlineScale, iconId, false, 4, target.id, 1, false, rotationRad, "white"));
-    commands.push(command(kind, role, rect, alpha, scale, iconId, target.kind === "obstacle", 5, target.id, isFlow ? 1 : progress, false, rotationRad, "role", whiten));
+    commands.push(command(kind, role, rect, alpha, scale, iconId, isGridObstacle, 5, target.id, isFlow ? 1 : progress, false, rotationRad, "role", whiten));
     if (frame.presentation !== "boxing_lanes" && (target.judgement === undefined || target.judgement === "pending")) {
       const ringScale = lerp(tuning.approachRingScale, 1, progress);
       commands.push(command("ring", role, scaledRect(baseRect, ringScale), 0.85 * arrivalAlpha, ringScale, null, false, 6, target.id, 1));

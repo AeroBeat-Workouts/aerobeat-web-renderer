@@ -115,7 +115,7 @@ const laneCues = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarg
 ]);
 const allLanePlan=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1000,targets:laneCues,timingWindowBeforeMs:180,timingWindowAfterMs:180});
 const expectedLaneIcons={"straight-left":["boxing.straight.left"],"hook-right":["boxing.hook.right"],"uppercut-left":["boxing.uppercut.left"],"guard-standard":["boxing.guard.standard","boxing.guard.standard"],"guard-crossed":["boxing.guard.crossed","boxing.guard.crossed"],squat:["boxing.squat","boxing.squat"],"weave-left":["boxing.weave.left"],"weave-right":["boxing.weave.right"]};
-for(const [id,icons] of Object.entries(expectedLaneIcons)){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.deepEqual(commands.map((entry)=>entry.iconId),icons,`${id} canonical lane icons`);for(const entry of commands)assertClose(entry.rect.width*4/3,entry.rect.height,`${id} square normalized at default aspect`);}
+for(const [id,icons] of Object.entries(expectedLaneIcons)){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.deepEqual(commands.map((entry)=>entry.iconId),icons,`${id} canonical lane icons`);assert.ok(commands.every((entry)=>entry.hatch===false),`${id} lane icons must carry no hatch semantics`);for(const entry of commands)assertClose(entry.rect.width*4/3,entry.rect.height,`${id} square normalized at default aspect`);}
 for(const id of ["guard-standard","guard-crossed","squat"]){const commands=allLanePlan.commands.filter((entry)=>entry.targetId===id&&entry.kind==="icon");assert.equal(commands.length,2);assert.ok(commands[0].rect.x<0.5&&commands[1].rect.x>0.5,`${id} must duplicate exactly once per lane`);}
 const movingHitTarget={...laneCues[0],id:"moving-hit",judgement:/** @type {const} */("hit"),feedbackProgress:.5};
 const movingHitEarly=buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:1000,targets:[movingHitTarget],timingWindowBeforeMs:180,timingWindowAfterMs:180});
@@ -127,6 +127,8 @@ const obstaclePlan = buildGameplayRenderPlan({ presentation: "flow", nowMs: 1000
 assert.equal(obstaclePlan.commands.some((entry) => entry.targetId === "flow-up" && (entry.kind === "line" || entry.kind === "circle")), false, "Flow direction must use the selected icon rather than primitive cues");
 assert.equal(obstaclePlan.commands.some((entry) => entry.role === "obstacle" && entry.hatch), true);
 assert.equal(obstaclePlan.commands.some((entry) => entry.role === "safe" && entry.hatch), true);
+const gridObstaclePlan=buildGameplayRenderPlan({presentation:"boxing_spatial_grid",nowMs:1000,targets:[{...targetBase,id:"grid-squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[5],lane:null}]});
+const gridObstacle=gridObstaclePlan.commands.find((entry)=>entry.targetId==="grid-squat");assert.ok(gridObstacle);assert.equal(gridObstacle.kind,"hatch");assert.equal(gridObstacle.hatch,true);assert.equal(gridObstacle.iconId,"boxing.squat","Boxing Grid retains squat semantic metadata while drawing its blocked-region hatch");
 
 const allDirections = /** @type {const} */ (["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"]);
 const expectedRotations = [-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4];

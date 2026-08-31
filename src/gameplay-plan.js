@@ -193,7 +193,7 @@ function addTarget(commands, frame, target, grid, theme, tuning) {
   for (const targetRect of rects) {
     const baseRect = scaledRect(targetRect, tuning.roleScale);
     const rect = scaledRect(baseRect, scale);
-    const iconId = iconIdFor(target);
+    const iconId = iconIdFor(target, frame.presentation);
     const isGridObstacle = target.kind === "obstacle" && frame.presentation !== "boxing_lanes";
     const kind = isGridObstacle ? "hatch" : iconId ? "icon" : "circle";
     if (isFlow && iconId) commands.push(command("icon", role, scaledRect(rect, tuning.flowOutlineScale), alpha, scale * tuning.flowOutlineScale, iconId, false, 4, target.id, 1, false, rotationRad, "white"));
@@ -245,12 +245,12 @@ export function cellRect(cell, grid, gap = 0) {
   return Object.freeze({ x: grid.x + column * width + gap / 2, y: grid.y + row * height + gap / 2, width: width - gap, height: height - gap });
 }
 
-/** @param {AeroRenderableTarget} target @returns {string|null} */
-function iconIdFor(target) {
+/** @param {AeroRenderableTarget} target @param {AeroGameplayPresentation} presentation @returns {string|null} */
+function iconIdFor(target, presentation) {
   if (target.kind === "flow") return target.direction ? "flow.directional" : "flow.directionless";
   if (target.family === "squat") return "boxing.squat";
   if (target.family === "weave") {
-    const direction = target.lane ?? (target.hand === "left" || target.hand === "right" ? target.hand : null);
+    const direction = presentation === "boxing_lanes" ? target.lane : target.hand === "left" || target.hand === "right" ? target.hand : null;
     return direction ? `boxing.weave.${direction}` : null;
   }
   if (target.kind === "guard") return target.family === "crossed_guard" ? "boxing.guard.crossed" : "boxing.guard.standard";

@@ -1,6 +1,7 @@
 // @ts-check
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   aeroWebGl2RendererServiceId,
   applyNamedEasing,
@@ -129,6 +130,25 @@ assert.equal(obstaclePlan.commands.some((entry) => entry.role === "obstacle" && 
 assert.equal(obstaclePlan.commands.some((entry) => entry.role === "safe" && entry.hatch), true);
 const gridObstaclePlan=buildGameplayRenderPlan({presentation:"boxing_spatial_grid",nowMs:1000,targets:[{...targetBase,id:"grid-squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[5],lane:null}]});
 const gridObstacle=gridObstaclePlan.commands.find((entry)=>entry.targetId==="grid-squat");assert.ok(gridObstacle);assert.equal(gridObstacle.kind,"hatch");assert.equal(gridObstacle.hatch,true);assert.equal(gridObstacle.iconId,"boxing.squat","Boxing Grid retains squat semantic metadata while drawing its blocked-region hatch");
+const representativeGridTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
+  { ...targetBase,id:"grid-punch-left",cell:1 },
+  { ...targetBase,id:"grid-guard",kind:"guard",hand:"both",family:"crossed_guard",cell:null,cells:[5,6],lane:null },
+  { ...targetBase,id:"grid-squat",kind:"obstacle",hand:"neutral",family:"squat",cell:null,cells:[9],lane:null },
+  { ...targetBase,id:"grid-weave-left",kind:"obstacle",hand:"neutral",family:"weave",cell:null,cells:[4],lane:"left" },
+  { ...targetBase,id:"grid-weave-right",kind:"obstacle",hand:"neutral",family:"weave",cell:null,cells:[7],lane:"right" },
+  { ...targetBase,id:"grid-safe",kind:"safe",hand:"neutral",family:"safe",cell:null,cells:[10],lane:null }
+]);
+const representativeGridPlan=buildGameplayRenderPlan({presentation:"boxing_spatial_grid",nowMs:550,targets:representativeGridTargets,blockedCells:[0],safeCells:[11],countdown:2,overlay:"paused",calibrationDim:.4,viewportAspect:16/9});
+for(const id of ["grid-weave-left","grid-weave-right"]){const commands=representativeGridPlan.commands.filter((entry)=>entry.targetId===id);assert.equal(commands[0]?.kind,"hatch");assert.equal(commands[0]?.hatch,true);assert.equal(commands[0]?.iconId,null,`${id} Grid hatch must retain its pre-lanes null iconId`);assert.equal(commands[1]?.kind,"ring");}
+assert.equal(createHash("sha256").update(JSON.stringify(representativeGridPlan)).digest("hex"),"01b05e00ed61f70efbb02c23d7205e7183bc56789266dc0a4035bf816f3b1e11","representative Boxing Grid plan must remain byte-identical to e8764f5^ behavior");
+const representativeFlowTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
+  { ...targetBase,id:"flow-directional",kind:"flow",family:"flow",hand:"left",cell:1,lane:null,direction:"down-right" },
+  { ...targetBase,id:"flow-directionless",kind:"flow",family:"flow",hand:"right",cell:6,lane:null,direction:null },
+  { ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",cell:9,lane:null,direction:"up",judgement:"hit",feedbackProgress:.4 },
+  { ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",cell:10,lane:null,direction:"left",judgement:"miss",feedbackProgress:.4 }
+]);
+const representativeFlowPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:representativeFlowTargets,blockedCells:[0],safeCells:[11],countdown:2,overlay:"paused",calibrationDim:.4,viewportAspect:16/9});
+assert.equal(createHash("sha256").update(JSON.stringify(representativeFlowPlan)).digest("hex"),"98e4b4b4fcd09bb807f826234ab59f74a522c4a5fe58c25369e2105ec5196f12","representative Flow plan must remain byte-identical to e8764f5^ behavior");
 
 const allDirections = /** @type {const} */ (["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"]);
 const expectedRotations = [-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4];

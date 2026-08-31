@@ -18,7 +18,7 @@ The procedural timing ring is not projected with the cue. It remains centered on
 
 A Flow target with `kind:"obstacle"`, `family:"obstacle"`, and caller-resolved occupied `cells` emits one translucent screen-space plane per occupied cell. Planes use the same linear projection and land exactly on the corresponding existing cell rectangles. They emit no direction icon or timing ring.
 
-`beatCenterMs` is the default obstacle interval start. Optional `endMs` keeps the endpoint plane visible through that bounded timestamp and removes it afterward. Exact `intervalStartMs`/`intervalEndMs` aliases are accepted for callers that already carry both bounds; conflicting end values and invalid/reversed/out-of-day bounds are rejected. The renderer does not infer cell coverage or duration from source formats.
+`beatCenterMs` is the default obstacle interval start. Optional `endMs` keeps the endpoint plane visible through that bounded timestamp and removes it afterward. Exact `intervalStartMs`/`intervalEndMs` aliases are accepted for callers that already carry both bounds; conflicting end values and invalid/reversed/out-of-day bounds are rejected. Obstacle planes deliberately ignore cue judgement and `feedbackProgress`: they persist beyond the unrelated 350 ms synthetic cue-feedback window until their exact interval end and never emit a timing ring, pulse, or GREAT wordmark. The renderer does not infer cell coverage or duration from source formats.
 
 ## Icon resolution
 
@@ -33,4 +33,4 @@ Canonical currentColor SVG masters still rasterize privately into a white-RGB al
 
 ## Verification
 
-Deterministic plan tests lock progress endpoints, equal timeline deltas, +2500 ms horizon separation, source-order-independent far-first sorting, three distinct same-cell rectangles, exact endpoint rings, obstacle approach/impact/persistence, invalid intervals, and unchanged representative Boxing hashes. Chromium framebuffer tests repeat same-cell depth, destination ring, obstacle plane, and crisp arrow/outline evidence in portrait and landscape at requested DPR 1 and 3 while retaining all Boxing, context-loss, semantic recolor, cursor, resize, and lifecycle gates.
+Deterministic plan tests lock progress endpoints, equal timeline deltas, the complete +2500 ms publication horizon (only the exact boundary cue is depth 0), source-order-independent far-first sorting, three distinct same-cell rectangles, exact endpoint rings, obstacle approach/impact/persistence beyond 350 ms with feedback-independent command equality and no ring/GREAT, invalid intervals, and unchanged representative Boxing hashes. Chromium framebuffer tests repeat same-cell depth, destination ring, obstacle plane, and crisp arrow/outline evidence in portrait and landscape at requested DPR 1 and 3 while retaining all Boxing, context-loss, semantic recolor, cursor, resize, and lifecycle gates.

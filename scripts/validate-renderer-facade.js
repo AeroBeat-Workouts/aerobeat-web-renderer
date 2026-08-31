@@ -87,7 +87,18 @@ const projectedImpact = projectFlowRect(flowEndpoint, 1);
 assertClose(projectedSpawn.x + projectedSpawn.width / 2, flowVanishingPoint.x, "Flow spawn center X");
 assertClose(projectedSpawn.y + projectedSpawn.height / 2, flowVanishingPoint.y, "Flow spawn center Y");
 assertClose(projectedSpawn.width, flowEndpoint.width * flowStartScale, "Flow spawn width");
-for (const key of ["x", "y", "width", "height"]) assertClose(projectedImpact[key], flowEndpoint[key], `Flow impact ${key}`);
+assert.deepEqual(projectedImpact,flowEndpoint,"Flow progress 1 must preserve the exact authoritative endpoint record");
+assert.deepEqual(projectFlowRect(flowEndpoint,2),flowEndpoint,"Flow progress above 1 must clamp to the exact authoritative endpoint record");
+for(const [width,height] of [[390,844],[844,390],[240,1200],[1600,300]]){
+  const grid=fitPlayfieldGrid(defaultRendererTuning.gridInset,width/height);
+  for(let cell=0;cell<12;cell+=1){
+    const endpoint=cellRect(cell,grid,defaultRendererTuning.gridGap);assert.ok(endpoint);
+    assert.deepEqual(projectFlowRect(endpoint,1),endpoint,`cell ${cell} at ${width}x${height} must retain strict endpoint identity`);
+    const impactPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,viewportAspect:width/height,targets:[{id:`exact-${cell}`,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell,cells:[],lane:null,beatCenterMs:1000,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")} ]});
+    const foreground=impactPlan.commands.find((entry)=>entry.targetId===`exact-${cell}`&&entry.sequence===1);assert.ok(foreground);
+    assert.deepEqual(foreground.rect,endpoint,`Flow cue cell ${cell} at ${width}x${height} must land on the exact cellRect output`);
+  }
+}
 assertClose((projectedHalf.x + projectedHalf.width / 2) - (projectedQuarter.x + projectedQuarter.width / 2), (projectedThreeQuarter.x + projectedThreeQuarter.width / 2) - (projectedHalf.x + projectedHalf.width / 2), "equal Flow deltas move center X equally");
 assertClose(projectedHalf.width - projectedQuarter.width, projectedThreeQuarter.width - projectedHalf.width, "equal Flow deltas scale equally");
 const sameCellTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
@@ -106,6 +117,8 @@ assert.equal(flowDefaultApproachLeadMs,2500);
 const horizonPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:0,targets:[500,1500,2500].map((beatCenterMs,index)=>({id:`horizon-${index}`,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell:5,cells:[],lane:null,beatCenterMs,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")}))});
 const horizonFills=horizonPlan.commands.filter((entry)=>entry.layer===5&&entry.sequence===1);
 assert.deepEqual(horizonFills.map((entry)=>entry.targetId),["horizon-2","horizon-1","horizon-0"],"default Flow horizon must separate and far-first sort the complete +2500ms assembly projection window");
+for(const [index,expected] of [0,0.4,0.8].entries())assertClose(Number(horizonFills[index].depth),expected,`full-horizon depth ${index}`);
+assert.equal(horizonFills.filter((entry)=>entry.depth===0).length,1,"only an event exactly at the +2500ms publication boundary may occupy the exact vanishing rectangle");
 assert.equal(new Set(horizonFills.map((entry)=>`${entry.rect.x}:${entry.rect.y}:${entry.rect.width}:${entry.rect.height}`)).size,3,"published future Flow cues must not stack at the vanishing point");
 for (const ring of sameCellRings) {
   assertClose(ring.rect.x + ring.rect.width / 2, flowEndpoint.x + flowEndpoint.width / 2, `${ring.targetId} ring endpoint center X`);
@@ -117,8 +130,14 @@ const obstacleImpact = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,
 assert.equal(obstacleApproach.length, 2); assert.ok(obstacleApproach.every((entry) => entry.kind === "plane" && entry.depth === 0.5 && entry.alpha === 0.58 && entry.intervalStartMs === 1000 && entry.intervalEndMs === 1600));
 for (let index = 0; index < obstacleImpact.length; index += 1) {
   const endpoint = cellRect(flowObstacleTarget.cells[index], sameCellPlan.grid, defaultRendererTuning.gridGap); assert.ok(endpoint);
-  for (const key of ["x","y","width","height"]) assertClose(obstacleImpact[index].rect[key], endpoint[key], `Flow obstacle ${index} impact ${key}`);
+  assert.deepEqual(obstacleImpact[index].rect,endpoint,`Flow obstacle ${index} impact must retain strict endpoint identity`);
 }
+const obstacleAfterFeedbackWindow=buildGameplayRenderPlan({presentation:"flow",nowMs:1351,targets:[flowObstacleTarget]}).commands.filter((entry)=>entry.targetId==="flow-obstacle");
+const obstacleWithSyntheticFeedback=buildGameplayRenderPlan({presentation:"flow",nowMs:1351,targets:[{...flowObstacleTarget,judgement:"hit",feedbackProgress:1}]}).commands.filter((entry)=>entry.targetId==="flow-obstacle");
+assert.equal(obstacleAfterFeedbackWindow.length,2,"obstacle interval must persist beyond the unrelated 350ms cue feedback lifetime");
+assert.deepEqual(obstacleWithSyntheticFeedback,obstacleAfterFeedbackWindow,"synthetic cue feedback must not change obstacle plane geometry, alpha, depth, or interval persistence");
+assert.ok(obstacleWithSyntheticFeedback.every((entry)=>entry.kind==="plane"&&entry.iconId===null),"Flow obstacles must emit planes only");
+assert.equal(obstacleWithSyntheticFeedback.some((entry)=>entry.kind==="ring"||entry.iconId==="feedback.great"),false,"Flow obstacles must never emit a misleading ring or GREAT wordmark");
 assert.equal(buildGameplayRenderPlan({ presentation:"flow",nowMs:1601,targets:[flowObstacleTarget] }).commands.some((entry) => entry.targetId === "flow-obstacle"), false, "Flow obstacle must not outlive its truthful endMs");
 assert.throws(() => buildGameplayRenderPlan({ presentation:"flow",nowMs:0,targets:[{ ...flowObstacleTarget,endMs:900 }] }), /interval is invalid/u);
 assert.throws(() => buildGameplayRenderPlan({ presentation:"flow",nowMs:0,targets:[{ ...flowObstacleTarget,intervalEndMs:1700 }] }), /end bounds conflict/u);
@@ -205,7 +224,7 @@ const representativeFlowTargets = /** @type {import("../src/gameplay-plan.js").A
   { ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",cell:10,lane:null,direction:"left",judgement:"miss",feedbackProgress:.4 }
 ]);
 const representativeFlowPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:representativeFlowTargets,blockedCells:[0],safeCells:[11],countdown:2,overlay:"paused",calibrationDim:.4,viewportAspect:16/9});
-assert.equal(createHash("sha256").update(JSON.stringify(representativeFlowPlan)).digest("hex"),"018b1b4465c2e1e4f79d4fec1d29955ebbf6d558cbdd746acd75df463554cafd","representative perspective Flow plan must remain deterministic");
+assert.equal(createHash("sha256").update(JSON.stringify(representativeFlowPlan)).digest("hex"),"7ea1adfd3080853adcc43006aad71dcd823c2492eb8c7bd5c527a2588c44b373","representative perspective Flow plan must remain deterministic");
 
 const allDirections = /** @type {const} */ (["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"]);
 const expectedRotations = [-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4];

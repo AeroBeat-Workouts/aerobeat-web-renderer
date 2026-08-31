@@ -145,6 +145,7 @@ export function flowApproachProgress(nowMs, impactMs, approachLeadMs) {
 /** Project one endpoint rectangle from the bounded central vanishing point in normalized screen space. @param {AeroNormalizedRect} endpoint @param {number} progress */
 export function projectFlowRect(endpoint, progress) {
   const p = clamp(Number.isFinite(progress) ? progress : 0, 0, 1);
+  if (p === 1) return Object.freeze({ x:endpoint.x,y:endpoint.y,width:endpoint.width,height:endpoint.height });
   const scale = perspectiveScale(p);
   const endpointCenterX = endpoint.x + endpoint.width / 2;
   const endpointCenterY = endpoint.y + endpoint.height / 2;

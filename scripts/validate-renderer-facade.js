@@ -12,7 +12,12 @@ import {
   defaultRendererTuning,
   defaultRendererVisualProfile,
   fitPlayfieldGrid,
+  flowApproachProgress,
+  flowDefaultApproachLeadMs,
+  flowStartScale,
+  flowVanishingPoint,
   gameplayIconIds,
+  projectFlowRect,
   normalizeBrandingIconManifest,
   normalizeIconAtlasData,
   normalizeRendererTuning,
@@ -65,6 +70,58 @@ assert.throws(()=>buildGameplayRenderPlan({presentation:"boxing_lanes",nowMs:0,t
 assert.equal(applyNamedEasing(0.5, "linear"), 0.5);
 assert.equal(applyNamedEasing(0.5, "ease-in"), 0.25);
 assert.equal(applyNamedEasing(0.5, "ease-out"), 0.75);
+
+assert.equal(flowApproachProgress(0, 1000, 1000), 0);
+assert.equal(flowApproachProgress(250, 1000, 1000), 0.25);
+assert.equal(flowApproachProgress(500, 1000, 1000), 0.5);
+assert.equal(flowApproachProgress(750, 1000, 1000), 0.75);
+assert.equal(flowApproachProgress(1000, 1000, 1000), 1);
+assert.throws(() => flowApproachProgress(0, 1000, 0), /timeline is invalid/u);
+const flowEndpoint = cellRect(5, fitPlayfieldGrid(defaultRendererTuning.gridInset, 4 / 3), defaultRendererTuning.gridGap);
+assert.ok(flowEndpoint);
+const projectedSpawn = projectFlowRect(flowEndpoint, 0);
+const projectedQuarter = projectFlowRect(flowEndpoint, 0.25);
+const projectedHalf = projectFlowRect(flowEndpoint, 0.5);
+const projectedThreeQuarter = projectFlowRect(flowEndpoint, 0.75);
+const projectedImpact = projectFlowRect(flowEndpoint, 1);
+assertClose(projectedSpawn.x + projectedSpawn.width / 2, flowVanishingPoint.x, "Flow spawn center X");
+assertClose(projectedSpawn.y + projectedSpawn.height / 2, flowVanishingPoint.y, "Flow spawn center Y");
+assertClose(projectedSpawn.width, flowEndpoint.width * flowStartScale, "Flow spawn width");
+for (const key of ["x", "y", "width", "height"]) assertClose(projectedImpact[key], flowEndpoint[key], `Flow impact ${key}`);
+assertClose((projectedHalf.x + projectedHalf.width / 2) - (projectedQuarter.x + projectedQuarter.width / 2), (projectedThreeQuarter.x + projectedThreeQuarter.width / 2) - (projectedHalf.x + projectedHalf.width / 2), "equal Flow deltas move center X equally");
+assertClose(projectedHalf.width - projectedQuarter.width, projectedThreeQuarter.width - projectedHalf.width, "equal Flow deltas scale equally");
+const sameCellTargets = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget[]} */ ([
+  { id:"same-near",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,approachLeadMs:1000,direction:"right",judgement:"pending" },
+  { id:"same-far",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1600,approachLeadMs:1000,direction:"right",judgement:"pending" },
+  { id:"same-middle",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1300,approachLeadMs:1000,direction:"right",judgement:"pending" }
+]);
+const sameCellPlan = buildGameplayRenderPlan({ presentation:"flow",nowMs:700,targets:sameCellTargets });
+const sameCellFills = sameCellPlan.commands.filter((entry) => entry.layer === 5 && entry.sequence === 1);
+assert.deepEqual(sameCellFills.map((entry) => entry.targetId), ["same-far","same-middle","same-near"], "Flow cues must draw far-first and near-last independently of source order");
+for (const [index,expected] of [0.1,0.4,0.7].entries()) assertClose(Number(sameCellFills[index].depth),expected,`same-cell depth ${index}`);
+assert.equal(new Set(sameCellFills.map((entry) => `${entry.rect.x}:${entry.rect.y}:${entry.rect.width}:${entry.rect.height}`)).size, 3, "three same-cell cues must remain spatially separate");
+const sameCellRings = sameCellPlan.commands.filter((entry) => entry.kind === "ring");
+assert.equal(sameCellRings.length, 3);
+assert.equal(flowDefaultApproachLeadMs,2500);
+const horizonPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:0,targets:[500,1500,2500].map((beatCenterMs,index)=>({id:`horizon-${index}`,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell:5,cells:[],lane:null,beatCenterMs,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")}))});
+const horizonFills=horizonPlan.commands.filter((entry)=>entry.layer===5&&entry.sequence===1);
+assert.deepEqual(horizonFills.map((entry)=>entry.targetId),["horizon-2","horizon-1","horizon-0"],"default Flow horizon must separate and far-first sort the complete +2500ms assembly projection window");
+assert.equal(new Set(horizonFills.map((entry)=>`${entry.rect.x}:${entry.rect.y}:${entry.rect.width}:${entry.rect.height}`)).size,3,"published future Flow cues must not stack at the vanishing point");
+for (const ring of sameCellRings) {
+  assertClose(ring.rect.x + ring.rect.width / 2, flowEndpoint.x + flowEndpoint.width / 2, `${ring.targetId} ring endpoint center X`);
+  assertClose(ring.rect.y + ring.rect.height / 2, flowEndpoint.y + flowEndpoint.height / 2, `${ring.targetId} ring endpoint center Y`);
+}
+const flowObstacleTarget = /** @type {import("../src/gameplay-plan.js").AeroRenderableTarget} */ ({ id:"flow-obstacle",kind:"obstacle",hand:"neutral",family:"obstacle",cell:null,cells:[0,5],lane:null,beatCenterMs:1000,approachLeadMs:1000,endMs:1600 });
+const obstacleApproach = buildGameplayRenderPlan({ presentation:"flow",nowMs:500,targets:[flowObstacleTarget] }).commands.filter((entry) => entry.targetId === "flow-obstacle");
+const obstacleImpact = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[flowObstacleTarget] }).commands.filter((entry) => entry.targetId === "flow-obstacle");
+assert.equal(obstacleApproach.length, 2); assert.ok(obstacleApproach.every((entry) => entry.kind === "plane" && entry.depth === 0.5 && entry.alpha === 0.58 && entry.intervalStartMs === 1000 && entry.intervalEndMs === 1600));
+for (let index = 0; index < obstacleImpact.length; index += 1) {
+  const endpoint = cellRect(flowObstacleTarget.cells[index], sameCellPlan.grid, defaultRendererTuning.gridGap); assert.ok(endpoint);
+  for (const key of ["x","y","width","height"]) assertClose(obstacleImpact[index].rect[key], endpoint[key], `Flow obstacle ${index} impact ${key}`);
+}
+assert.equal(buildGameplayRenderPlan({ presentation:"flow",nowMs:1601,targets:[flowObstacleTarget] }).commands.some((entry) => entry.targetId === "flow-obstacle"), false, "Flow obstacle must not outlive its truthful endMs");
+assert.throws(() => buildGameplayRenderPlan({ presentation:"flow",nowMs:0,targets:[{ ...flowObstacleTarget,endMs:900 }] }), /interval is invalid/u);
+assert.throws(() => buildGameplayRenderPlan({ presentation:"flow",nowMs:0,targets:[{ ...flowObstacleTarget,intervalEndMs:1700 }] }), /end bounds conflict/u);
 
 assert.deepEqual(normalizeRendererTuning(defaultRendererTuning),defaultRendererTuning,"default renderer tuning hash must exactly cover bounded visual tokens");
 const mappedDefaultTuning = rendererTuningFromVisualProfile(defaultRendererVisualProfile);
@@ -148,7 +205,7 @@ const representativeFlowTargets = /** @type {import("../src/gameplay-plan.js").A
   { ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",cell:10,lane:null,direction:"left",judgement:"miss",feedbackProgress:.4 }
 ]);
 const representativeFlowPlan=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:representativeFlowTargets,blockedCells:[0],safeCells:[11],countdown:2,overlay:"paused",calibrationDim:.4,viewportAspect:16/9});
-assert.equal(createHash("sha256").update(JSON.stringify(representativeFlowPlan)).digest("hex"),"98e4b4b4fcd09bb807f826234ab59f74a522c4a5fe58c25369e2105ec5196f12","representative Flow plan must remain byte-identical to e8764f5^ behavior");
+assert.equal(createHash("sha256").update(JSON.stringify(representativeFlowPlan)).digest("hex"),"018b1b4465c2e1e4f79d4fec1d29955ebbf6d558cbdd746acd75df463554cafd","representative perspective Flow plan must remain deterministic");
 
 const allDirections = /** @type {const} */ (["up", "up-right", "right", "down-right", "down", "down-left", "left", "up-left"]);
 const expectedRotations = [-Math.PI/2,-Math.PI/4,0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4];
@@ -156,8 +213,8 @@ for (let index=0; index<allDirections.length; index+=1) {
   const direction = allDirections[index];
   const id = `flow-${direction}`;
   const plan = buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[{ ...targetBase, id, kind:"flow", family:"flow", hand:"left", direction }] });
-  const outline = plan.commands.find((entry) => entry.targetId === id && entry.layer === 4);
-  const target = plan.commands.find((entry) => entry.targetId === id && entry.layer === 5);
+  const outline = plan.commands.find((entry) => entry.targetId === id && entry.layer === 5 && entry.sequence === 0);
+  const target = plan.commands.find((entry) => entry.targetId === id && entry.layer === 5 && entry.sequence === 1);
   assert.ok(outline && target, `${direction} outline and target must render`);
   assert.equal(outline.iconId,"flow.directional"); assert.equal(target.iconId,"flow.directional");
   assert.equal(outline.colorMode,"white"); assert.equal(target.colorMode,"role");
@@ -168,19 +225,19 @@ for (let index=0; index<allDirections.length; index+=1) {
 const directionless = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-dot",kind:"flow",family:"flow",hand:"right",direction:null }] }).commands.filter((entry) => entry.targetId === "flow-dot" && entry.kind === "icon");
 assert.deepEqual(directionless.map((entry)=>entry.iconId),["flow.directionless","flow.directionless"]);
 assert.ok(directionless.every((entry)=>entry.rotationRad===0 && entry.saturation===1));
-const flowSpawn = buildGameplayRenderPlan({ presentation:"flow",nowMs:100,targets:[{ ...targetBase,id:"flow-spawn",kind:"flow",family:"flow",hand:"left",direction:"right" }] }).commands.find((entry)=>entry.targetId==="flow-spawn"&&entry.layer===5);
-const flowVisible = buildGameplayRenderPlan({ presentation:"flow",nowMs:180,targets:[{ ...targetBase,id:"flow-visible",kind:"flow",family:"flow",hand:"left",direction:"right" }] }).commands.find((entry)=>entry.targetId==="flow-visible"&&entry.layer===5);
-assert.equal(flowSpawn?.scale,1); assert.equal(flowSpawn?.alpha,0); assert.equal(flowVisible?.alpha,1);
+const flowSpawn = buildGameplayRenderPlan({ presentation:"flow",nowMs:100,targets:[{ ...targetBase,id:"flow-spawn",kind:"flow",family:"flow",hand:"left",direction:"right",approachLeadMs:900 }] }).commands.find((entry)=>entry.targetId==="flow-spawn"&&entry.layer===5&&entry.sequence===1);
+const flowVisible = buildGameplayRenderPlan({ presentation:"flow",nowMs:180,targets:[{ ...targetBase,id:"flow-visible",kind:"flow",family:"flow",hand:"left",direction:"right",approachLeadMs:900 }] }).commands.find((entry)=>entry.targetId==="flow-visible"&&entry.layer===5&&entry.sequence===1);
+assert.equal(flowSpawn?.scale,flowStartScale); assert.equal(flowSpawn?.alpha,0); assert.equal(flowVisible?.alpha,1); assert.ok(Number(flowVisible?.scale)>flowStartScale&&Number(flowVisible?.scale)<1);
 const flowHitStart = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:0 }] });
 const flowHitMiddle = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-hit",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:0.5 }] });
-const hitStart = flowHitStart.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5); const greatStart = flowHitStart.commands.find((entry)=>entry.iconId==="feedback.great");
-const hitMiddle = flowHitMiddle.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5); const greatMiddle = flowHitMiddle.commands.find((entry)=>entry.iconId==="feedback.great");
+const hitStart = flowHitStart.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5&&entry.sequence===1); const greatStart = flowHitStart.commands.find((entry)=>entry.iconId==="feedback.great");
+const hitMiddle = flowHitMiddle.commands.find((entry)=>entry.targetId==="flow-hit"&&entry.layer===5&&entry.sequence===1); const greatMiddle = flowHitMiddle.commands.find((entry)=>entry.iconId==="feedback.great");
 assert.equal(hitStart?.whiten,1); assert.equal(greatStart?.scale,1); assert.equal(greatStart?.colorMode,"white");
 assert.ok(hitMiddle && greatMiddle && hitMiddle.alpha===greatMiddle.alpha && greatMiddle.scale>1 && greatMiddle.scale<1.25 && hitMiddle.whiten===0);
 const flowMiss = buildGameplayRenderPlan({ presentation:"flow",nowMs:1000,targets:[{ ...targetBase,id:"flow-miss",kind:"flow",family:"flow",hand:"right",direction:null,judgement:"miss",feedbackProgress:0.5 }] });
-assert.equal(flowMiss.commands.some((entry)=>entry.iconId==="feedback.great"),false); assert.equal(flowMiss.commands.find((entry)=>entry.targetId==="flow-miss"&&entry.layer===5)?.alpha,hitMiddle.alpha);
-const flowHitCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-hit-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-hit-easing"&&entry.layer===5);
-const flowMissCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-miss-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"miss",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-miss-easing"&&entry.layer===5);
+assert.equal(flowMiss.commands.some((entry)=>entry.iconId==="feedback.great"),false); assert.equal(flowMiss.commands.find((entry)=>entry.targetId==="flow-miss"&&entry.layer===5&&entry.sequence===1)?.alpha,hitMiddle.alpha);
+const flowHitCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-hit-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"hit",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-hit-easing"&&entry.layer===5&&entry.sequence===1);
+const flowMissCustomEasing=buildGameplayRenderPlan({presentation:"flow",nowMs:1000,targets:[{...targetBase,id:"flow-miss-easing",kind:"flow",family:"flow",hand:"left",direction:"right",judgement:"miss",feedbackProgress:.5}]},easeTheme).commands.find((entry)=>entry.targetId==="flow-miss-easing"&&entry.layer===5&&entry.sequence===1);
 assert.equal(flowHitCustomEasing?.alpha,flowMissCustomEasing?.alpha,"Flow hit/miss must share one fade easing even when a legacy Boxing miss easing differs");
 assert.throws(() => buildGameplayRenderPlan({ presentation:"flow", nowMs:1000, targets:[/** @type {import("../src/gameplay-plan.js").AeroRenderableTarget} */ ({ ...targetBase, kind:"flow", family:"flow", hand:"neutral", direction:"north" })] }), /Flow direction icon is unsupported/u);
 
@@ -202,7 +259,7 @@ const lateRaster = rasterizeBrandingIconAtlas(manifest, {
   signal:abortController.signal,
   resolveUrl:() => "https://assets.invalid/icon.svg",
   fetch:async () => new Response(new Blob(["<svg/>"]), { status:200 }),
-  createCanvas:() => /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ ({ getContext:() => ({ clearRect(){}, drawImage(){}, getImageData(){ return { data:new Uint8ClampedArray(4 * 64 * 64 * 4) }; } }) })),
+  createCanvas:(width,height) => /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ ({ getContext:() => ({ clearRect(){}, drawImage(){}, getImageData(){ return { data:new Uint8ClampedArray(width * height * 4) }; } }) })),
   createBitmap:async () => { markBitmapRequested?.(); return bitmapPromise; }
 });
 await bitmapRequested;
@@ -210,6 +267,15 @@ abortController.abort();
 resolveBitmap?.({ close(){ bitmapClosed = true; } });
 await assert.rejects(lateRaster, (error) => error instanceof DOMException && error.name === "AbortError");
 assert.equal(bitmapClosed, true, "late decoded bitmap must close after cancellation");
+let crispAtlasCanvas = { width:0,height:0 };
+const crispAtlas = await rasterizeBrandingIconAtlas(manifest, {
+  resolveUrl:() => "https://assets.invalid/icon.svg",
+  fetch:async () => new Response(new Blob(["<svg/>"]), { status:200 }),
+  createCanvas:(width,height) => { crispAtlasCanvas={width,height}; return /** @type {HTMLCanvasElement} */ (/** @type {unknown} */ ({ getContext:() => ({ clearRect(){},drawImage(){},getImageData(){return{data:new Uint8ClampedArray(width*height*4)};} }) })); },
+  createBitmap:async () => ({ close(){} })
+});
+assert.deepEqual(crispAtlasCanvas,{width:1024,height:1024},"default 16-icon atlas must use four bounded 256px cells per side");
+assert.equal(crispAtlas.width,1024); assert.equal(crispAtlas.height,1024); assert.equal(crispAtlas.pixels.length,1024*1024*4);
 
 const first = createHarness();
 const second = createHarness();

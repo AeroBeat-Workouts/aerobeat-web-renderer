@@ -74,7 +74,7 @@ export function normalizeIconAtlasData(value) {
  */
 export async function rasterizeBrandingIconAtlas(manifestValue, options) {
   const manifest = normalizeBrandingIconManifest(manifestValue);
-  const cellSize = Number.isInteger(options.cellSize) ? Math.max(16, Number(options.cellSize)) : 64;
+  const cellSize = Number.isInteger(options.cellSize) ? Math.max(256, Math.min(512, Number(options.cellSize))) : 256;
   const columns = 4;
   const rows = Math.ceil(manifest.assets.length / columns);
   const width = columns * cellSize;

@@ -34,6 +34,6 @@ function draw() {
   const secondary = renderers[1].renderGameplayFrame({ presentation:"boxing_lanes",nowMs:1000,targets:targets.slice(0,2),timingWindowBeforeMs:180,timingWindowAfterMs:180,overlay:"calibrating",calibrationDim:0.18,countdown:3 });
   const snapshot = { ready:true, primary:primary.status, secondary:secondary.status, primaryCommands:primary.plan.commands.length, secondaryCommands:secondary.plan.commands.length, primaryGrid:primary.plan.grid, secondaryGrid:secondary.plan.grid, primaryTargetRects:primary.plan.commands.filter((entry) => entry.targetId !== null).map((entry) => entry.rect), secondaryTargetRects:secondary.plan.commands.filter((entry) => entry.targetId !== null).map((entry) => entry.rect), secondaryTargetRect:secondary.plan.commands.find((entry) => entry.targetId === "straight" && entry.kind === "icon")?.rect ?? null };
   if (status) status.textContent = JSON.stringify(snapshot, null, 2);
-  globalThis.__AERO_RENDERER_TEST__ = { ...snapshot, resize: draw, renderers, compactRendererVisualProfile };
+  globalThis.__AERO_RENDERER_TEST__ = { ...snapshot, resize: draw, renderers, compactRendererVisualProfile, atlasWidth:atlas.width, atlasHeight:atlas.height, atlasCellSize:atlas.width/4 };
 }
 draw();

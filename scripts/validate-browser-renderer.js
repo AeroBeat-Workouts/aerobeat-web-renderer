@@ -42,6 +42,7 @@ try {
   }));
   assert.equal(initial.test.primary.state, "running"); assert.equal(initial.test.secondary.state, "running");
   assert.equal(initial.test.primary.iconAtlasReady, true); assert.equal(initial.test.secondary.iconAtlasReady, true);
+  assert.equal(initial.test.atlasWidth,1024); assert.equal(initial.test.atlasHeight,1024); assert.equal(initial.test.atlasCellSize,256,"canonical SVG alpha masks must rasterize at the bounded crisp minimum cell size");
   assert.ok(initial.test.primaryCommands >= 20); assert.ok(initial.test.secondaryCommands >= 5);
   assert.notEqual(initial.sizes[0].width, initial.sizes[1].width);
   const evidence = [
@@ -104,7 +105,7 @@ try {
       renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[] });
       const baseline = readPixels();
       const baselinePlan = render("right").plan;
-      const target = baselinePlan.commands.find((entry) => entry.targetId === "pixel-flow" && entry.layer === 4);
+      const target = baselinePlan.commands.find((entry) => entry.targetId === "pixel-flow" && entry.layer === 5 && entry.sequence === 0);
       if (!target) throw new Error("Pixel-probe Flow target is missing");
       const x0 = Math.max(0, Math.floor(target.rect.x * gl.drawingBufferWidth));
       const x1 = Math.min(gl.drawingBufferWidth, Math.ceil((target.rect.x + target.rect.width) * gl.drawingBufferWidth));
@@ -146,7 +147,7 @@ try {
     const test=globalThis.__AERO_RENDERER_TEST__; const renderer=test.renderers[0]; const canvas=document.querySelector("canvas"); const gl=canvas.getContext("webgl2"); renderer.setTheme(null);
     const target={ id:"outline-flow",kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,direction:"right",judgement:"pending",feedbackProgress:0 };
     const result=renderer.renderGameplayFrame({ presentation:"flow",nowMs:1000,overlay:"none",targets:[target] }); const pixels=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4); gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
-    const outline=result.plan.commands.find((entry)=>entry.targetId==="outline-flow"&&entry.layer===4); const foreground=result.plan.commands.find((entry)=>entry.targetId==="outline-flow"&&entry.layer===5); if(!outline||!foreground) throw new Error("Flow outline commands are missing");
+    const outline=result.plan.commands.find((entry)=>entry.targetId==="outline-flow"&&entry.layer===5&&entry.sequence===0); const foreground=result.plan.commands.find((entry)=>entry.targetId==="outline-flow"&&entry.layer===5&&entry.sequence===1); if(!outline||!foreground) throw new Error("Flow outline commands are missing");
     let white=0; let role=0; const x0=Math.floor(outline.rect.x*gl.drawingBufferWidth); const x1=Math.ceil((outline.rect.x+outline.rect.width)*gl.drawingBufferWidth); const y0=Math.floor((1-outline.rect.y-outline.rect.height)*gl.drawingBufferHeight); const y1=Math.ceil((1-outline.rect.y)*gl.drawingBufferHeight);
     for(let y=y0;y<y1;y+=1) for(let x=x0;x<x1;x+=1){const offset=(y*gl.drawingBufferWidth+x)*4;const r=pixels[offset],g=pixels[offset+1],b=pixels[offset+2];if(r>235&&g>235&&b>235)white+=1;if(r<90&&g>105&&g<205&&b>210)role+=1;}
     return { white,role,outlineScale:outline.scale,foregroundScale:foreground.scale,outlineWidth:outline.rect.width,foregroundWidth:foreground.rect.width,foregroundSaturation:foreground.saturation };
@@ -154,14 +155,49 @@ try {
   assert.ok(outlineEvidence.white>=30&&outlineEvidence.role>=100,`Flow must expose white backing and role fill pixels: ${JSON.stringify(outlineEvidence)}`);
   assert.equal(outlineEvidence.outlineScale,1.12); assert.equal(outlineEvidence.foregroundScale,1); assert.ok(outlineEvidence.outlineWidth>outlineEvidence.foregroundWidth); assert.equal(outlineEvidence.foregroundSaturation,1);
 
+  const perspectivePixelEvidence=[];
+  for(const [viewport,width,height] of [["portrait",390,844],["landscape",844,390]]) for(const requestedDpr of [1,3]){
+    const perspective=await page.evaluate(({width,height,requestedDpr})=>{
+      const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0];const canvas=document.querySelector("canvas");renderer.resetTuning();renderer.setTheme(null);renderer.resize({widthCssPx:width,heightCssPx:height,devicePixelRatio:requestedDpr});const gl=canvas.getContext("webgl2");
+      const nowMs=1000;const flowBase={kind:"flow",hand:"left",family:"flow",cell:5,cells:[],lane:null,approachLeadMs:undefined,direction:"right",judgement:"pending",feedbackProgress:0};
+      renderer.renderGameplayFrame({presentation:"flow",nowMs,overlay:"none",targets:[]});const baseline=read();
+      const sameTargets=[
+        {...flowBase,id:"depth-near",beatCenterMs:1500},
+        {...flowBase,id:"depth-far",beatCenterMs:3400},
+        {...flowBase,id:"depth-middle",beatCenterMs:2500}
+      ];
+      const same=renderer.renderGameplayFrame({presentation:"flow",nowMs,overlay:"none",targets:sameTargets});const samePixels=read();const fills=same.plan.commands.filter((entry)=>entry.layer===5&&entry.sequence===1);const outlines=same.plan.commands.filter((entry)=>entry.layer===5&&entry.sequence===0);const rings=same.plan.commands.filter((entry)=>entry.kind==="ring");
+      const cuePixels=fills.map((fill)=>{let exclusive=0;forEachPixel(fill.rect,(_x,_y,offset,nx,ny)=>{const covered=outlines.some((other)=>other.targetId!==fill.targetId&&nx>=other.rect.x&&nx<=other.rect.x+other.rect.width&&ny>=other.rect.y&&ny<=other.rect.y+other.rect.height);if(!covered&&delta(baseline,samePixels,offset)>3)exclusive+=1;});return{id:fill.targetId,changed:changedInRect(fill.rect,baseline,samePixels),exclusive,rect:fill.rect,depth:fill.depth,scale:fill.scale};});
+      const middleOutline=same.plan.commands.find((entry)=>entry.targetId==="depth-middle"&&entry.layer===5&&entry.sequence===0);const middleRing=rings.find((entry)=>entry.targetId==="depth-middle");if(!middleOutline||!middleRing)throw new Error("Perspective ring probe commands are missing");
+      let ringOnlyChanged=0;forEachPixel(middleRing.rect,(x,y,offset,nx,ny)=>{if(nx>=middleOutline.rect.x&&nx<=middleOutline.rect.x+middleOutline.rect.width&&ny>=middleOutline.rect.y&&ny<=middleOutline.rect.y+middleOutline.rect.height)return;if(delta(baseline,samePixels,offset)>3)ringOnlyChanged+=1;});
+      const obstacle={id:"flow-plane",kind:"obstacle",hand:"neutral",family:"obstacle",cell:null,cells:[0,5],lane:null,beatCenterMs:2000,endMs:2600};
+      const obstacleApproach=renderer.renderGameplayFrame({presentation:"flow",nowMs,overlay:"none",targets:[obstacle]});const obstacleApproachPixels=read();const approachPlanes=obstacleApproach.plan.commands.filter((entry)=>entry.targetId==="flow-plane"&&entry.kind==="plane");
+      const obstacleImpact=renderer.renderGameplayFrame({presentation:"flow",nowMs:2000,overlay:"none",targets:[obstacle]});const obstacleImpactPixels=read();const impactPlanes=obstacleImpact.plan.commands.filter((entry)=>entry.targetId==="flow-plane"&&entry.kind==="plane");
+      const obstaclePixels=approachPlanes.map((plane)=>changedInRect(plane.rect,baseline,obstacleApproachPixels));const impactPixels=impactPlanes.map((plane)=>changedInRect(plane.rect,baseline,obstacleImpactPixels));
+      const crisp=renderer.renderGameplayFrame({presentation:"flow",nowMs,overlay:"none",targets:[{...flowBase,id:"crisp-flow",beatCenterMs:nowMs}]});const crispPixels=read();const crispOutline=crisp.plan.commands.find((entry)=>entry.targetId==="crisp-flow"&&entry.sequence===0);const crispFill=crisp.plan.commands.find((entry)=>entry.targetId==="crisp-flow"&&entry.sequence===1);if(!crispOutline||!crispFill)throw new Error("Crisp Flow probe commands are missing");
+      let white=0,role=0,strongNeighborEdges=0,maxNeighborDelta=0;forEachPixel(crispOutline.rect,(x,y,offset)=>{const r=crispPixels[offset],g=crispPixels[offset+1],b=crispPixels[offset+2];if(r>235&&g>235&&b>235)white+=1;if(r<90&&g>105&&g<205&&b>210)role+=1;if(x+1<gl.drawingBufferWidth){const next=offset+4;const difference=delta(crispPixels,crispPixels,next,offset);maxNeighborDelta=Math.max(maxNeighborDelta,difference);if(difference>45)strongNeighborEdges+=1;}});
+      return{effectiveDpr:renderer.describe().devicePixelRatio,atlasCellSize:globalThis.__AERO_RENDERER_TEST__.atlasCellSize,fillOrder:fills.map((entry)=>entry.targetId),cuePixels,rings:rings.map((entry)=>({id:entry.targetId,rect:entry.rect,depth:entry.depth,scale:entry.scale})),ringOnlyChanged,approachPlanes,impactPlanes,obstaclePixels,impactPixels,crisp:{white,role,strongNeighborEdges,maxNeighborDelta,outline:crispOutline.rect,fill:crispFill.rect},grid:same.plan.grid};
+      function read(){const output=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,output);return output;}
+      function delta(first,second,firstOffset,secondOffset=firstOffset){return Math.max(Math.abs(first[firstOffset]-second[secondOffset]),Math.abs(first[firstOffset+1]-second[secondOffset+1]),Math.abs(first[firstOffset+2]-second[secondOffset+2]));}
+      function changedInRect(rect,before,after){let changed=0;forEachPixel(rect,(_x,_y,offset)=>{if(delta(before,after,offset)>3)changed+=1;});return changed;}
+      function forEachPixel(rect,callback){const x0=Math.max(0,Math.floor(rect.x*gl.drawingBufferWidth)),x1=Math.min(gl.drawingBufferWidth,Math.ceil((rect.x+rect.width)*gl.drawingBufferWidth));const y0=Math.max(0,Math.floor((1-rect.y-rect.height)*gl.drawingBufferHeight)),y1=Math.min(gl.drawingBufferHeight,Math.ceil((1-rect.y)*gl.drawingBufferHeight));for(let y=y0;y<y1;y+=1)for(let x=x0;x<x1;x+=1){const nx=(x+.5)/gl.drawingBufferWidth,ny=1-(y+.5)/gl.drawingBufferHeight;callback(x,y,(y*gl.drawingBufferWidth+x)*4,nx,ny);}}
+    },{width,height,requestedDpr});
+    assert.equal(perspective.effectiveDpr,Math.min(requestedDpr,2));assert.equal(perspective.atlasCellSize,256);assert.deepEqual(perspective.fillOrder,["depth-far","depth-middle","depth-near"],`${viewport} DPR${requestedDpr} perspective cues must draw far-first`);assert.equal(new Set(perspective.cuePixels.map((entry)=>JSON.stringify(entry.rect))).size,3,`${viewport} DPR${requestedDpr} same-cell cues must use separate projected rectangles`);for(const cue of perspective.cuePixels){assert.ok(cue.changed>8,`${viewport} DPR${requestedDpr} ${cue.id} must contribute framebuffer pixels: ${JSON.stringify(cue)}`);assert.ok(cue.exclusive>2,`${viewport} DPR${requestedDpr} ${cue.id} must retain pixels not covered by another same-cell cue: ${JSON.stringify(cue)}`);}assert.ok(perspective.ringOnlyChanged>8,`${viewport} DPR${requestedDpr} destination-centered ring must remain visible outside moving cue`);
+    for(const ring of perspective.rings){const centerX=ring.rect.x+ring.rect.width/2,centerY=ring.rect.y+ring.rect.height/2;const endpointX=perspective.grid.x+perspective.grid.width*(1.5/4),endpointY=perspective.grid.y+perspective.grid.height*(1.5/3);assert.ok(Math.abs(centerX-endpointX)<1e-12&&Math.abs(centerY-endpointY)<1e-12,`${viewport} DPR${requestedDpr} ${ring.id} ring must stay destination-centered`);}
+    assert.equal(perspective.approachPlanes.length,2);assert.equal(perspective.impactPlanes.length,2);assert.ok(perspective.approachPlanes.every((entry)=>entry.alpha===.58&&entry.intervalStartMs===2000&&entry.intervalEndMs===2600));assert.ok(perspective.obstaclePixels.every((count)=>count>20)&&perspective.impactPixels.every((count)=>count>20),`${viewport} DPR${requestedDpr} obstacle planes must be visible`);assert.ok(perspective.crisp.white>20&&perspective.crisp.role>60&&perspective.crisp.strongNeighborEdges>10&&perspective.crisp.maxNeighborDelta>70,`${viewport} DPR${requestedDpr} 256px alpha mask arrow/outline edges must remain crisp: ${JSON.stringify(perspective.crisp)}`);
+    perspectivePixelEvidence.push({viewport,requestedDpr,...perspective});
+  }
+  assert.equal(perspectivePixelEvidence.length,4);
+  console.log("Perspective Flow same-cell depth, destination ring, obstacle plane, and 256px crisp-mask framebuffer validation passed for requested DPR1/3 portrait/landscape.");
+
   const flowResult = await page.evaluate(() => {
     const renderer = globalThis.__AERO_RENDERER_TEST__.renderers[0];
     const directions = ["up","up-right","right","down-right","down","down-left","left","up-left"];
     const result = renderer.renderGameplayFrame({ presentation:"flow", nowMs:1000, blockedCells:[3], safeCells:[8], overlay:"none", targets:directions.map((direction,index) => ({ id:`flow-${direction}`,kind:"flow",hand:index%2===0?"left":"right",family:"flow",cell:index,cells:[],lane:null,beatCenterMs:1000,direction,judgement:"hit",feedbackProgress:0 })) });
-    const counts = Object.fromEntries(directions.map((direction) => [direction,result.plan.commands.filter((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5).length]));
+    const counts = Object.fromEntries(directions.map((direction) => [direction,result.plan.commands.filter((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5 && entry.sequence === 1).length]));
     const bounded = directions.every((direction) => {
-      const outline = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 4);
-      const target = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5);
+      const outline = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5 && entry.sequence === 0);
+      const target = result.plan.commands.find((entry) => entry.targetId === `flow-${direction}` && entry.layer === 5 && entry.sequence === 1);
       return outline && target && target.rect.x >= outline.rect.x && target.rect.y >= outline.rect.y && target.rect.x + target.rect.width <= outline.rect.x + outline.rect.width + Number.EPSILON * 64 && target.rect.y + target.rect.height <= outline.rect.y + outline.rect.height + Number.EPSILON * 64;
     });
     return { commands:result.plan.commands.length, primitiveFlowCues:result.plan.commands.filter((entry) => entry.targetId?.startsWith("flow-") && (entry.kind === "line" || entry.kind === "circle")).length, counts, bounded,great:result.plan.commands.filter((entry)=>entry.iconId==="feedback.great").length };
@@ -179,7 +215,7 @@ try {
       return{effectiveDpr:renderer.describe().devicePixelRatio,pending,directionless,hitStart,hitMiddle,missMiddle,hitEnd,missEnd};
       function read(){const output=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,output);return output;}
     },{width,height,requestedDpr});
-    const startForeground=feedback.hitStart.commands.find((entry)=>entry.layer===5); const startGreat=feedback.hitStart.commands.find((entry)=>entry.iconId==="feedback.great"); const middleForeground=feedback.hitMiddle.commands.find((entry)=>entry.layer===5); const middleGreat=feedback.hitMiddle.commands.find((entry)=>entry.iconId==="feedback.great"); const missForeground=feedback.missMiddle.commands.find((entry)=>entry.layer===5);
+    const startForeground=feedback.hitStart.commands.find((entry)=>entry.layer===5&&entry.sequence===1); const startGreat=feedback.hitStart.commands.find((entry)=>entry.iconId==="feedback.great"); const middleForeground=feedback.hitMiddle.commands.find((entry)=>entry.layer===5&&entry.sequence===1); const middleGreat=feedback.hitMiddle.commands.find((entry)=>entry.iconId==="feedback.great"); const missForeground=feedback.missMiddle.commands.find((entry)=>entry.layer===5&&entry.sequence===1);
     assert.ok(feedback.pending.changed>100&&feedback.directionless.changed>100,`${viewport} DPR${requestedDpr} directional/directionless masks must be visible`);
     assert.ok(startForeground&&startGreat&&middleForeground&&middleGreat&&missForeground,`${viewport} DPR${requestedDpr} feedback commands must be complete`);
     assert.equal(startForeground.whiten,1); assert.equal(startGreat.scale,1); assert.ok(middleGreat.scale>1&&middleGreat.scale<1.25); assert.equal(middleGreat.alpha,middleForeground.alpha); assert.equal(missForeground.alpha,middleForeground.alpha); assert.equal(feedback.missMiddle.commands.some((entry)=>entry.iconId==="feedback.great"),false);

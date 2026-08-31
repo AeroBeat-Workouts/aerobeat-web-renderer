@@ -2,15 +2,20 @@
 
 /** @typedef {"flow" | "boxing_spatial_grid" | "boxing_lanes"} AeroGameplayPresentation */
 /** @typedef {"left" | "right" | "guard" | "obstacle" | "neutral" | "safe"} AeroVisualRole */
-/** @typedef {"rect" | "circle" | "ring" | "hatch" | "icon" | "line"} AeroDrawKind */
+/** @typedef {"rect" | "circle" | "ring" | "hatch" | "icon" | "line" | "plane"} AeroDrawKind */
 /** @typedef {"role" | "white"} AeroColorMode */
 /** @typedef {{x:number,y:number,width:number,height:number}} AeroNormalizedRect */
-/** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, contrast:boolean, layer:number, targetId:string|null, rotationRad:number, colorMode:AeroColorMode, whiten:number}} AeroGameplayDrawCommand */
-/** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
+/** @typedef {{kind:AeroDrawKind, role:AeroVisualRole, rect:AeroNormalizedRect, alpha:number, scale:number, saturation:number, iconId:string|null, hatch:boolean, contrast:boolean, layer:number, targetId:string|null, rotationRad:number, colorMode:AeroColorMode, whiten:number, depth?:number, sequence?:number, intervalStartMs?:number, intervalEndMs?:number}} AeroGameplayDrawCommand */
+/** @typedef {{id:string, kind:"flow"|"punch"|"guard"|"obstacle"|"safe", hand:"left"|"right"|"both"|"neutral", family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"safe", cell:number|null, cells:readonly number[], lane:"left"|"right"|null, beatCenterMs:number, approachLeadMs?:number, endMs?:number, intervalStartMs?:number, intervalEndMs?:number, judgement?:"pending"|"hit"|"miss", feedbackProgress?:number, direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation, nowMs:number, targets:readonly AeroRenderableTarget[], timingWindowBeforeMs?:number, timingWindowAfterMs?:number, blockedCells?:readonly number[], safeCells?:readonly number[], countdown?:number|null, overlay?:"none"|"paused"|"calibrating"|"tracking_lost", calibrationDim?:number, viewportAspect?:number, theme?:Readonly<Record<string, unknown>>, tuning?:Readonly<Record<string, unknown>>}} AeroGameplayFrame */
 /** @typedef {{id:string, version:string, hash:string, gridInset:number, gridGap:number, receptorAlpha:number, approachRingScale:number, approachRingWidth:number, laneWidth:number, laneHitCenterY:number, laneTimingBandAlpha:number, roleScale:number, dprCap:number, flowFadeInMs:number, flowOutlineScale:number, feedbackDurationMs:number, hitPulseMs:number, hitPulseScale:number, greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{commands:readonly AeroGameplayDrawCommand[], overlay:Readonly<{kind:string,dim:number,countdown:number|null}>, presentation:AeroGameplayPresentation, grid:Readonly<{x:number,y:number,width:number,height:number,columns:4,rows:3}>}} AeroGameplayRenderPlan */
+
+/** Fundamentally-2D perspective seam: bounded screen-space vanishing point and spawn scale. */
+export const flowVanishingPoint = Object.freeze({ x: 0.5, y: 0.42 });
+export const flowStartScale = 0.16;
+export const flowDefaultApproachLeadMs = 2500;
 
 /** @type {AeroRendererTuning} */
 export const defaultRendererTuning = Object.freeze({
@@ -107,7 +112,7 @@ export function buildGameplayRenderPlan(frame, theme = defaultRendererThemeToken
   const overlayKind = frame.overlay ?? "none";
   const defaultDim = overlayKind === "none" ? 0 : 0.62;
   return Object.freeze({
-    commands: Object.freeze(commands.sort((a, b) => a.layer - b.layer)),
+    commands: Object.freeze(commands.sort(commandOrder)),
     overlay: Object.freeze({ kind: overlayKind, dim: clamp(frame.calibrationDim ?? defaultDim, 0, 1), countdown: normalizeCountdown(frame.countdown) }),
     presentation: frame.presentation,
     grid
@@ -129,6 +134,25 @@ export function fitPlayfieldGrid(inset, viewportAspect) {
   const width = aspect >= playfieldAspect ? available * playfieldAspect / aspect : available;
   const height = aspect >= playfieldAspect ? available : available * aspect / playfieldAspect;
   return Object.freeze({ x: (1 - width) / 2, y: (1 - height) / 2, width, height, columns: /** @type {4} */ (4), rows: /** @type {3} */ (3) });
+}
+
+/** Linear normalized depth from authoritative timeline and target impact. @param {number} nowMs @param {number} impactMs @param {number} approachLeadMs */
+export function flowApproachProgress(nowMs, impactMs, approachLeadMs) {
+  if (![nowMs, impactMs, approachLeadMs].every(Number.isFinite) || approachLeadMs < 1) throw new TypeError("Flow approach timeline is invalid");
+  return clamp(1 - (impactMs - nowMs) / approachLeadMs, 0, 1);
+}
+
+/** Project one endpoint rectangle from the bounded central vanishing point in normalized screen space. @param {AeroNormalizedRect} endpoint @param {number} progress */
+export function projectFlowRect(endpoint, progress) {
+  const p = clamp(Number.isFinite(progress) ? progress : 0, 0, 1);
+  const scale = perspectiveScale(p);
+  const endpointCenterX = endpoint.x + endpoint.width / 2;
+  const endpointCenterY = endpoint.y + endpoint.height / 2;
+  const centerX = lerp(flowVanishingPoint.x, endpointCenterX, p);
+  const centerY = lerp(flowVanishingPoint.y, endpointCenterY, p);
+  const width = endpoint.width * scale;
+  const height = endpoint.height * scale;
+  return Object.freeze({ x: centerX - width / 2, y: centerY - height / 2, width, height });
 }
 
 /** @param {AeroGameplayDrawCommand[]} commands @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
@@ -169,35 +193,62 @@ function addGridReceptors(commands, grid, tuning) {
 /** @param {AeroGameplayDrawCommand[]} commands @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{x:number,y:number,width:number,height:number}} grid @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
 function addTarget(commands, frame, target, grid, theme, tuning) {
   const laneRole = frame.presentation === "boxing_lanes" && (target.lane === "left" || target.lane === "right") ? target.lane : null;
-  const role = /** @type {AeroVisualRole} */ (target.hand === "left" || laneRole === "left" ? "left" : target.hand === "right" || laneRole === "right" ? "right" : target.kind === "obstacle" ? "obstacle" : target.kind === "safe" ? "safe" : target.kind === "guard" ? "guard" : "neutral");
-  const lead = Math.max(1, target.approachLeadMs ?? theme.approachLeadMs);
-  const linearProgress = clamp(1 - (target.beatCenterMs - frame.nowMs) / lead, 0, 1);
-  const progress = applyNamedEasing(linearProgress, theme.approachEasing);
+  const flowCue = frame.presentation === "flow" && target.kind === "flow";
+  const flowObstacle = frame.presentation === "flow" && target.kind === "obstacle";
+  const role = /** @type {AeroVisualRole} */ (flowObstacle ? "obstacle" : target.hand === "left" || laneRole === "left" ? "left" : target.hand === "right" || laneRole === "right" ? "right" : target.kind === "obstacle" ? "obstacle" : target.kind === "safe" ? "safe" : target.kind === "guard" ? "guard" : "neutral");
+  const lead = flowCue || flowObstacle ? flowApproachLead(target.approachLeadMs, theme.approachLeadMs) : Math.max(1, target.approachLeadMs ?? theme.approachLeadMs);
+  const interval = flowObstacle ? flowObstacleInterval(target) : null;
+  if (interval && frame.nowMs > interval.endMs) return;
+  const impactMs = interval?.startMs ?? target.beatCenterMs;
+  const linearProgress = flowApproachProgress(frame.nowMs, impactMs, lead);
+  const progress = flowCue || flowObstacle ? linearProgress : applyNamedEasing(linearProgress, theme.approachEasing);
   const rawFeedback = finiteProgress(target.feedbackProgress);
-  const isFlow = target.kind === "flow";
-  const feedback = applyNamedEasing(rawFeedback, isFlow || target.judgement !== "miss" ? theme.hitEasing : theme.missEasing);
-  const arrivalElapsedMs = frame.nowMs - (target.beatCenterMs - lead);
-  const arrivalAlpha = isFlow ? clamp(arrivalElapsedMs / tuning.flowFadeInMs, 0, 1) : lerp(0.35, 1, progress);
-  const feedbackAlpha = target.judgement === "hit" || target.judgement === "miss" ? 1 - feedback : 1;
+  const feedback = applyNamedEasing(rawFeedback, flowCue || target.judgement !== "miss" ? theme.hitEasing : theme.missEasing);
+  const arrivalElapsedMs = frame.nowMs - (impactMs - lead);
+  const arrivalAlpha = flowCue || flowObstacle ? clamp(arrivalElapsedMs / tuning.flowFadeInMs, 0, 1) : lerp(0.35, 1, progress);
+  const feedbackActive = target.judgement === "hit" || target.judgement === "miss";
+  const feedbackAlpha = feedbackActive ? 1 - feedback : 1;
   const pulseFraction = clamp(tuning.hitPulseMs / tuning.feedbackDurationMs, Number.EPSILON, 1);
   const pulseProgress = target.judgement === "hit" ? clamp(rawFeedback / pulseFraction, 0, 1) : 1;
   const pulseAmount = target.judgement === "hit" ? Math.sin(Math.PI * pulseProgress) : 0;
   const whiten = target.judgement === "hit" ? 1 - pulseProgress : 0;
-  let scale = isFlow ? 1 : lerp(theme.targetStartScale, theme.targetHitScale, progress);
-  if (!isFlow && target.judgement === "hit") scale *= 1 - feedback * 0.65;
-  else if (!isFlow && target.judgement === "miss") scale *= 1 + feedback * 0.12;
+  let scale = flowCue || flowObstacle ? 1 : lerp(theme.targetStartScale, theme.targetHitScale, progress);
+  if (!flowCue && !flowObstacle && target.judgement === "hit") scale *= 1 - feedback * 0.65;
+  else if (!flowCue && !flowObstacle && target.judgement === "miss") scale *= 1 + feedback * 0.12;
   if (target.judgement === "hit") scale *= lerp(1, tuning.hitPulseScale, pulseAmount);
   const alpha = arrivalAlpha * feedbackAlpha;
-  const rotationRad = target.kind === "flow" ? flowDirectionRotation(target.direction ?? null) : 0;
+  const rotationRad = flowCue ? flowDirectionRotation(target.direction ?? null) : 0;
   const rects = targetRects(frame, target, grid, theme, tuning);
-  for (const targetRect of rects) {
+  for (let rectIndex = 0; rectIndex < rects.length; rectIndex += 1) {
+    const targetRect = rects[rectIndex];
     const baseRect = scaledRect(targetRect, tuning.roleScale);
+    if (flowObstacle && interval) {
+      const rect = projectFlowRect(baseRect, progress);
+      commands.push(flowCommand("plane", role, rect, 0.58 * arrivalAlpha, perspectiveScale(progress), null, false, 5, target.id, progress, rectIndex, 1, false, 0, "role", 0, interval));
+      continue;
+    }
+    if (flowCue) {
+      const visualProgress = feedbackActive ? 1 : progress;
+      const rect = projectFlowRect(baseRect, visualProgress);
+      const iconId = iconIdFor(target, frame.presentation);
+      const cueScale = perspectiveScale(visualProgress);
+      if (iconId) commands.push(flowCommand("icon", role, scaledRect(rect, tuning.flowOutlineScale), alpha, cueScale * tuning.flowOutlineScale, iconId, false, 5, target.id, progress, 0, 1, false, rotationRad, "white"));
+      commands.push(flowCommand(iconId ? "icon" : "circle", role, rect, alpha, cueScale, iconId, false, 5, target.id, progress, 1, 1, false, rotationRad, "role", whiten));
+      if (!feedbackActive) {
+        const ringScale = lerp(tuning.approachRingScale, 1, progress);
+        commands.push(flowCommand("ring", role, scaledRect(baseRect, ringScale), 0.85 * arrivalAlpha, ringScale, null, false, 6, target.id, progress, 0));
+      }
+      if (target.judgement === "hit") {
+        const greatScale = lerp(1, tuning.greatEndScale, feedback);
+        commands.push(flowCommand("icon", role, feedbackWordmarkRect(baseRect, greatScale), alpha, greatScale, "feedback.great", false, 7, target.id, 1, 0, 1, false, 0, "white"));
+      }
+      continue;
+    }
     const rect = scaledRect(baseRect, scale);
     const iconId = iconIdFor(target, frame.presentation);
     const isGridObstacle = target.kind === "obstacle" && frame.presentation !== "boxing_lanes";
     const kind = isGridObstacle ? "hatch" : iconId ? "icon" : "circle";
-    if (isFlow && iconId) commands.push(command("icon", role, scaledRect(rect, tuning.flowOutlineScale), alpha, scale * tuning.flowOutlineScale, iconId, false, 4, target.id, 1, false, rotationRad, "white"));
-    commands.push(command(kind, role, rect, alpha, scale, iconId, isGridObstacle, 5, target.id, isFlow ? 1 : progress, false, rotationRad, "role", whiten));
+    commands.push(command(kind, role, rect, alpha, scale, iconId, isGridObstacle, 5, target.id, progress, false, rotationRad, "role", whiten));
     if (frame.presentation !== "boxing_lanes" && (target.judgement === undefined || target.judgement === "pending")) {
       const ringScale = lerp(tuning.approachRingScale, 1, progress);
       commands.push(command("ring", role, scaledRect(baseRect, ringScale), 0.85 * arrivalAlpha, ringScale, null, false, 6, target.id, 1));
@@ -261,6 +312,45 @@ function iconIdFor(target, presentation) {
 /** @param {AeroDrawKind} kind @param {AeroVisualRole} role @param {AeroNormalizedRect} rect @param {number} alpha @param {number} scale @param {string|null} iconId @param {boolean} hatch @param {number} layer @param {string|null} targetId @param {number} [saturation] @param {boolean} [contrast] @param {number} [rotationRad] @param {AeroColorMode} [colorMode] @param {number} [whiten] @returns {AeroGameplayDrawCommand} */
 function command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, saturation = 1, contrast = false, rotationRad = 0, colorMode = "role", whiten = 0) {
   return Object.freeze({ kind, role, rect: Object.freeze({ ...rect }), alpha: clamp(alpha, 0, 1), scale, saturation: clamp(saturation, 0, 1), iconId, hatch, contrast, layer, targetId, rotationRad: Number.isFinite(rotationRad) ? rotationRad : 0, colorMode, whiten: clamp(whiten, 0, 1) });
+}
+
+/** Flow-only command metadata leaves Boxing command records byte-compatible. @param {AeroDrawKind} kind @param {AeroVisualRole} role @param {AeroNormalizedRect} rect @param {number} alpha @param {number} scale @param {string|null} iconId @param {boolean} hatch @param {number} layer @param {string|null} targetId @param {number} depth @param {number} sequence @param {number} [saturation] @param {boolean} [contrast] @param {number} [rotationRad] @param {AeroColorMode} [colorMode] @param {number} [whiten] @param {{startMs:number,endMs:number}|null} [interval] */
+function flowCommand(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, depth, sequence, saturation = 1, contrast = false, rotationRad = 0, colorMode = "role", whiten = 0, interval = null) {
+  const base = command(kind, role, rect, alpha, scale, iconId, hatch, layer, targetId, saturation, contrast, rotationRad, colorMode, whiten);
+  return Object.freeze({ ...base, depth: clamp(depth, 0, 1), sequence, ...(interval ? { intervalStartMs: interval.startMs, intervalEndMs: interval.endMs } : {}) });
+}
+
+/** @param {AeroRenderableTarget} target */
+function flowObstacleInterval(target) {
+  const startMs = target.intervalStartMs === undefined ? Number(target.beatCenterMs) : Number(target.intervalStartMs);
+  if (target.intervalEndMs !== undefined && target.endMs !== undefined && Number(target.intervalEndMs) !== Number(target.endMs)) throw new TypeError("Flow obstacle end bounds conflict");
+  const endValue = target.intervalEndMs ?? target.endMs ?? startMs;
+  const endMs = Number(endValue);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs < 0 || endMs > 86_400_000 || startMs > endMs) throw new TypeError("Flow obstacle interval is invalid");
+  return Object.freeze({ startMs, endMs });
+}
+
+/** @param {number|undefined} targetLead @param {number} themeLead */
+function flowApproachLead(targetLead, themeLead) {
+  const lead = targetLead ?? Math.max(themeLead, flowDefaultApproachLeadMs);
+  if (!Number.isFinite(lead) || lead < 1 || lead > 10_000) throw new TypeError("Flow approach lead is invalid");
+  return lead;
+}
+
+/** @param {number} progress */
+function perspectiveScale(progress) { return lerp(flowStartScale, 1, clamp(progress, 0, 1)); }
+
+/** @param {AeroGameplayDrawCommand} left @param {AeroGameplayDrawCommand} right */
+function commandOrder(left, right) {
+  const layer = left.layer - right.layer;
+  if (layer !== 0) return layer;
+  if (left.depth === undefined && right.depth === undefined) return 0;
+  const depth = (left.depth ?? 0) - (right.depth ?? 0);
+  if (depth !== 0) return depth;
+  const leftId = left.targetId ?? "";
+  const rightId = right.targetId ?? "";
+  if (leftId !== rightId) return leftId < rightId ? -1 : 1;
+  return (left.sequence ?? 0) - (right.sequence ?? 0);
 }
 
 /** @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null} direction */

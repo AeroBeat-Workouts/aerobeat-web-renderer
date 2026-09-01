@@ -9,6 +9,34 @@ import {
 
 assert.equal(aeroPlayCanvasRendererServiceId,"aero.renderer.playcanvas");
 const debugRenderer=createAeroPlayCanvasRenderer();debugRenderer.resetDebugCamera();const debugRotation=new pc.Quat().setFromEulerAngles(debugRenderer.debugPitch*180/Math.PI,debugRenderer.debugYaw*180/Math.PI,0),debugForward=debugRotation.transformVector(new pc.Vec3(0,0,-1));assert.ok(debugForward.z>0.99,"reset debug camera must face positive-Z gameplay");assert.ok(debugForward.y<0,"reset debug camera must pitch toward the floor");assert.equal(debugRenderer.debugYaw,Math.PI);
+const motionFrame=Object.freeze({presentation:"flow",nowMs:0,targets:[]});
+const approximate=(actual,expected,message,tolerance=1e-9)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${message}: ${actual} != ${expected}`);
+const makeMotionRenderer=(yaw=Math.PI)=>{let now=0;const renderer=createAeroPlayCanvasRenderer({now:()=>now});renderer.debugEnabled=true;renderer.debugYaw=yaw;return{renderer,advance(milliseconds){now+=milliseconds;renderer.renderGameplayFrame(motionFrame);}};};
+{
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);const start={...renderer.debugPosition};advance(10000);assert.deepEqual(renderer.debugPosition,start,"first debug frame must establish time without movement");advance(50);approximate(renderer.debugPosition.z,start.z+0.175,"held forward must integrate gradually");advance(50);approximate(renderer.debugPosition.z,start.z+0.35,"held forward must continue once per frame");assert.equal(renderer.describe().debugActiveIntentCount,1);renderer.setDebugCameraMovementIntent("forward",false);assert.equal(renderer.describe().debugActiveIntentCount,0);
+}
+{
+  const run=(steps)=>{const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);advance(0);for(const step of steps)advance(step);return renderer.debugPosition.z;};approximate(run([10,10,10,10,10,10,10,10,10,10]),run([50,50]),"movement must be frame-rate independent");
+}
+{
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);advance(0);advance(1000);approximate(renderer.debugPosition.z,-7.45,"movement delta must clamp to 100 ms");
+}
+{
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraMovementIntent("right",true);advance(0);advance(100);approximate(renderer.debugPosition.x,-0.35/Math.sqrt(2),"reset-camera right must move world negative X");approximate(renderer.debugPosition.z,-7.8+0.35/Math.sqrt(2),"planar diagonal must normalize");
+}
+{
+  const {renderer,advance}=makeMotionRenderer(Math.PI/2);renderer.setDebugCameraMovementIntent("forward",true);advance(0);advance(100);approximate(renderer.debugPosition.x,-0.35,"rotated forward must use camera-relative planar basis");approximate(renderer.debugPosition.z,-7.8,"rotated forward must not leak into orthogonal axis");
+}
+{
+  const {renderer,advance}=makeMotionRenderer();for(const intent of["forward","back","left","right","up","down"])renderer.setDebugCameraMovementIntent(intent,true);advance(0);advance(100);assert.deepEqual(renderer.debugPosition,{x:0,y:3.15,z:-7.8},"opposite intents must cancel exactly");
+}
+{
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraMovementIntent("up",true);advance(0);advance(100);const distance=Math.hypot(renderer.debugPosition.y-3.15,renderer.debugPosition.z+7.8);approximate(distance,0.35,"vertical plus planar movement must remain bounded");
+}
+{
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraSpeedMode("boost");advance(0);advance(100);approximate(renderer.debugPosition.z,-6.6,"GUI boost must use units-per-second speed");assert.equal(renderer.describe().debugCameraSpeedMode,"boost");assert.equal(renderer.describe().debugCameraBoostActive,true);renderer.debugShiftActive=false;renderer.setDebugCameraSpeedMode("normal");renderer.debugShiftActive=true;renderer.resetDebugCamera();advance(0);advance(100);approximate(renderer.debugPosition.z,-6.6,"held Shift must temporarily boost normal GUI speed");
+}
+assert.throws(()=>debugRenderer.setDebugCameraMovementIntent("north",true),/Unknown debug camera movement intent/);assert.throws(()=>debugRenderer.setDebugCameraMovementIntent("forward",1),/active state must be boolean/);assert.throws(()=>debugRenderer.setDebugCameraSpeedMode("turbo"),/Unknown debug camera speed mode/);
 assert.equal(timestampToWorldZ(1500,1000),3);assert.equal(timestampToWorldZ(500,1000),-3);
 assert.deepEqual(worldPositionForCell(0),{x:-2.4,y:2.4});assert.deepEqual(worldPositionForCell(3),{x:2.4,y:2.4});assert.deepEqual(worldPositionForCell(8),{x:-2.4,y:0});assert.deepEqual(worldPositionForCell(11),{x:2.4,y:0});assert.equal(worldPositionForCell(12),null);
 assert.deepEqual(gameplayWorldGrid.columnX,[-2.4,-0.8,0.8,2.4]);assert.deepEqual(gameplayWorldGrid.rowY,[2.4,1.2,0]);

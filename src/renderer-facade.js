@@ -33,6 +33,7 @@ export class AeroPlayCanvasRenderer {
     this.debugEnabled=false;this.debugYaw=Math.PI;this.debugPitch=-0.13;this.debugPosition={x:0,y:3.15,z:-7.8};this.debugListeners=[];
     this.debugNow=typeof options.now==="function"?options.now:()=>globalThis.performance?.now?.()??Date.now();this.debugLastFrameTimeMs=null;
     this.debugKeyboardIntents=new Set();this.debugDomIntents=new Set();this.debugShiftActive=false;this.debugGuiSpeedMode="normal";this.debugCaptureMode="none";this.debugTouchToggle=null;this.debugTouchDrag=null;
+    this.debugCaptureCursor=null;this.debugCaptureReleasePending=null;this.debugPointerLockRequest=null;this.debugReleaseListener=null;
     this.onContextLost=(event)=>{event.preventDefault();this.contextLost=true;this.state="context_lost";this.atlasRestorePending=Boolean(this.iconAtlasData);this.iconTexture?.destroy();this.iconTexture=null;};
     this.onContextRestored=()=>{if(this.destroyed||!this.app)return;this.contextLost=false;this.contextRestoreCount+=1;this.state="ready";};
   }
@@ -84,14 +85,14 @@ export class AeroPlayCanvasRenderer {
   renderLandmarkOverlay(landmarks,options={}){if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),pointCount:0,lineVertexCount:0};this.clearOverlayEntities();const surface=normalizeOverlaySurfaceDescriptor({viewportWidth:this.canvas.width,viewportHeight:this.canvas.height,...options.surface});const min=options.minVisibility??0;const visible=landmarks.filter((entry)=>(typeof entry.v==="number"?entry.v:1)>=min);const byId=new Map(visible.map((entry)=>[entry.id,entry]));const color=rgbaToHex(options.color??[0.24,0.9,0.45,0.95]);for(const landmark of visible){const p=mapNormalizedLandmarkToViewport(landmark,surface);this.addOverlayDisc(`landmark-${landmark.id??this.overlayEntities.length}`,(p.x/surface.viewportWidth-.5)*6.4,(.5-p.y/surface.viewportHeight)*3.6,-0.42,(options.pointSize??6)/42,color);}let lines=0;for(const [aId,bId] of options.connections??[]){const a=byId.get(aId),b=byId.get(bId);if(!a||!b)continue;const ap=mapNormalizedLandmarkToViewport(a,surface),bp=mapNormalizedLandmarkToViewport(b,surface);this.addOverlayLine(ap,bp,surface,color);lines+=2;}this.manualTick();this.drawCount+=visible.length+lines/2;this.state="running";return{status:this.describe(),pointCount:visible.length,lineVertexCount:lines};}
   setDebugCameraEnabled(enabled){
     const next=Boolean(enabled)&&!this.destroyed&&Boolean(this.canvas)&&Boolean(this.app);if(this.debugEnabled===next)return this.describe();
-    this.removeDebugListeners();this.clearDebugInteractionState(true);this.debugEnabled=next;
-    if(!next){this.resetDebugCamera();return this.describe();}
+    if(!next){this.clearDebugInteractionState(true);this.debugEnabled=false;this.removeDebugListeners();this.resetDebugCamera();return this.describe();}
+    this.removeDebugListeners();this.clearDebugInteractionState(true);this.debugEnabled=true;
     const canvas=this.canvas;const on=(target,type,listener,options)=>{target.addEventListener(type,listener,options);this.debugListeners.push(()=>target.removeEventListener(type,listener,options));};
     on(canvas,"contextmenu",(event)=>event.preventDefault());
-    on(canvas,"mousedown",(event)=>{if(event.button!==2)return;event.preventDefault();if(this.debugCaptureMode!=="none")this.exitDebugCapture(true);else this.enterDebugPointerCapture();});
-    on(document,"pointerlockchange",()=>{if(document.pointerLockElement===canvas){if(this.debugCaptureMode!=="none")this.debugCaptureMode="pointer";}else if(this.debugCaptureMode==="pointer")this.exitDebugCapture(false);});
-    on(document,"pointerlockerror",()=>{if(this.debugCaptureMode==="pointer")this.debugCaptureMode="fallback";});
-    on(document,"mousemove",(event)=>{if(!this.debugEnabled||!debugMouseCaptureModes.includes(this.debugCaptureMode))return;this.applyDebugLookDelta(event.movementX,event.movementY,0.0025);});
+    on(canvas,"mousedown",(event)=>{if(event.button!==2)return;event.preventDefault();if(this.debugCaptureReleasePending)return;if(this.debugCaptureMode!=="none")this.exitDebugCapture(true);else this.enterDebugPointerCapture();});
+    on(document,"pointerlockchange",()=>this.handleDebugPointerLockChange(canvas));
+    on(document,"pointerlockerror",()=>this.handleDebugPointerLockError(canvas));
+    on(document,"mousemove",(event)=>{if(!this.debugEnabled||this.debugCaptureReleasePending||!debugMouseCaptureModes.includes(this.debugCaptureMode))return;this.applyDebugLookDelta(event.movementX,event.movementY,0.0025);});
     on(window,"keydown",(event)=>{if(!this.debugEnabled)return;if(event.code==="Escape"&&this.debugCaptureMode!=="none"){event.preventDefault();this.exitDebugCapture(true);return;}if(event.code==="ShiftLeft"||event.code==="ShiftRight"){this.debugShiftActive=true;event.preventDefault();return;}const intent=debugKeyIntents[event.code];if(!intent)return;this.debugKeyboardIntents.add(intent);event.preventDefault();});
     on(window,"keyup",(event)=>{if(event.code==="ShiftLeft"||event.code==="ShiftRight"){this.debugShiftActive=false;return;}const intent=debugKeyIntents[event.code];if(intent)this.debugKeyboardIntents.delete(intent);});
     on(window,"blur",()=>this.clearDebugInteractionState(true));
@@ -104,8 +105,29 @@ export class AeroPlayCanvasRenderer {
   }
   setDebugCameraMovementIntent(intent,active){if(!debugMovementIntents.includes(intent))throw new TypeError(`Unknown debug camera movement intent: ${String(intent)}`);if(typeof active!=="boolean")throw new TypeError("Debug camera movement intent active state must be boolean");if(!this.debugEnabled||this.destroyed)return this.describe();if(active)this.debugDomIntents.add(intent);else this.debugDomIntents.delete(intent);return this.describe();}
   setDebugCameraSpeedMode(mode){if(!debugSpeedModes.includes(mode))throw new TypeError(`Unknown debug camera speed mode: ${String(mode)}`);if(!this.debugEnabled||this.destroyed)return this.describe();this.debugGuiSpeedMode=mode;return this.describe();}
-  enterDebugPointerCapture(){if(!this.debugEnabled||!this.canvas)return;this.exitDebugCapture(true);this.debugCaptureMode="fallback";try{const pending=this.canvas.requestPointerLock?.();if(pending&&typeof pending.catch==="function")pending.catch(()=>{});}catch{/* bounded fallback remains active */}}
-  exitDebugCapture(exitPointerLock){this.debugCaptureMode="none";this.debugTouchToggle=null;this.debugTouchDrag=null;if(exitPointerLock&&typeof document!=="undefined"&&document.pointerLockElement===this.canvas)document.exitPointerLock?.();}
+  enterDebugPointerCapture(){
+    if(!this.debugEnabled||!this.canvas||this.debugCaptureReleasePending||this.debugCaptureMode!=="none")return;const canvas=this.canvas;this.captureDebugCursor(canvas);this.debugCaptureMode="fallback";
+    try{const pending=canvas.requestPointerLock?.();if(pending&&typeof pending.then==="function"){const request={canvas,promise:pending};this.debugPointerLockRequest=request;pending.then(()=>{if(this.debugPointerLockRequest===request)this.debugPointerLockRequest=null;if(this.debugCaptureReleasePending||!this.debugEnabled||this.destroyed)this.exitDebugCapture(true);}).catch(()=>{if(this.debugPointerLockRequest===request)this.debugPointerLockRequest=null;if(this.debugCaptureReleasePending)this.finalizeDebugCapture(canvas);});}}
+    catch{this.debugPointerLockRequest=null;/* bounded fallback remains active */}
+  }
+  exitDebugCapture(exitPointerLock){
+    const canvas=this.debugCaptureCursor?.canvas??this.canvas;if(!canvas){this.finalizeDebugCapture(null);return;}
+    const locked=exitPointerLock&&typeof document!=="undefined"&&document.pointerLockElement===canvas,pendingRequest=this.debugPointerLockRequest?.canvas===canvas;
+    if(locked||pendingRequest){if(!this.debugCaptureReleasePending){this.debugCaptureReleasePending={canvas};this.installDebugReleaseListener();}if(locked){try{document.exitPointerLock?.();}catch{this.finalizeDebugCapture(canvas);}}return;}
+    this.finalizeDebugCapture(canvas);
+  }
+  handleDebugPointerLockChange(canvas){
+    if(typeof document==="undefined")return;const locked=document.pointerLockElement===canvas;
+    if(locked){if(this.debugCaptureReleasePending||!this.debugEnabled||this.destroyed){if(!this.debugCaptureReleasePending){this.debugCaptureReleasePending={canvas};this.installDebugReleaseListener();}try{document.exitPointerLock?.();}catch{this.finalizeDebugCapture(canvas);}return;}if(this.debugCaptureMode!=="none"){this.debugCaptureMode="pointer";this.applyCapturedDebugCursor(canvas);}return;}
+    if(this.debugCaptureReleasePending?.canvas===canvas||this.debugCaptureMode==="pointer")this.finalizeDebugCapture(canvas);
+  }
+  handleDebugPointerLockError(canvas){if(this.debugCaptureReleasePending?.canvas===canvas)this.finalizeDebugCapture(canvas);else if(this.debugCaptureMode==="pointer")this.debugCaptureMode="fallback";}
+  captureDebugCursor(canvas){if(this.debugCaptureCursor?.canvas!==canvas){const inline=canvas.style?.cursor??"",computed=typeof getComputedStyle==="function"?getComputedStyle(canvas).cursor:inline||"default";this.debugCaptureCursor={canvas,inline,computed};}this.applyCapturedDebugCursor(canvas);}
+  applyCapturedDebugCursor(canvas){if(canvas.style)canvas.style.cursor="none";}
+  restoreDebugCursor(canvas){const snapshot=this.debugCaptureCursor;if(!snapshot||snapshot.canvas!==canvas)return;if(canvas.style)canvas.style.cursor=snapshot.inline;const restored=typeof getComputedStyle==="function"?getComputedStyle(canvas).cursor:canvas.style?.cursor;if(canvas.style&&restored==="none"&&snapshot.computed!=="none")canvas.style.cursor=snapshot.computed||"default";this.debugCaptureCursor=null;}
+  finalizeDebugCapture(canvas){this.debugCaptureMode="none";this.debugTouchToggle=null;this.debugTouchDrag=null;this.debugCaptureReleasePending=null;if(canvas)this.restoreDebugCursor(canvas);this.removeDebugReleaseListener();}
+  installDebugReleaseListener(){if(this.debugReleaseListener||typeof document==="undefined")return;const listener=()=>{const pending=this.debugCaptureReleasePending;if(pending)this.handleDebugPointerLockChange(pending.canvas);};document.addEventListener("pointerlockchange",listener);this.debugReleaseListener=()=>document.removeEventListener("pointerlockchange",listener);}
+  removeDebugReleaseListener(){const remove=this.debugReleaseListener;this.debugReleaseListener=null;remove?.();}
   clearDebugInteractionState(exitPointerLock){this.debugKeyboardIntents.clear();this.debugDomIntents.clear();this.debugShiftActive=false;this.debugLastFrameTimeMs=null;this.exitDebugCapture(exitPointerLock);}
   applyDebugLookDelta(deltaX,deltaY,sensitivity){if(!Number.isFinite(deltaX)||!Number.isFinite(deltaY))return;this.debugYaw=normalizeRadians(this.debugYaw-deltaX*sensitivity);this.debugPitch=clamp(this.debugPitch-deltaY*sensitivity,-1.35,1.35);this.applyDebugPose();}
   onDebugTouchStart(event){
@@ -121,7 +143,7 @@ export class AeroPlayCanvasRenderer {
   }
   onDebugTouchEnd(event){
     if(!this.debugEnabled)return;const wasTouchCaptured=this.debugCaptureMode==="touch",toggle=this.debugTouchToggle;if(wasTouchCaptured)event.preventDefault();
-    if(toggle&&event.touches.length===0){const duration=event.timeStamp-toggle.startedAt,valid=toggle.maxTouches===2&&!toggle.moved&&duration>=0&&duration<=DEBUG_TOUCH_TAP_MAX_MS;this.debugTouchToggle=null;if(valid){if(wasTouchCaptured)this.exitDebugCapture(true);else{this.exitDebugCapture(true);this.debugCaptureMode="touch";}}}
+    if(toggle&&event.touches.length===0){const duration=event.timeStamp-toggle.startedAt,valid=toggle.maxTouches===2&&!toggle.moved&&duration>=0&&duration<=DEBUG_TOUCH_TAP_MAX_MS;this.debugTouchToggle=null;if(valid){if(wasTouchCaptured)this.exitDebugCapture(true);else if(!this.debugCaptureReleasePending){this.exitDebugCapture(true);if(!this.debugCaptureReleasePending)this.debugCaptureMode="touch";}}}
     if(this.debugTouchDrag&&!Array.from(event.touches).some((touch)=>touch.identifier===this.debugTouchDrag.identifier))this.debugTouchDrag=null;
   }
   onDebugTouchCancel(event){if(this.debugCaptureMode==="touch")event.preventDefault();this.debugTouchToggle=null;this.debugTouchDrag=null;}

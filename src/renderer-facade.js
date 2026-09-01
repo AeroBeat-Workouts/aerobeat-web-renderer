@@ -118,7 +118,7 @@ export class AeroPlayCanvasRenderer {
   }
   handleDebugPointerLockChange(canvas){
     if(typeof document==="undefined")return;const locked=document.pointerLockElement===canvas;
-    if(locked){if(this.debugCaptureReleasePending||!this.debugEnabled||this.destroyed){if(!this.debugCaptureReleasePending){this.debugCaptureReleasePending={canvas};this.installDebugReleaseListener();}try{document.exitPointerLock?.();}catch{this.finalizeDebugCapture(canvas);}return;}if(this.debugCaptureMode!=="none"){this.debugCaptureMode="pointer";this.applyCapturedDebugCursor(canvas);}return;}
+    if(locked){if(this.debugCaptureMode==="none"||this.debugCaptureReleasePending||!this.debugEnabled||this.destroyed){if(!this.debugCaptureReleasePending){this.debugCaptureReleasePending={canvas};this.installDebugReleaseListener();}try{document.exitPointerLock?.();}catch{this.finalizeDebugCapture(canvas);}return;}if(this.debugCaptureMode!=="none"){this.debugCaptureMode="pointer";this.applyCapturedDebugCursor(canvas);}return;}
     if(this.debugCaptureReleasePending?.canvas===canvas||this.debugCaptureMode==="pointer")this.finalizeDebugCapture(canvas);
   }
   handleDebugPointerLockError(canvas){if(this.debugCaptureReleasePending?.canvas===canvas)this.finalizeDebugCapture(canvas);else if(this.debugCaptureMode==="pointer")this.debugCaptureMode="fallback";}

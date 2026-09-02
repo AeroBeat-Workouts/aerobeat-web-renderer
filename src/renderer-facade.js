@@ -2,6 +2,7 @@
 
 import * as pc from "playcanvas";
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
+import { defaultGameplayCameraPose, gameplayCameraPoseArtifactFilename, gameplayCameraPoseArtifactMimeType, normalizeGameplayCameraPose, serializeGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
 import { buildGameplaySceneModel, defaultRendererThemeTokens } from "./gameplay-scene-model.js";
@@ -30,7 +31,7 @@ export class AeroPlayCanvasRenderer {
     this.state="unsupported";this.contextLost=false;this.destroyed=false;this.errorMessage=null;this.frameCount=0;this.drawCount=0;this.contextRestoreCount=0;
     this.widthCssPx=0;this.heightCssPx=0;this.devicePixelRatio=1;this.theme=defaultRendererThemeTokens;this.visualProfile=defaultRendererVisualProfile;this.tuning=rendererTuningFromVisualProfile(this.visualProfile);
     this.themeId="aero.theme.default";this.themeVersion="1";this.themeHash="theme-default";this.background=normalizeBackgroundProjection(null);this.lastModel=null;
-    this.debugEnabled=false;this.debugYaw=0;this.debugPitch=-0.13;this.debugPosition={x:0,y:3.15,z:7.8};this.debugListeners=[];
+    this.debugEnabled=false;this.debugYaw=defaultGameplayCameraPose.rotationEulerDegrees.yYaw*Math.PI/180;this.debugPitch=defaultGameplayCameraPose.rotationEulerDegrees.xPitch*Math.PI/180;this.debugPosition={...defaultGameplayCameraPose.position};this.debugListeners=[];
     this.debugNow=typeof options.now==="function"?options.now:()=>globalThis.performance?.now?.()??Date.now();this.debugLastFrameTimeMs=null;
     this.debugKeyboardIntents=new Set();this.debugDomIntents=new Set();this.debugShiftActive=false;this.debugGuiSpeedMode="normal";this.debugCaptureMode="none";this.debugTouchToggle=null;this.debugTouchDrag=null;
     this.debugCaptureCursor=null;this.debugCaptureReleasePending=null;this.debugPointerLockRequest=null;this.debugReleaseListener=null;
@@ -47,7 +48,7 @@ export class AeroPlayCanvasRenderer {
       this.app.scene.ambientLight=new pc.Color(0.85,0.88,0.95);
       this.app.scene.exposure=1;
       this.cameraEntity=new pc.Entity("aero-athlete-camera",this.app);
-      this.cameraEntity.addComponent("camera",{clearColor:new pc.Color(0,0,0,0),clearColorBuffer:true,clearDepthBuffer:true,fov:48,nearClip:0.1,farClip:80});
+      this.cameraEntity.addComponent("camera",{clearColor:new pc.Color(0,0,0,0),clearColorBuffer:true,clearDepthBuffer:true,fov:defaultGameplayCameraPose.projection.verticalFovDegrees,nearClip:defaultGameplayCameraPose.projection.nearClip,farClip:defaultGameplayCameraPose.projection.farClip});
       this.app.root.addChild(this.cameraEntity);this.resetDebugCamera();
       this.createTimingZones();
       if(this.iconAtlasData)this.createAtlasTexture();
@@ -105,6 +106,7 @@ export class AeroPlayCanvasRenderer {
   }
   setDebugCameraMovementIntent(intent,active){if(!debugMovementIntents.includes(intent))throw new TypeError(`Unknown debug camera movement intent: ${String(intent)}`);if(typeof active!=="boolean")throw new TypeError("Debug camera movement intent active state must be boolean");if(!this.debugEnabled||this.destroyed)return this.describe();if(active)this.debugDomIntents.add(intent);else this.debugDomIntents.delete(intent);return this.describe();}
   setDebugCameraSpeedMode(mode){if(!debugSpeedModes.includes(mode))throw new TypeError(`Unknown debug camera speed mode: ${String(mode)}`);if(!this.debugEnabled||this.destroyed)return this.describe();this.debugGuiSpeedMode=mode;return this.describe();}
+  releaseDebugCameraAuthoringInput(){if(this.debugEnabled&&!this.destroyed)this.clearDebugInteractionState(true);return this.describe();}
   enterDebugPointerCapture(){
     if(!this.debugEnabled||!this.canvas||this.debugCaptureReleasePending||this.debugCaptureMode!=="none")return;const canvas=this.canvas;this.captureDebugCursor(canvas);this.debugCaptureMode="fallback";
     try{const pending=canvas.requestPointerLock?.();if(pending&&typeof pending.then==="function"){const request={canvas,promise:pending};this.debugPointerLockRequest=request;pending.then(()=>{if(this.debugPointerLockRequest===request)this.debugPointerLockRequest=null;if(this.debugCaptureReleasePending||!this.debugEnabled||this.destroyed)this.exitDebugCapture(true);}).catch(()=>{if(this.debugPointerLockRequest===request)this.debugPointerLockRequest=null;if(this.debugCaptureReleasePending)this.finalizeDebugCapture(canvas);});}}
@@ -151,10 +153,19 @@ export class AeroPlayCanvasRenderer {
     if(!this.debugEnabled){this.debugLastFrameTimeMs=null;return;}const now=Number(this.debugNow());if(!Number.isFinite(now)){this.debugLastFrameTimeMs=null;return;}const previous=this.debugLastFrameTimeMs;this.debugLastFrameTimeMs=now;if(previous===null)return;const deltaSeconds=clamp(now-previous,0,DEBUG_MAX_DELTA_MS)/1000;if(deltaSeconds===0)return;
     const active=new Set([...this.debugKeyboardIntents,...this.debugDomIntents]),forward=(active.has("forward")?1:0)-(active.has("back")?1:0),right=(active.has("right")?1:0)-(active.has("left")?1:0),vertical=(active.has("up")?1:0)-(active.has("down")?1:0);let planarForward=forward,planarRight=right;const planarLength=Math.hypot(planarForward,planarRight);if(planarLength>1){planarForward/=planarLength;planarRight/=planarLength;}const sin=Math.sin(this.debugYaw),cos=Math.cos(this.debugYaw);let x=-sin*planarForward+cos*planarRight,z=-cos*planarForward-sin*planarRight,y=vertical;const totalLength=Math.hypot(x,y,z);if(totalLength>1){x/=totalLength;y/=totalLength;z/=totalLength;}const speed=(this.debugShiftActive||this.debugGuiSpeedMode==="boost")?DEBUG_BOOST_UNITS_PER_SECOND:DEBUG_NORMAL_UNITS_PER_SECOND;this.debugPosition.x=clamp(this.debugPosition.x+x*speed*deltaSeconds,-DEBUG_POSITION_BOUNDS.x,DEBUG_POSITION_BOUNDS.x);this.debugPosition.y=clamp(this.debugPosition.y+y*speed*deltaSeconds,DEBUG_POSITION_BOUNDS.yMin,DEBUG_POSITION_BOUNDS.yMax);this.debugPosition.z=clamp(this.debugPosition.z+z*speed*deltaSeconds,DEBUG_POSITION_BOUNDS.zMin,DEBUG_POSITION_BOUNDS.zMax);this.applyDebugPose();
   }
-  resetDebugCamera(){this.debugYaw=0;this.debugPitch=-0.13;this.debugPosition={x:0,y:3.15,z:7.8};this.debugLastFrameTimeMs=null;this.applyDebugPose();return this.describe();}
+  resetDebugCamera(){this.debugYaw=defaultGameplayCameraPose.rotationEulerDegrees.yYaw*Math.PI/180;this.debugPitch=defaultGameplayCameraPose.rotationEulerDegrees.xPitch*Math.PI/180;this.debugPosition={...defaultGameplayCameraPose.position};this.debugLastFrameTimeMs=null;this.applyPose(defaultGameplayCameraPose);return this.describe();}
+  exportDebugCameraPoseArtifact(){
+    if(!this.debugEnabled||!this.canvas||!this.app||!this.cameraEntity||this.destroyed||this.contextLost||this.frameCount<1||this.debugCaptureMode!=="none"||this.debugCaptureReleasePending||this.debugPointerLockRequest||this.debugKeyboardIntents.size||this.debugDomIntents.size||this.debugShiftActive||this.debugTouchToggle||this.debugTouchDrag||(typeof document!=="undefined"&&document.pointerLockElement===this.canvas))throw new Error("Debug camera pose export requires an active rendered debug camera with no capture or movement input");
+    const position=this.cameraEntity.getPosition(),camera=this.cameraEntity.camera;
+    const data=normalizeGameplayCameraPose({schema:defaultGameplayCameraPose.schema,version:defaultGameplayCameraPose.version,coordinateSystem:{...defaultGameplayCameraPose.coordinateSystem},position:{x:position.x,y:position.y,z:position.z},rotationEulerDegrees:{xPitch:this.debugPitch*180/Math.PI,yYaw:this.debugYaw*180/Math.PI,zRoll:0},projection:{verticalFovDegrees:camera.fov,nearClip:camera.nearClip,farClip:camera.farClip}});
+    this.debugPosition={...data.position};this.debugPitch=data.rotationEulerDegrees.xPitch*Math.PI/180;this.debugYaw=data.rotationEulerDegrees.yYaw*Math.PI/180;this.applyPose(data);
+    const json=serializeGameplayCameraPose(data),bytes=Object.freeze(Array.from(new TextEncoder().encode(json)));
+    return Object.freeze({filename:gameplayCameraPoseArtifactFilename,mimeType:gameplayCameraPoseArtifactMimeType,data,json,bytes});
+  }
   removeDebugListeners(){for(const remove of this.debugListeners.splice(0))remove();}
-  applyDebugPose(){if(!this.cameraEntity)return;this.cameraEntity.setPosition(this.debugPosition.x,this.debugPosition.y,this.debugPosition.z);this.cameraEntity.setEulerAngles(this.debugPitch*180/Math.PI,this.debugYaw*180/Math.PI,0);}
-  applyCamera(model){if(!this.cameraEntity)return;if(this.debugEnabled){this.applyDebugPose();return;}const p=model.camera.position,t=model.camera.target;this.cameraEntity.setPosition(p.x,p.y,p.z);this.cameraEntity.lookAt(t.x,t.y,t.z);this.cameraEntity.camera.fov=model.camera.fov;}
+  applyPose(pose){if(!this.cameraEntity)return;const position=pose.position,rotation=pose.rotationEulerDegrees,projection=pose.projection;this.cameraEntity.setPosition(position.x,position.y,position.z);this.cameraEntity.setEulerAngles(rotation.xPitch,rotation.yYaw,rotation.zRoll);this.cameraEntity.camera.fov=projection.verticalFovDegrees;this.cameraEntity.camera.nearClip=projection.nearClip;this.cameraEntity.camera.farClip=projection.farClip;}
+  applyDebugPose(){if(!this.cameraEntity)return;this.applyPose(normalizeGameplayCameraPose({schema:defaultGameplayCameraPose.schema,version:defaultGameplayCameraPose.version,coordinateSystem:{...defaultGameplayCameraPose.coordinateSystem},position:{...this.debugPosition},rotationEulerDegrees:{xPitch:this.debugPitch*180/Math.PI,yYaw:this.debugYaw*180/Math.PI,zRoll:0},projection:{...defaultGameplayCameraPose.projection}}));}
+  applyCamera(model){if(!this.cameraEntity)return;if(this.debugEnabled){this.applyDebugPose();return;}this.applyPose(model.camera);}
   createTimingZones(){if(!this.app)return;for(const name of ["late","active","early"]){const entity=this.makeEntity(`timing-${name}`,"box");this.zoneEntities.push(entity);}}
   updateTimingZones(model){for(let index=0;index<3;index+=1){const segment=model.timingZone.segments[index],entity=this.zoneEntities[index];const center=(segment.startZ+segment.endZ)/2;entity.enabled=true;entity.setPosition(0,model.grid.floorY+this.tuning.timingZoneHeight,center);entity.setLocalScale(7.3,this.tuning.timingZoneHeight,Math.max(0.02,segment.endZ-segment.startZ));this.updateMaterial(entity,segment.color,segment.alpha,null,false);}}
   updateSceneObjects(objects){this.activeCount=objects.length;while(this.pool.length<objects.length)this.pool.push(this.makeEntity(`pooled-${this.pool.length}`,"box"));for(let index=0;index<this.pool.length;index+=1){const entity=this.pool[index],object=objects[index];if(!object){entity.enabled=false;continue;}entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(object.kind==="icon"?90:0,0,-object.rotationZRad*180/Math.PI);this.updateMaterial(entity,this.roleColor(object.role),object.alpha,object.iconId,object.state==="spent");}}

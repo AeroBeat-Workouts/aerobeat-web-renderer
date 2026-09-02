@@ -1,5 +1,7 @@
 // @ts-check
 
+import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
+
 /** @typedef {"flow"|"boxing_spatial_grid"|"boxing_lanes"} AeroGameplayPresentation */
 /** @typedef {"left"|"right"|"guard"|"obstacle"|"neutral"|"safe"} AeroVisualRole */
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
@@ -11,7 +13,7 @@
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"feedback",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number}} AeroGameplaySceneObject */
 /** @typedef {{name:"early"|"active"|"late",startZ:number,endZ:number,color:string,alpha:number}} AeroTimingZoneSegment */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,objects:readonly AeroGameplaySceneObject[],timingZone:Readonly<{beforeMs:number,afterMs:number,startZ:number,endZ:number,segments:readonly AeroTimingZoneSegment[]}>,camera:Readonly<{position:AeroWorldPosition,target:AeroWorldPosition,fov:number,nearClip:number,farClip:number}>,grid:Readonly<{columns:4,rows:3,columnX:readonly number[],rowY:readonly number[],floorY:number}>,overlay:Readonly<{kind:string,dim:number,countdown:number|null}>,culledTargetIds:readonly string[]}} AeroGameplaySceneModel */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,objects:readonly AeroGameplaySceneObject[],timingZone:Readonly<{beforeMs:number,afterMs:number,startZ:number,endZ:number,segments:readonly AeroTimingZoneSegment[]}>,camera:typeof defaultGameplayCameraPose,grid:Readonly<{columns:4,rows:3,columnX:readonly number[],rowY:readonly number[],floorY:number}>,overlay:Readonly<{kind:string,dim:number,countdown:number|null}>,culledTargetIds:readonly string[]}} AeroGameplaySceneModel */
 
 export const gameplayIconIds = Object.freeze(["boxing.glove","boxing.guard.crossed","boxing.guard.standard","boxing.hook.left","boxing.hook.right","boxing.squat","boxing.straight.left","boxing.straight.right","boxing.uppercut.left","boxing.uppercut.right","boxing.weave.left","boxing.weave.right","calibration.tpose","feedback.great","flow.directional","flow.directionless"]);
 export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-2.4,-0.8,0.8,2.4]),rowY:Object.freeze([2.4,1.2,0]),floorY:-0.72 });
@@ -64,7 +66,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   return Object.freeze({
     presentation:frame.presentation,nowMs:frame.nowMs,objects:Object.freeze(objects),
     timingZone:Object.freeze({beforeMs:window.beforeMs,afterMs:window.afterMs,startZ,endZ,segments}),
-    camera:Object.freeze({position:Object.freeze({x:0,y:3.15,z:7.8}),target:Object.freeze({x:0,y:1.05,z:-8}),fov:48,nearClip:0.1,farClip:80}),
+    camera:defaultGameplayCameraPose,
     grid:gameplayWorldGrid,
     overlay:Object.freeze({kind:overlayKind,dim:clamp(frame.calibrationDim??(overlayKind==="none"?0:0.62),0,1),countdown:normalizeCountdown(frame.countdown)}),
     culledTargetIds:Object.freeze(culled)

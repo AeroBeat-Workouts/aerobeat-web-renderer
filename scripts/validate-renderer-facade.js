@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import * as pc from "playcanvas";
+import { defaultGameplayCameraPose } from "../src/gameplay-camera-pose.js";
 import {
   aeroPlayCanvasRendererServiceId,buildGameplaySceneModel,compactRendererVisualProfile,createAeroPlayCanvasRenderer,defaultRendererTuning,gameplayIconIds,
   gameplayWorldGrid,normalizeBrandingIconManifest,normalizeIconAtlasData,rasterizeBrandingIconAtlas,timestampToWorldZ,worldPositionForCell
@@ -48,7 +49,7 @@ assert.deepEqual(worldPositionForCell(0),{x:-2.4,y:2.4});assert.deepEqual(worldP
 assert.deepEqual(gameplayWorldGrid.columnX,[-2.4,-0.8,0.8,2.4]);assert.deepEqual(gameplayWorldGrid.rowY,[2.4,1.2,0]);
 const target=(id,cell,beatCenterMs=1000)=>({id,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell,cells:[],lane:null,beatCenterMs,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")});
 const flow=buildGameplaySceneModel({presentation:"flow",nowMs:1000,timingWindowBeforeMs:120,timingWindowAfterMs:240,targets:[target("near",5,1100),target("far",5,1700),target("active",0,1000)]});
-assert.equal(flow.camera.fov,48);assert.ok(flow.camera.position.z>0&&flow.camera.target.z<0,"fixed athlete camera must look down conventional negative time depth");
+assert.equal(flow.camera,defaultGameplayCameraPose);assert.equal(flow.camera.projection.verticalFovDegrees,48);assert.ok(flow.camera.position.z>0&&flow.camera.rotationEulerDegrees.yYaw===0,"fixed athlete camera must use the canonical conventional negative-Z pose");
 assert.equal(flow.timingZone.startZ,1.44);assert.equal(flow.timingZone.endZ,-.72);assert.deepEqual(flow.timingZone.segments.map((entry)=>entry.name),["late","active","early"]);assert.equal(flow.timingZone.segments[0].endZ,flow.timingZone.startZ);assert.equal(flow.timingZone.segments[2].startZ,flow.timingZone.endZ);
 const flowTargets=flow.objects.filter((entry)=>entry.targetId);assert.deepEqual(flowTargets.map((entry)=>entry.targetId),["far","near","active"],"transparent targets must be deterministic far-near");assert.deepEqual(flowTargets.map((entry)=>entry.position.z),[-4.2,-.6,0]);assert.ok(flowTargets.every((entry)=>entry.transparent));
 assert.equal(flowTargets.find((entry)=>entry.targetId==="active")?.state,"active");

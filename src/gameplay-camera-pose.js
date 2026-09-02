@@ -24,8 +24,8 @@ export const defaultGameplayCameraPose = normalizeGameplayCameraPose({
   schema: gameplayCameraPoseSchema,
   version: gameplayCameraPoseVersion,
   coordinateSystem,
-  position: { x: 0, y: 3.15, z: 7.8 },
-  rotationEulerDegrees: { xPitch: -7.448451, yYaw: 0, zRoll: 0 },
+  position: { x: 0.05, y: 1, z: 5 },
+  rotationEulerDegrees: { xPitch: 0, yYaw: 0, zRoll: 0 },
   projection: { verticalFovDegrees: 48, nearClip: 0.1, farClip: 80 }
 });
 

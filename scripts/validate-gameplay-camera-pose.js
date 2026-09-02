@@ -22,9 +22,12 @@ assert.deepEqual(Reflect.ownKeys(defaultGameplayCameraPose.position), ["x", "y",
 assert.deepEqual(Reflect.ownKeys(defaultGameplayCameraPose.rotationEulerDegrees), ["xPitch", "yYaw", "zRoll"]);
 assert.deepEqual(Reflect.ownKeys(defaultGameplayCameraPose.projection), ["verticalFovDegrees", "nearClip", "farClip"]);
 
-const unordered = { projection:{farClip:80,nearClip:.1,verticalFovDegrees:48}, position:{z:7.8000004,y:3.1500004,x:-0}, version:1, coordinateSystem:{timelineFuture:"world_-Z",cameraForward:"local_-Z",worldUp:"+Y",handedness:"right_handed",space:"playcanvas_world"}, schema:"aerobeat/gameplay_camera_pose", rotationEulerDegrees:{zRoll:-0,yYaw:540,xPitch:-7.44845149} };
+assert.deepEqual(defaultGameplayCameraPose.position, {x:0.05,y:1,z:5});
+assert.deepEqual(defaultGameplayCameraPose.rotationEulerDegrees, {xPitch:0,yYaw:0,zRoll:0});
+assert.deepEqual(defaultGameplayCameraPose.projection, {verticalFovDegrees:48,nearClip:0.1,farClip:80});
+const unordered = { projection:{farClip:80,nearClip:.1,verticalFovDegrees:48}, position:{z:5.0000004,y:1.0000004,x:-0}, version:1, coordinateSystem:{timelineFuture:"world_-Z",cameraForward:"local_-Z",worldUp:"+Y",handedness:"right_handed",space:"playcanvas_world"}, schema:"aerobeat/gameplay_camera_pose", rotationEulerDegrees:{zRoll:-0,yYaw:540,xPitch:.00000049} };
 const canonical = normalizeGameplayCameraPose(unordered);
-assert.deepEqual(canonical, {...defaultGameplayCameraPose, position:{x:0,y:3.15,z:7.8}, rotationEulerDegrees:{xPitch:-7.448451,yYaw:-180,zRoll:0}});
+assert.deepEqual(canonical, {...defaultGameplayCameraPose, position:{x:0,y:1,z:5}, rotationEulerDegrees:{xPitch:0,yYaw:-180,zRoll:0}});
 assert.ok(!serializeGameplayCameraPose(canonical).includes("-0"));
 const expected = `{
   "schema": "aerobeat/gameplay_camera_pose",
@@ -38,11 +41,11 @@ const expected = `{
   },
   "position": {
     "x": 0,
-    "y": 3.15,
-    "z": 7.8
+    "y": 1,
+    "z": 5
   },
   "rotationEulerDegrees": {
-    "xPitch": -7.448451,
+    "xPitch": 0,
     "yYaw": -180,
     "zRoll": 0
   },

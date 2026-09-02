@@ -9,7 +9,7 @@ import {
 } from "../src/index.js";
 
 assert.equal(aeroPlayCanvasRendererServiceId,"aero.renderer.playcanvas");
-const debugRenderer=createAeroPlayCanvasRenderer();debugRenderer.resetDebugCamera();const debugRotation=new pc.Quat().setFromEulerAngles(debugRenderer.debugPitch*180/Math.PI,debugRenderer.debugYaw*180/Math.PI,0),debugForward=debugRotation.transformVector(new pc.Vec3(0,0,-1));assert.ok(debugForward.z<-.99,"reset debug camera must face negative-Z gameplay");assert.ok(debugForward.y<0,"reset debug camera must pitch toward the floor");assert.equal(debugRenderer.debugYaw,0);
+const debugRenderer=createAeroPlayCanvasRenderer();debugRenderer.resetDebugCamera();const debugRotation=new pc.Quat().setFromEulerAngles(debugRenderer.debugPitch*180/Math.PI,debugRenderer.debugYaw*180/Math.PI,0),debugForward=debugRotation.transformVector(new pc.Vec3(0,0,-1));assert.ok(debugForward.z<-.99,"reset debug camera must face negative-Z gameplay");assert.ok(Math.abs(debugForward.y)<1e-12,"reset debug camera must use Derrick-reviewed level pitch");assert.equal(debugRenderer.debugYaw,0);
 const motionFrame=Object.freeze({presentation:"flow",nowMs:0,targets:[]});
 const approximate=(actual,expected,message,tolerance=1e-9)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${message}: ${actual} != ${expected}`);
 const makeMotionRenderer=(yaw=0)=>{let now=0;const renderer=createAeroPlayCanvasRenderer({now:()=>now});renderer.debugEnabled=true;renderer.debugYaw=yaw;return{renderer,advance(milliseconds){now+=milliseconds;renderer.renderGameplayFrame(motionFrame);}};};
@@ -20,22 +20,22 @@ const makeMotionRenderer=(yaw=0)=>{let now=0;const renderer=createAeroPlayCanvas
   const run=(steps)=>{const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);advance(0);for(const step of steps)advance(step);return renderer.debugPosition.z;};approximate(run([10,10,10,10,10,10,10,10,10,10]),run([50,50]),"movement must be frame-rate independent");
 }
 {
-  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);advance(0);advance(1000);approximate(renderer.debugPosition.z,7.45,"movement delta must clamp to 100 ms");
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);advance(0);advance(1000);approximate(renderer.debugPosition.z,4.65,"movement delta must clamp to 100 ms");
 }
 {
-  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraMovementIntent("right",true);advance(0);advance(100);approximate(renderer.debugPosition.x,0.35/Math.sqrt(2),"reset-camera right must move world positive X");approximate(renderer.debugPosition.z,7.8-0.35/Math.sqrt(2),"planar diagonal must normalize");
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraMovementIntent("right",true);advance(0);advance(100);approximate(renderer.debugPosition.x,0.05+0.35/Math.sqrt(2),"reset-camera right must move world positive X");approximate(renderer.debugPosition.z,5-0.35/Math.sqrt(2),"planar diagonal must normalize");
 }
 {
-  const {renderer,advance}=makeMotionRenderer(Math.PI/2);renderer.setDebugCameraMovementIntent("forward",true);advance(0);advance(100);approximate(renderer.debugPosition.x,-0.35,"rotated forward must use camera-relative planar basis");approximate(renderer.debugPosition.z,7.8,"rotated forward must not leak into orthogonal axis");
+  const {renderer,advance}=makeMotionRenderer(Math.PI/2);renderer.setDebugCameraMovementIntent("forward",true);advance(0);advance(100);approximate(renderer.debugPosition.x,0.05-0.35,"rotated forward must use camera-relative planar basis");approximate(renderer.debugPosition.z,5,"rotated forward must not leak into orthogonal axis");
 }
 {
-  const {renderer,advance}=makeMotionRenderer();for(const intent of["forward","back","left","right","up","down"])renderer.setDebugCameraMovementIntent(intent,true);advance(0);advance(100);assert.deepEqual(renderer.debugPosition,{x:0,y:3.15,z:7.8},"opposite intents must cancel exactly");
+  const {renderer,advance}=makeMotionRenderer();for(const intent of["forward","back","left","right","up","down"])renderer.setDebugCameraMovementIntent(intent,true);advance(0);advance(100);assert.deepEqual(renderer.debugPosition,{x:0.05,y:1,z:5},"opposite intents must cancel exactly");
 }
 {
-  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraMovementIntent("up",true);advance(0);advance(100);const distance=Math.hypot(renderer.debugPosition.y-3.15,renderer.debugPosition.z-7.8);approximate(distance,0.35,"vertical plus planar movement must remain bounded");
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraMovementIntent("up",true);advance(0);advance(100);const distance=Math.hypot(renderer.debugPosition.y-1,renderer.debugPosition.z-5);approximate(distance,0.35,"vertical plus planar movement must remain bounded");
 }
 {
-  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraSpeedMode("boost");advance(0);advance(100);approximate(renderer.debugPosition.z,6.6,"GUI boost must use units-per-second speed");assert.equal(renderer.describe().debugCameraSpeedMode,"boost");assert.equal(renderer.describe().debugCameraBoostActive,true);renderer.debugShiftActive=false;renderer.setDebugCameraSpeedMode("normal");renderer.debugShiftActive=true;renderer.resetDebugCamera();advance(0);advance(100);approximate(renderer.debugPosition.z,6.6,"held Shift must temporarily boost normal GUI speed");
+  const {renderer,advance}=makeMotionRenderer();renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraSpeedMode("boost");advance(0);advance(100);approximate(renderer.debugPosition.z,3.8,"GUI boost must use units-per-second speed");assert.equal(renderer.describe().debugCameraSpeedMode,"boost");assert.equal(renderer.describe().debugCameraBoostActive,true);renderer.debugShiftActive=false;renderer.setDebugCameraSpeedMode("normal");renderer.debugShiftActive=true;renderer.resetDebugCamera();advance(0);advance(100);approximate(renderer.debugPosition.z,3.8,"held Shift must temporarily boost normal GUI speed");
 }
 {
   const {renderer,advance}=makeMotionRenderer();renderer.debugPosition.z=-71.9;renderer.setDebugCameraMovementIntent("forward",true);renderer.setDebugCameraSpeedMode("boost");advance(0);advance(100);assert.equal(renderer.debugPosition.z,-72,"forward movement must clamp at migrated world -Z bound");
@@ -49,7 +49,8 @@ assert.deepEqual(worldPositionForCell(0),{x:-2.4,y:2.4});assert.deepEqual(worldP
 assert.deepEqual(gameplayWorldGrid.columnX,[-2.4,-0.8,0.8,2.4]);assert.deepEqual(gameplayWorldGrid.rowY,[2.4,1.2,0]);
 const target=(id,cell,beatCenterMs=1000)=>({id,kind:/** @type {const} */("flow"),hand:/** @type {const} */("left"),family:/** @type {const} */("flow"),cell,cells:[],lane:null,beatCenterMs,direction:/** @type {const} */("right"),judgement:/** @type {const} */("pending")});
 const flow=buildGameplaySceneModel({presentation:"flow",nowMs:1000,timingWindowBeforeMs:120,timingWindowAfterMs:240,targets:[target("near",5,1100),target("far",5,1700),target("active",0,1000)]});
-assert.equal(flow.camera,defaultGameplayCameraPose);assert.equal(flow.camera.projection.verticalFovDegrees,48);assert.ok(flow.camera.position.z>0&&flow.camera.rotationEulerDegrees.yYaw===0,"fixed athlete camera must use the canonical conventional negative-Z pose");
+assert.equal(flow.camera,defaultGameplayCameraPose);assert.deepEqual(flow.camera.position,{x:0.05,y:1,z:5});assert.deepEqual(flow.camera.rotationEulerDegrees,{xPitch:0,yYaw:0,zRoll:0});assert.equal(flow.camera.projection.verticalFovDegrees,48);assert.ok(flow.camera.position.z>0&&flow.camera.rotationEulerDegrees.yYaw===0,"fixed athlete camera must use the canonical conventional negative-Z pose");
+for(const presentation of["flow","boxing_spatial_grid","boxing_lanes"])assert.equal(buildGameplaySceneModel(/** @type {import("../src/gameplay-scene-model.js").AeroGameplayFrame} */({presentation,nowMs:0,targets:[],timingWindowBeforeMs:180,timingWindowAfterMs:180})).camera,defaultGameplayCameraPose,`${presentation} must share the one canonical camera default`);
 assert.equal(flow.timingZone.startZ,1.44);assert.equal(flow.timingZone.endZ,-.72);assert.deepEqual(flow.timingZone.segments.map((entry)=>entry.name),["late","active","early"]);assert.equal(flow.timingZone.segments[0].endZ,flow.timingZone.startZ);assert.equal(flow.timingZone.segments[2].startZ,flow.timingZone.endZ);
 const flowTargets=flow.objects.filter((entry)=>entry.targetId);assert.deepEqual(flowTargets.map((entry)=>entry.targetId),["far","near","active"],"transparent targets must be deterministic far-near");assert.deepEqual(flowTargets.map((entry)=>entry.position.z),[-4.2,-.6,0]);assert.ok(flowTargets.every((entry)=>entry.transparent));
 assert.equal(flowTargets.find((entry)=>entry.targetId==="active")?.state,"active");

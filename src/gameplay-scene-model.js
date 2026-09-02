@@ -25,7 +25,8 @@ export const defaultRendererThemeTokens = Object.freeze({ leftHandColor:"#2693ff
 /** Absolute authoritative time mapping. No engine delta participates. @param {number} timestampMs @param {number} nowMs @param {number} [worldUnitsPerMs] */
 export function timestampToWorldZ(timestampMs,nowMs,worldUnitsPerMs=defaultRendererTuning.worldUnitsPerMs){
   if(![timestampMs,nowMs,worldUnitsPerMs].every(Number.isFinite)||worldUnitsPerMs<=0)throw new TypeError("World time mapping is invalid");
-  return (timestampMs-nowMs)*worldUnitsPerMs;
+  const deltaMs=timestampMs-nowMs;
+  return deltaMs===0?0:-deltaMs*worldUnitsPerMs;
 }
 
 /** Exact canonical top-left 4x3 mapping. @param {number} cell */
@@ -41,11 +42,11 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const window=timingWindow(frame);
   const startZ=timestampToWorldZ(frame.nowMs-window.afterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const endZ=timestampToWorldZ(frame.nowMs+window.beforeMs,frame.nowMs,tuning.worldUnitsPerMs);
-  const activeHalf=Math.min(0.12,Math.max(0,(endZ-startZ)/12));
+  const activeHalf=Math.min(0.12,Math.max(0,Math.abs(endZ-startZ)/12));
   const segments=Object.freeze([
-    zone("late",startZ,-activeHalf,"#e5484d",0.34),
-    zone("active",-activeHalf,activeHalf,"#f4df62",0.42),
-    zone("early",activeHalf,endZ,"#39c96b",0.32)
+    zone("late",startZ,activeHalf,"#e5484d",0.34),
+    zone("active",activeHalf,-activeHalf,"#f4df62",0.42),
+    zone("early",-activeHalf,endZ,"#39c96b",0.32)
   ]);
   /** @type {AeroGameplaySceneObject[]} */ const objects=[];
   /** @type {string[]} */ const culled=[];
@@ -58,12 +59,12 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
     const result=targetObjects(frame,target,window,theme,tuning);
     if(result.length===0)culled.push(target.id); else objects.push(...result);
   }
-  objects.sort((a,b)=>b.sortDepth-a.sortDepth||a.id.localeCompare(b.id));
+  objects.sort((a,b)=>a.sortDepth-b.sortDepth||a.id.localeCompare(b.id));
   const overlayKind=frame.overlay??"none";
   return Object.freeze({
     presentation:frame.presentation,nowMs:frame.nowMs,objects:Object.freeze(objects),
     timingZone:Object.freeze({beforeMs:window.beforeMs,afterMs:window.afterMs,startZ,endZ,segments}),
-    camera:Object.freeze({position:Object.freeze({x:0,y:3.15,z:-7.8}),target:Object.freeze({x:0,y:1.05,z:8}),fov:48,nearClip:0.1,farClip:80}),
+    camera:Object.freeze({position:Object.freeze({x:0,y:3.15,z:7.8}),target:Object.freeze({x:0,y:1.05,z:-8}),fov:48,nearClip:0.1,farClip:80}),
     grid:gameplayWorldGrid,
     overlay:Object.freeze({kind:overlayKind,dim:clamp(frame.calibrationDim??(overlayKind==="none"?0:0.62),0,1),countdown:normalizeCountdown(frame.countdown)}),
     culledTargetIds:Object.freeze(culled)
@@ -73,14 +74,14 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
 /** @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame */
 function addPresentationFloor(objects,frame){
   if(frame.presentation==="boxing_lanes"){
-    objects.push(sceneObject("lane-left","lane","left",null,{x:-1.35,y:gameplayWorldGrid.floorY,z:15},{x:2.2,y:0.03,z:44},null,0,0.12,null,true,null,null,15));
-    objects.push(sceneObject("lane-right","lane","right",null,{x:1.35,y:gameplayWorldGrid.floorY,z:15},{x:2.2,y:0.03,z:44},null,0,0.12,null,true,null,null,15));
+    objects.push(sceneObject("lane-left","lane","left",null,{x:-1.35,y:gameplayWorldGrid.floorY,z:-15},{x:2.2,y:0.03,z:44},null,0,0.12,null,true,null,null,-15));
+    objects.push(sceneObject("lane-right","lane","right",null,{x:1.35,y:gameplayWorldGrid.floorY,z:-15},{x:2.2,y:0.03,z:44},null,0,0.12,null,true,null,null,-15));
   } else {
     for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:p.y,z:0},{x:1.5,y:1.05,z:0.025},null,0,0.14,null,true,null,null,0));}
   }
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */
-function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:-0.02},{x:1.5,y:1.05,z:0.035},null,0,role==="safe"?0.28:0.55,null,true,null,null,0));}
+function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:0.02},{x:1.5,y:1.05,z:0.035},null,0,role==="safe"?0.28:0.55,null,true,null,null,0));}
 
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
 function targetObjects(frame,target,window,theme,tuning){

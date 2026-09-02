@@ -25,7 +25,7 @@ The legacy `AeroWebGl2Renderer`, `createAeroWebGl2Renderer`, `aero.renderer.webg
 
 ## World and timing contract
 
-The authoritative body grid is row-major from top-left: four columns map to X `[-2.4, -0.8, 0.8, 2.4]`, and three rows map to Y `[2.4, 1.2, 0]`. Time maps only to world Z with `z = (timestampMs - nowMs) * worldUnitsPerMs`. The fixed athlete camera looks down positive time depth. Source scoring cells, timestamps, judgements, variants, and conversion records are never rewritten by the renderer.
+The authoritative body grid is row-major from top-left: four columns map to X `[-2.4, -0.8, 0.8, 2.4]`, and three rows map to Y `[2.4, 1.2, 0]`. Time maps only to world Z with `z = -(timestampMs - nowMs) * worldUnitsPerMs`: future events are farther toward world `-Z` and approach zero. The fixed athlete camera sits on world `+Z`, looks along camera-local/world `-Z`, and therefore projects world `+X` screen-right. Source scoring cells, timestamps, judgements, variants, and conversion records are never rewritten by the renderer.
 
 The floor displays separate late, active, and early timing-window segments. It replaces timing rings/circles. Transparent targets and obstacles use depth testing with disabled depth writes and deterministic far-to-near ordering.
 

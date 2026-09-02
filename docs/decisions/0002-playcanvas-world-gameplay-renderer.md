@@ -29,7 +29,7 @@ Project authoritative grid/time data into world space:
 - four columns become fixed X coordinates;
 - three top-left rows become fixed Y coordinates;
 - absolute time delta becomes Z depth;
-- a fixed perspective athlete camera looks down positive Z;
+- a fixed perspective athlete camera sits on world `+Z` and looks along camera-local/world `-Z`, as superseded and detailed by `world-view-handedness-migration.md`;
 - late/active/early timing windows are colored floor segments;
 - Flow intervals become translucent duration volumes;
 - Flow, Boxing Spatial Grid, and Boxing Lanes share the application/material/pooling lifecycle.

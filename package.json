@@ -21,7 +21,7 @@
     "check:console": "node scripts/validate-playwright-console-noise.js",
     "check:renderer": "node scripts/validate-renderer-facade.js",
     "test": "npm run check",
-    "test:browser": "npm run check:console && node scripts/validate-browser-renderer.js",
+    "test:browser": "npm run check:console && node scripts/validate-camera-handedness.js && node scripts/validate-browser-renderer.js",
     "demo": "npm --prefix .testbed run demo",
     "testbed:serve": "npm --prefix .testbed run serve"
   },

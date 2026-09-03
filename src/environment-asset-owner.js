@@ -120,6 +120,8 @@ export class PlayCanvasEnvironmentAssetOwner{
 
 export function normalizeEnvironmentDescriptor(value){
   if(!exactPlainData(value,["id","url","mimeType","bytes","sha256","projection","dimensions","centerForward","worldUp"]))throw new TypeError("Environment descriptor shape is invalid");
+  const dimensions=exactVector(value.dimensions,ENVIRONMENT_DIMENSIONS,"dimensions");
+  const centerForward=exactVector(value.centerForward,ENVIRONMENT_CENTER_FORWARD,"centerForward"),worldUp=exactVector(value.worldUp,ENVIRONMENT_WORLD_UP,"worldUp");
   assertNoProxyGraph(value,"descriptor");
   if(typeof value.id!=="string"||value.id.length<1||value.id.length>96||!ENVIRONMENT_ID_PATTERN.test(value.id))throw new TypeError("Environment id is invalid");
   if(typeof value.url!=="string"||!value.url||value.url.length>MAX_ENVIRONMENT_URL_LENGTH)throw new TypeError("Environment URL is invalid");
@@ -127,8 +129,6 @@ export function normalizeEnvironmentDescriptor(value){
   if(!Number.isSafeInteger(value.bytes)||value.bytes<1||value.bytes>MAX_ENVIRONMENT_BYTES)throw new TypeError("Environment byte length is invalid");
   if(typeof value.sha256!=="string"||!/^[0-9a-f]{64}$/u.test(value.sha256))throw new TypeError("Environment SHA-256 is invalid");
   if(value.projection!==ENVIRONMENT_PROJECTION)throw new TypeError("Environment projection is invalid");
-  const dimensions=exactVector(value.dimensions,ENVIRONMENT_DIMENSIONS,"dimensions");
-  const centerForward=exactVector(value.centerForward,ENVIRONMENT_CENTER_FORWARD,"centerForward"),worldUp=exactVector(value.worldUp,ENVIRONMENT_WORLD_UP,"worldUp");
   return Object.freeze({id:value.id,url:value.url,mimeType:value.mimeType,bytes:value.bytes,sha256:value.sha256,projection:value.projection,dimensions,centerForward,worldUp});
 }
 
@@ -169,7 +169,14 @@ async function decodeJpeg(blob,signal){
   const image=await globalThis.createImageBitmap(blob);if(signal.aborted){image.close();throw new DOMException("Environment JPEG decode aborted","AbortError");}return image;
 }
 async function sha256Hex(contents){const subtle=globalThis.crypto?.subtle;if(!subtle)throw new Error("SHA-256 verification is unavailable");return[...new Uint8Array(await subtle.digest("SHA-256",contents))].map((value)=>value.toString(16).padStart(2,"0")).join("");}
-function exactVector(value,expected,name){if(!Array.isArray(value)||Object.getPrototypeOf(value)!==Array.prototype||Object.getOwnPropertySymbols(value).length||value.length!==expected.length||!value.every((entry,index)=>Object.is(entry,expected[index])))throw new TypeError(`Environment ${name} is invalid`);return Object.freeze([...value]);}
+function exactVector(value,expected,name){
+  let prototype,descriptors,symbols;try{if(!Array.isArray(value))throw new TypeError();prototype=Object.getPrototypeOf(value);descriptors=Object.getOwnPropertyDescriptors(value);symbols=Object.getOwnPropertySymbols(value);}catch{throw new TypeError(`Environment ${name} is invalid`);}
+  const keys=Object.keys(descriptors),expectedKeys=[...expected.keys()].map(String).concat("length");
+  if(prototype!==Array.prototype||symbols.length||keys.length!==expectedKeys.length||!expectedKeys.every((key)=>Object.hasOwn(descriptors,key)))throw new TypeError(`Environment ${name} is invalid`);
+  const lengthDescriptor=Object.getOwnPropertyDescriptor(value,"length");if(!lengthDescriptor||!("value" in lengthDescriptor)||lengthDescriptor.enumerable||lengthDescriptor.value!==expected.length)throw new TypeError(`Environment ${name} is invalid`);
+  const copy=expected.map((entry,index)=>{const descriptor=Object.getOwnPropertyDescriptor(value,String(index));if(!descriptor||!("value" in descriptor)||!descriptor.enumerable||!Object.is(descriptor.value,entry))throw new TypeError(`Environment ${name} is invalid`);return descriptor.value;});
+  return Object.freeze(copy);
+}
 function exactPlainData(value,keys){if(!value||typeof value!=="object"||Array.isArray(value))return false;let prototype,descriptors,symbols;try{prototype=Object.getPrototypeOf(value);descriptors=Object.getOwnPropertyDescriptors(value);symbols=Object.getOwnPropertySymbols(value);}catch{return false;}if((prototype!==Object.prototype&&prototype!==null)||symbols.length)return false;const actual=Object.keys(descriptors).sort(),expected=[...keys].sort();return actual.length===expected.length&&actual.every((entry,index)=>entry===expected[index]&&"value" in descriptors[entry]&&descriptors[entry].enumerable===true);}
 function assertNoProxyGraph(value,name){if(typeof globalThis.structuredClone!=="function")throw new TypeError(`Environment ${name} validation is unavailable`);try{globalThis.structuredClone(value);}catch{throw new TypeError(`Environment ${name} proxies are invalid`);}}
 function boundedCanonical(value,min,max,name){if(typeof value!=="number"||!Number.isFinite(value)||value<min||value>max)throw new TypeError(`Environment ${name} is invalid`);const rounded=Math.round((value+Number.EPSILON)*1e6)/1e6;return Object.is(rounded,-0)?0:rounded;}

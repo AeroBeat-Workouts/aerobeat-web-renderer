@@ -34,8 +34,12 @@ for(const invalid of[
 ])assert.throws(()=>normalizeEnvironmentDescriptor(invalid),/Environment/);
 const accessorDescriptor={...descriptor};Object.defineProperty(accessorDescriptor,"id",{get:()=>"fixture-one",enumerable:true});assert.throws(()=>normalizeEnvironmentDescriptor(accessorDescriptor),/shape/);
 const symbolDescriptor={...descriptor,[Symbol("hidden")]:true};assert.throws(()=>normalizeEnvironmentDescriptor(symbolDescriptor),/shape/);
-assert.throws(()=>normalizeEnvironmentDescriptor(new Proxy(descriptor,{})),/proxies/);
-assert.throws(()=>normalizeEnvironmentDescriptor({...descriptor,dimensions:new Proxy(descriptor.dimensions,{})}),/proxies/);
+const proxiedDescriptor=new Proxy(descriptor,{});assert.throws(()=>normalizeEnvironmentDescriptor(proxiedDescriptor),/proxies/);
+const tupleProxyDescriptors=[{...descriptor,dimensions:new Proxy(descriptor.dimensions,{})},{...descriptor,centerForward:new Proxy(descriptor.centerForward,{})},{...descriptor,worldUp:new Proxy(descriptor.worldUp,{})}];
+for(const hostile of tupleProxyDescriptors)assert.throws(()=>normalizeEnvironmentDescriptor(hostile),/proxies/);
+let tupleGetterCalls=0;const accessorDimensions=[4096,2048];Object.defineProperty(accessorDimensions,"0",{get(){++tupleGetterCalls;return 4096;},enumerable:true,configurable:true});
+const accessorTupleDescriptor={...descriptor,dimensions:accessorDimensions};assert.throws(()=>normalizeEnvironmentDescriptor(accessorTupleDescriptor),/dimensions/);assert.equal(tupleGetterCalls,0,"tuple accessors must reject without invocation");
+const cloneProperty=Object.getOwnPropertyDescriptor(globalThis,"structuredClone");assert.ok(cloneProperty);try{Object.defineProperty(globalThis,"structuredClone",{...cloneProperty,value:undefined});assert.throws(()=>normalizeEnvironmentDescriptor(descriptor),/validation is unavailable/);}finally{Object.defineProperty(globalThis,"structuredClone",cloneProperty);}
 
 const canonicalTransform=normalizeEnvironmentTransform(transform);
 assert.deepEqual(canonicalTransform,{position:{x:1.234567,y:-2,z:3},rotationDegrees:{xPitch:10.123456,yYaw:-20,zRoll:30},scale:1.5});
@@ -55,9 +59,10 @@ for(const invalid of[
  {...transform,rotationDegrees:{xPitch:0,yYaw:Number.POSITIVE_INFINITY,zRoll:0}}
 ])assert.throws(()=>normalizeEnvironmentTransform(invalid),/Environment/);
 const accessorTransform={...transform};Object.defineProperty(accessorTransform,"scale",{get:()=>1,enumerable:true});assert.throws(()=>normalizeEnvironmentTransform(accessorTransform),/shape/);
-assert.throws(()=>normalizeEnvironmentTransform(new Proxy(transform,{})),/proxies/);
-assert.throws(()=>normalizeEnvironmentTransform({...transform,position:new Proxy(transform.position,{})}),/proxies/);
-assert.throws(()=>normalizeEnvironmentTransform({...transform,rotationDegrees:new Proxy(transform.rotationDegrees,{})}),/proxies/);
+const proxiedTransform=new Proxy(transform,{}),proxiedPositionTransform={...transform,position:new Proxy(transform.position,{})},proxiedRotationTransform={...transform,rotationDegrees:new Proxy(transform.rotationDegrees,{})};
+assert.throws(()=>normalizeEnvironmentTransform(proxiedTransform),/proxies/);
+assert.throws(()=>normalizeEnvironmentTransform(proxiedPositionTransform),/proxies/);
+assert.throws(()=>normalizeEnvironmentTransform(proxiedRotationTransform),/proxies/);
 
 function harness(options={}){
  const roots=[],created=[],closed=[];
@@ -74,8 +79,12 @@ function fakeResource(){return{destroyed:false,destroy(){this.destroyed=true;}};
 {
  const {owner,app,roots,created,closed}=harness();owner.setTransform(transform);owner.setCameraPosition({x:10,y:20,z:30});await owner.setDescriptor(descriptor);const loading=owner.attach(app);assert.equal(owner.describe().state,"loading");assert.equal(owner.describe().fallback,true);await loading;const status=owner.describe();assert.deepEqual(status,{id:"fixture-one",state:"ready",visible:true,fallback:false,hash:descriptor.sha256,count:1,projection:"equirectangular"});assert.equal(roots.length,1);const resources=created[0];assert.deepEqual(resources.root.position,[11.234567,18,33]);assert.deepEqual(resources.root.rotation,[10.123456,-20,30]);assert.deepEqual(resources.root.scale,[1.5,1.5,1.5]);
  owner.setCameraPosition({x:-5,y:4,z:3});assert.deepEqual(resources.root.position,[-3.765433,2,6],"camera translation must anchor the environment plus configured world offset");assert.deepEqual(resources.root.rotation,[10.123456,-20,30],"camera look rotation must not be inherited");
- const beforeTransform=owner.transform;assert.throws(()=>owner.setTransform({...transform,scale:9}),/Environment/);assert.throws(()=>owner.setTransform(new Proxy(transform,{})),/proxies/);assert.equal(owner.transform,beforeTransform);assert.deepEqual(resources.root.scale,[1.5,1.5,1.5],"invalid transform must reject atomically without root mutation");
- const beforeDescriptor=owner.descriptor;assert.throws(()=>owner.setDescriptor({...descriptor,extra:true}),/Environment/);assert.throws(()=>owner.setDescriptor(new Proxy(descriptor,{})),/proxies/);assert.equal(owner.descriptor,beforeDescriptor);assert.equal(resources.root.destroyed,false,"invalid descriptor must reject before resident resource mutation");
+ const ownerSnapshot=()=>({descriptor:owner.descriptor,transform:owner.transform,record:owner.record,controller:owner.controller,generation:owner.generation,state:owner.state,visible:owner.visible,errorMessage:owner.errorMessage,description:owner.describe(),roots:[...roots],created:[...created],closed:[...closed],root:{reference:resources.root,destroyed:resources.root.destroyed,enabled:resources.root.enabled,parent:resources.root.parent,position:[...resources.root.position],rotation:[...resources.root.rotation],scale:[...resources.root.scale]},material:{reference:resources.material,destroyed:resources.material.destroyed},texture:{reference:resources.texture,destroyed:resources.texture.destroyed},mesh:{reference:resources.mesh,destroyed:resources.mesh.destroyed},image:resources.image});
+ const unchanged=ownerSnapshot(),assertOwnerUnchanged=()=>assert.deepEqual(ownerSnapshot(),unchanged,"hostile environment input must not mutate descriptor, transform, owner, root, or resources");
+ assert.throws(()=>owner.setTransform({...transform,scale:9}),/Environment/);assertOwnerUnchanged();
+ for(const [hostile,pattern] of [[proxiedTransform,/proxies/],[proxiedPositionTransform,/proxies/],[proxiedRotationTransform,/proxies/],[accessorTransform,/shape/]]){assert.throws(()=>owner.setTransform(hostile),pattern);assertOwnerUnchanged();}
+ for(const [hostile,pattern] of [[proxiedDescriptor,/proxies/],...tupleProxyDescriptors.map((value)=>[value,/proxies/]),[accessorDescriptor,/shape/],[accessorTupleDescriptor,/dimensions/]]){assert.throws(()=>owner.setDescriptor(hostile),pattern);assertOwnerUnchanged();}
+ assert.equal(tupleGetterCalls,0,"owner tuple validation must not invoke accessors");
  owner.setVisible(false);assert.equal(resources.root.enabled,false);owner.setVisible(true);assert.equal(resources.root.enabled,true);assert.equal(created.length,1,"visibility changes must not decode or recreate");
  const replacement=owner.setDescriptor(descriptorTwo);assert.equal(resources.root.destroyed,true,"replacement must synchronously destroy the old root");assert.equal(owner.describe().count,0);await replacement;assert.equal(owner.describe().id,"fixture-two");assert.equal(owner.describe().count,1);assert.deepEqual(created[1].root.scale,[1.5,1.5,1.5],"retained transform must apply to replacement");
  const generation=owner.generation;owner.handleContextLost();assert.equal(created[1].root.destroyed,true);assert.equal(owner.describe().state,"idle");await owner.restore(app);assert.equal(owner.describe().state,"ready");assert.equal(created.length,3,"context restoration must start a fresh generation");assert.deepEqual(created[2].root.position,[-3.765433,2,6]);assert.ok(owner.generation>generation);owner.dispose();assert.equal(owner.describe().state,"disposed");assert.equal(owner.describe().count,0);assert.equal(closed.length,3);

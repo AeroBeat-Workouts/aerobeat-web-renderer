@@ -20,7 +20,8 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 
 /** Retained only as an input/rasterization compatibility contract; production targets no longer consume this atlas. */
 export const gameplayIconIds = Object.freeze(["boxing.glove","boxing.guard.crossed","boxing.guard.standard","boxing.hook.left","boxing.hook.right","boxing.squat","boxing.straight.left","boxing.straight.right","boxing.uppercut.left","boxing.uppercut.right","boxing.weave.left","boxing.weave.right","calibration.tpose","feedback.great","flow.directional","flow.directionless"]);
-export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-2.4,-0.8,0.8,2.4]),rowY:Object.freeze([2.4,1.2,0]),floorY:-0.72 });
+const GAMEPLAY_CELL_SIZE=0.94;
+export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-1.5,-0.5,0.5,1.5]),rowY:Object.freeze([2,1,0]),floorY:-0.72 });
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
 export const gameplaySceneRenderOrder = Object.freeze(["opaque_assets","timing_rows","grid_state","track","translucent_walls","world_feedback"]);
 const ASSET=Object.freeze({arrow:"directional-arrow/outline-v1",circle:"any-note/circle-v1",guard:"guard/shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
@@ -90,10 +91,10 @@ function addTrack(objects){for(let index=0;index<3;index+=1)objects.push(sceneOb
 /** @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame */
 function addPresentationFloor(objects,frame){
   if(frame.presentation==="boxing_lanes")return;
-  for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:p.y,z:0},{x:1.5,y:1.05,z:0.025},null,null,0,0.1,null,false,true,null,null,0,18,null,null,null));}
+  for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:p.y,z:0},{x:GAMEPLAY_CELL_SIZE,y:GAMEPLAY_CELL_SIZE,z:0.025},null,null,0,0.1,null,false,true,null,null,0,18,null,null,null));}
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */
-function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:0.02},{x:1.5,y:1.05,z:0.035},null,null,0,role==="safe"?0.28:0.55,null,false,true,null,null,0,18,null,null,null));}
+function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:0.02},{x:GAMEPLAY_CELL_SIZE,y:GAMEPLAY_CELL_SIZE,z:0.035},null,null,0,role==="safe"?0.28:0.55,null,false,true,null,null,0,18,null,null,null));}
 
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroTimingZoneSegment} successZone @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
 function targetObjects(frame,target,window,successZone,theme,tuning){

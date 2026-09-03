@@ -39,7 +39,7 @@ export class PlayCanvasGameplayAssetPreloader{
       for(const item of staged){
         this.assertCurrent(app,generation,signal);
         const asset=this.assetFactory(item.definition,item.url,item.contents);
-        app.assets.add(asset);this.records.push({app,asset});
+        app.assets.add(asset);this.records.push({app,asset,definition:item.definition});
         await this.loadContainer(app,asset,signal);
         this.assertCurrent(app,generation,signal);
         this.loadedIds=[...this.loadedIds,item.definition.id];
@@ -66,6 +66,12 @@ export class PlayCanvasGameplayAssetPreloader{
     this.controller?.abort();this.controller=null;++this.generation;this.disposeRecords();this.app=null;
     this.state="disposed";this.errorMessage=null;this.fallbackReason=null;this.loadedIds=[];
     return this.describe();
+  }
+  /** Return only a current, fully ready pinned container resource. */
+  resourceFor(assetId){
+    if(this.state!=="ready"||!this.app)return null;
+    const record=this.records.find((entry)=>entry.definition.id===assetId&&entry.app===this.app);
+    return record?.asset?.resource??null;
   }
   disposeRecords(){
     for(const {app,asset} of this.records.splice(0)){

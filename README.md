@@ -1,10 +1,10 @@
 # aerobeat-web-renderer
 
-AeroBeat-owned PlayCanvas gameplay renderer for world-space gameplay and normalized landmark overlays.
+AeroBeat-owned PlayCanvas renderer for canonical GLB gameplay visuals, bounded world feedback, and normalized landmark overlays.
 
 ## Responsibility
 
-This package owns one PlayCanvas `Application` and graphics device per attached gameplay canvas, exact container/DPR sizing, deterministic world-scene projection, branding alpha-mask atlas upload, context recovery, visual-only debug camera controls, bounded resource pooling, capability truth, and deterministic teardown.
+This package owns one PlayCanvas `Application` and graphics device per attached gameplay canvas, exact container/DPR sizing, deterministic world-scene projection, pinned canonical GLB loading and instancing, renderer-local bounded feedback glyphs, retained compatibility-only branding atlas upload, context recovery, visual-only debug camera controls, bounded resource pooling, capability truth, and deterministic teardown.
 
 It does not own media, CV, the calibrated athlete grid, gameplay input, score or judgement decisions, content loading, song time, transport, DOM presenters, or assembly policy. Every frame is derived from caller-owned absolute `nowMs` and resolved target records.
 
@@ -18,10 +18,10 @@ It does not own media, CV, the calibrated athlete grid, gameplay input, score or
 - `releaseDebugCameraAuthoringInput`, `loadDebugCameraPose`, and `exportDebugCameraPoseArtifact` form the private Visual Test authoring seam. The shared Flow/Lanes/Grid default is Derrick's reviewed canonical pose: position `{x:0.05,y:1,z:5}`, zero Euler rotation, FOV `48`, near `0.1`, and far `80`. Load strictly normalizes unknown v1 data, releases capture and movement, waits for confirmed pointer-lock release, rejects stale/inactive renderer state, and applies only the live debug camera; loaded projection remains intact through further movement/look tuning. Export is accepted only for an attached, active, already-rendered debug camera with no capture or movement state. It reapplies six-decimal canonical values before returning deeply immutable local data, UTF-8 bytes, fixed-order two-space JSON with LF/trailing newline, filename `aerobeat-gameplay-camera-pose.v1.json`, and MIME `application/json`; neither loading nor export enters `describe()` or telemetry.
 - `setDebugCameraMovementIntent(intent, active)` accepts only `forward`, `back`, `left`, `right`, `down`, or `up` for accessible DOM hold controls. `setDebugCameraSpeedMode(mode)` accepts only `normal` or `boost`. Disabling, visibility loss, blur, detaching, or destroying uses the same idempotent confirmed-release path and clears all capture, cursor policy, keys, DOM holds, touches, movement timing, listeners, and pointer lock.
 - `setTheme`, `setTuning`/`importTuning`, `resetTuning`, `exportTuning`, and `setBackgroundProjection` accept visual data only.
-- `uploadIconAtlas`, `normalizeBrandingIconManifest`, and `rasterizeBrandingIconAtlas` implement the canonical alpha-mask icon path.
+- `uploadIconAtlas`, `normalizeBrandingIconManifest`, and `rasterizeBrandingIconAtlas` retain the existing input compatibility contract. Production targets do not consume the atlas; only explicit gameplay-asset fallback uses primitive geometry.
 - `buildGameplaySceneModel` exposes the deterministic screenshot-free world model used by tests and diagnostics.
 - `gameplayAssetSet`, `gameplayAssets`, `gameplayAssetIds`, `gameplayAssetForRole`, and `resolveGameplayAssetUrl` expose the deeply immutable pinned `0.0.2` identity/URL contract. URLs resolve within the installed package's `assets/gameplay/0.0.2/` tree.
-- `PlayCanvasGameplayAssetPreloader` owns hash-checked local GLB fetch, container parsing, generation rejection, abort, explicit `idle`/`loading`/`ready`/`error`/`fallback`/`disposed` diagnostics, and per-application disposal. The facade integrates it automatically; this foundation does not yet replace gameplay geometry.
+- `PlayCanvasGameplayAssetPreloader` owns hash-checked local GLB fetch, container parsing, generation rejection, abort, explicit `idle`/`loading`/`ready`/`error`/`fallback`/`disposed` diagnostics, current-generation resource lookup, and per-application disposal. The facade instantiates only `ready` containers; raw errors activate the explicit truthful fallback and loading never silently substitutes production primitives.
 - `getCapabilities` and `describe` expose immutable, serializable state without pixels, screenshots, canvases, textures, or media objects. `describe().gameplayAssets` reports the pinned release, source commit, inventory/proof hashes, loaded IDs, generation, readiness, errors, and bounded fallback reason.
 
 The legacy `AeroWebGl2Renderer`, `createAeroWebGl2Renderer`, `aero.renderer.webgl2`, `buildGameplayRenderPlan`, and 2D/2.5D gameplay plan are removed rather than aliased.
@@ -32,11 +32,13 @@ The authoritative body grid is row-major from top-left: four columns map to X `[
 
 One canonical `aerobeat/gameplay_camera_pose` v1 record owns fixed play, debug initialization, Reset, and projection. Its conventions are `playcanvas_world`, `right_handed`, world up `+Y`, camera forward `local_-Z`, and timeline future `world_-Z`; roll is exactly zero. Authoring bounds are position X `[-40,40]`, Y `[-8,32]`, Z `[-72,32]`; pitch `[-77.349303,77.349303]` degrees; finite yaw input `[-360000,360000]` normalized to `[-180,180)`; vertical FOV `[1,179]`; near clip `[0.001,10]`; far clip `[1,10000]`; and near must remain below far. Derrick's reviewed canonical artifact replaces the migrated default with position `(0.05,1,5)`, Euler `(0,0,0)`, and projection `(48,0.1,80)`; later loaded poses remain live Visual Test state unless a separately reviewed source change explicitly replaces this default.
 
-The floor displays separate late, active, and early timing-window segments. It replaces timing rings/circles. Transparent targets and obstacles use depth testing with disabled depth writes and deterministic far-to-near ordering.
+The floor displays separate late, active, and early timing-window segments. It replaces timing rings/circles. Opaque canonical targets and marker spheres use normal depth testing/writes. Glass track and wall bodies retain authored transparency with depth testing, disabled body depth writes, and deterministic render intent.
 
-Flow uses canonical directional/directionless atlas masks on world-space targets. Duration obstacles use caller-owned `intervalStartMs`/`intervalEndMs` (or normalized equivalent) to create one translucent 3D volume per occupied cell. Volumes retain truthful Z duration and disappear only after their interval and spent-cull contract.
+Flow and Boxing use the pinned `directional-arrow/outline-v1` GLB for authoritative directions (local-Z rotation only) and `any-note/circle-v1` for directionless cues. Every guard is two simultaneous, independently instantiated `guard/shield-v1` roots whose X placement is the sole difference. Truthful bomb records use `bomb/urchin-v1`. Flow duration obstacles instantiate normalized `wall/red-glass-v1`, retain unit X/Y scale, and scale only world Z across exact caller-owned interval endpoints.
 
-Boxing Spatial Grid maps its exact 4x3 cells, blocked/safe cells, punches, guards, and obstacles into the same world. Boxing Lanes maps left/right lane cues and authoritative asymmetric timing windows into that world without changing semantic target records.
+Three unscaled `track/blue-glass-v1` segments extend the approach path below gameplay while preserving the near-athlete red/yellow/green timing rows. Unresolved targets inside existing green success bounds tint only their role-colored core white. Resolved note/guard targets remove over 80 ms and emit at most four stationary, depth-tested/write-off world glyph labels at the exact crossing position: `Great` holds white with dark separation, while `Miss` holds red with white separation; both hold 180 ms and fade for 170 ms. Obstacles and bombs never emit feedback.
+
+Boxing Spatial Grid preserves exact 4x3 cells and blocked/safe truth. Boxing Lanes preserves left/right placement and authoritative asymmetric timing windows without rewriting semantic target records. Nose and wrist cursors instantiate the same full `athlete-marker/sphere-v1` at the existing truthful world projection with role colors, normal depth, and no mirrored/always-on-top pass.
 
 ## Manual PlayCanvas lifecycle
 
@@ -56,8 +58,8 @@ npm run test:browser
 npm pack --dry-run --json
 ```
 
-Unit checks cover exact 4x3 coordinates, absolute timestamp-to-Z projection, timing segment equations, all three presentations, deterministic transparent order, duration obstacle volume bounds, spent/cull states, icon selection/rotation, bounded targets, strict atlas normalization, tuning, and rejection of removed exports.
+Unit checks cover exact 4x3 coordinates, absolute timestamp-to-Z projection, red/yellow/green timing equations, all three presentations, canonical arrow/circle/bomb/dual-shield mapping, local-Z direction rotation, white success tint, 80 ms removal, 180+170 ms feedback, four-label cap/exclusions, full-Z wall bounds, unscaled track segments, spent/cull states, strict atlas compatibility normalization, tuning, and rejection of removed exports.
 
-Chromium validation covers two independent PlayCanvas applications, zero engine RAF, one context per canvas, displayed alpha-composed pixels, portrait/landscape DPR 1/3 sizing, Flow depth and duration volumes, timing-zone colors, Boxing Grid and Lanes, cursors, normalized landmarks, debug-camera input and cleanup, transparent clearing, detach/reconnect, idempotent destroy, context loss/restoration, atlas recreation, and zero console noise.
+Chromium validation covers two independent PlayCanvas applications and container sets, zero engine RAF, one context per canvas, actual GLB render roots/material clones, displayed alpha-composed pixels, direct/real-iframe portrait/landscape DPR 1/3 sizing, Flow/Boxing assets, full walls, tracks, dual guards, three marker spheres, world glyphs, explicit error fallback, normalized landmarks, debug-camera input and cleanup, detach/reconnect, idempotent destroy, context loss/restoration, atlas recreation, and zero console noise.
 
 Implementation decisions live under `docs/decisions/`; product documentation belongs in `aerobeat-web-docs` after integration is accepted.

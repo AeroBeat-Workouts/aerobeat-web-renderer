@@ -120,6 +120,7 @@ export class PlayCanvasEnvironmentAssetOwner{
 
 export function normalizeEnvironmentDescriptor(value){
   if(!exactPlainData(value,["id","url","mimeType","bytes","sha256","projection","dimensions","centerForward","worldUp"]))throw new TypeError("Environment descriptor shape is invalid");
+  assertNoProxyGraph(value,"descriptor");
   if(typeof value.id!=="string"||value.id.length<1||value.id.length>96||!ENVIRONMENT_ID_PATTERN.test(value.id))throw new TypeError("Environment id is invalid");
   if(typeof value.url!=="string"||!value.url||value.url.length>MAX_ENVIRONMENT_URL_LENGTH)throw new TypeError("Environment URL is invalid");
   if(value.mimeType!==ENVIRONMENT_MIME_TYPE)throw new TypeError("Environment MIME type is invalid");
@@ -133,6 +134,7 @@ export function normalizeEnvironmentDescriptor(value){
 
 export function normalizeEnvironmentTransform(value){
   if(!exactPlainData(value,["position","rotationDegrees","scale"])||!exactPlainData(value.position,["x","y","z"])||!exactPlainData(value.rotationDegrees,["xPitch","yYaw","zRoll"]))throw new TypeError("Environment transform shape is invalid");
+  assertNoProxyGraph(value,"transform");
   const position=Object.freeze({x:boundedCanonical(value.position.x,-30,30,"position.x"),y:boundedCanonical(value.position.y,-30,30,"position.y"),z:boundedCanonical(value.position.z,-30,30,"position.z")});
   const rotationDegrees=Object.freeze({xPitch:boundedCanonical(value.rotationDegrees.xPitch,-180,180,"rotationDegrees.xPitch"),yYaw:boundedCanonical(value.rotationDegrees.yYaw,-180,180,"rotationDegrees.yYaw"),zRoll:boundedCanonical(value.rotationDegrees.zRoll,-180,180,"rotationDegrees.zRoll")});
   const scale=boundedCanonical(value.scale,.25,4,"scale");
@@ -169,6 +171,7 @@ async function decodeJpeg(blob,signal){
 async function sha256Hex(contents){const subtle=globalThis.crypto?.subtle;if(!subtle)throw new Error("SHA-256 verification is unavailable");return[...new Uint8Array(await subtle.digest("SHA-256",contents))].map((value)=>value.toString(16).padStart(2,"0")).join("");}
 function exactVector(value,expected,name){if(!Array.isArray(value)||Object.getPrototypeOf(value)!==Array.prototype||Object.getOwnPropertySymbols(value).length||value.length!==expected.length||!value.every((entry,index)=>Object.is(entry,expected[index])))throw new TypeError(`Environment ${name} is invalid`);return Object.freeze([...value]);}
 function exactPlainData(value,keys){if(!value||typeof value!=="object"||Array.isArray(value))return false;let prototype,descriptors,symbols;try{prototype=Object.getPrototypeOf(value);descriptors=Object.getOwnPropertyDescriptors(value);symbols=Object.getOwnPropertySymbols(value);}catch{return false;}if((prototype!==Object.prototype&&prototype!==null)||symbols.length)return false;const actual=Object.keys(descriptors).sort(),expected=[...keys].sort();return actual.length===expected.length&&actual.every((entry,index)=>entry===expected[index]&&"value" in descriptors[entry]&&descriptors[entry].enumerable===true);}
+function assertNoProxyGraph(value,name){if(typeof globalThis.structuredClone!=="function")throw new TypeError(`Environment ${name} validation is unavailable`);try{globalThis.structuredClone(value);}catch{throw new TypeError(`Environment ${name} proxies are invalid`);}}
 function boundedCanonical(value,min,max,name){if(typeof value!=="number"||!Number.isFinite(value)||value<min||value>max)throw new TypeError(`Environment ${name} is invalid`);const rounded=Math.round((value+Number.EPSILON)*1e6)/1e6;return Object.is(rounded,-0)?0:rounded;}
 function sameDescriptor(left,right){return left===right||Boolean(left&&right&&left.id===right.id&&left.url===right.url&&left.mimeType===right.mimeType&&left.bytes===right.bytes&&left.sha256===right.sha256&&left.projection===right.projection&&JSON.stringify(left.dimensions)===JSON.stringify(right.dimensions)&&JSON.stringify(left.centerForward)===JSON.stringify(right.centerForward)&&JSON.stringify(left.worldUp)===JSON.stringify(right.worldUp));}
 function boundedError(message){const text=String(message||"Environment asset load failed").replaceAll(/https?:\/\/\S+/gu,"[url]");return text.slice(0,160);}

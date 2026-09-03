@@ -46,10 +46,11 @@ export class PlayCanvasEnvironmentAssetOwner{
     this.cameraPosition=Object.freeze({x:value.x,y:value.y,z:value.z});this.applyTransform();return this.describe();
   }
   applyTransform(){
-    const root=this.record?.root;if(!root)return;
-    const {position,rotationDegrees,scale}=this.transform,camera=this.cameraPosition;
-    root.setPosition(camera.x+position.x,camera.y+position.y,camera.z+position.z);
-    root.setEulerAngles(rotationDegrees.xPitch,rotationDegrees.yYaw,rotationDegrees.zRoll);
+    const record=this.record,root=record?.root;if(!record||!root)return;
+    const generation=this.generation,{position,rotationDegrees,scale}=this.transform,camera=this.cameraPosition;
+    const isAuthoritative=()=>this.record===record&&record.root===root&&this.app===record.app&&this.generation===generation;
+    root.setPosition(camera.x+position.x,camera.y+position.y,camera.z+position.z);if(!isAuthoritative())return;
+    root.setEulerAngles(rotationDegrees.xPitch,rotationDegrees.yYaw,rotationDegrees.zRoll);if(!isAuthoritative())return;
     root.setLocalScale(scale,scale,scale);
   }
   setVisible(visible){
@@ -76,7 +77,7 @@ export class PlayCanvasEnvironmentAssetOwner{
     const descriptor=this.descriptor;if(!descriptor||!this.fetchFn||this.state==="disposed")return this.fail(new Error("Environment asset loading is unavailable"));
     this.disposeCurrent();this.app=app;const generation=++this.generation,controller=new AbortController();this.controller=controller;this.state="loading";this.errorMessage=null;
     /** @type {{app:unknown,root:pc.Entity|null,material:pc.StandardMaterial|null,texture:pc.Texture|null,mesh:pc.Mesh|null,image:{width:number,height:number,close?:()=>void}|null}|null} */
-    let staged=null;
+    let staged=null,ownsStaged=false;
     try{
       const url=resolveSameOriginEnvironmentUrl(descriptor.url,this.locationHref);
       const response=await this.fetchFn(url.href,{signal:controller.signal,credentials:"same-origin",cache:"force-cache",redirect:"error"});
@@ -90,14 +91,18 @@ export class PlayCanvasEnvironmentAssetOwner{
       const digest=await sha256Hex(contents);if(digest!==descriptor.sha256)throw new Error("Environment asset hash mismatch");
       this.assertCurrent(app,generation,controller.signal,descriptor);
       const image=await this.decodeImage(new Blob([contents],{type:descriptor.mimeType}),controller.signal);
-      staged={app,root:null,material:null,texture:null,mesh:null,image};this.record=staged;
+      staged={app,root:null,material:null,texture:null,mesh:null,image};ownsStaged=true;
       if(image.width!==descriptor.dimensions[0]||image.height!==descriptor.dimensions[1])throw new Error("Environment asset decoded dimensions mismatch");
       this.assertCurrent(app,generation,controller.signal,descriptor);
       const sphere=this.createSphere(app,image,descriptor);staged.root=sphere.root;staged.material=sphere.material;staged.texture=sphere.texture;staged.mesh=sphere.mesh;
       this.assertCurrent(app,generation,controller.signal,descriptor);
-      app.root.addChild(sphere.root);this.applyTransform();sphere.root.enabled=this.visible;this.state="ready";this.controller=null;return this.describe();
+      this.record=staged;ownsStaged=false;
+      app.root.addChild(sphere.root);this.assertCurrent(app,generation,controller.signal,descriptor);
+      this.applyTransform();this.assertCurrent(app,generation,controller.signal,descriptor);
+      sphere.root.enabled=this.visible;this.assertCurrent(app,generation,controller.signal,descriptor);
+      this.state="ready";this.controller=null;return this.describe();
     }catch(error){
-      if(staged&&this.record!==staged)this.disposeRecord(staged);
+      if(staged&&ownsStaged)this.disposeRecord(staged);
       if(this.isCurrent(app,generation,descriptor)&&!isAbort(error)){this.disposeCurrent();this.app=app;return this.fail(error);}
       return this.describe();
     }

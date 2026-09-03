@@ -6,10 +6,10 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedCommit="0ed97676a0a816b797b12b9f8d19a9d281b9da03";
-const expectedInventoryHash="1a5b66f543bae940b8bb789e9ab9979d073663b5f6ff12382e08f4ad10c0ff1b";
-const expectedProofHash="90dcbe52b35d2ec11a01784a96f195b5cd01ac141000886cb950c74864eec288";
-const release="0.0.2";
+const expectedCommit="8b8b40593b9deb54d32654e39fd7c1c1c4a9dc1a";
+const expectedInventoryHash="69b88d38113a56061dfc0ea5e92ec51a0b181fcade6a99e1dcc5df1baecdde03";
+const expectedProofHash="287adc43a0456782044f0fd7601efd7b5087342972d9da4525923598754b1efc";
+const release="0.0.3";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
@@ -23,6 +23,8 @@ if(sourceArg>=0&&!args[sourceArg+1])throw new Error("--source requires a path");
 
 const commit=execFileSync("git",["rev-parse","HEAD"],{cwd:source,encoding:"utf8"}).trim();
 if(commit!==expectedCommit)throw new Error(`asset source commit mismatch: ${commit}`);
+const sourceStatus=execFileSync("git",["status","--porcelain","--untracked-files=no"],{cwd:source,encoding:"utf8"}).trim();
+if(sourceStatus)throw new Error("asset source tracked files are dirty");
 
 const sha256=(bytes)=>createHash("sha256").update(bytes).digest("hex");
 const inventoryBytes=await readFile(path.join(sourceRelease,"inventory.v1.json"));
@@ -61,4 +63,6 @@ if(mode==="sync"){
 }
 await stat(target);
 await verifyTree(target,"renderer");
+const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();
+if(JSON.stringify(packagedReleases)!==JSON.stringify([release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
 console.log(`${mode} gameplay ${release}: ${expectedFiles.length} exact files, inventory ${expectedInventoryHash}, proof ${expectedProofHash}, source ${commit}`);

@@ -1,17 +1,17 @@
 // @ts-check
 
-export const gameplayAssetReleaseVersion="0.0.2";
-export const gameplayAssetSourceCommit="0ed97676a0a816b797b12b9f8d19a9d281b9da03";
-export const gameplayAssetInventorySha256="1a5b66f543bae940b8bb789e9ab9979d073663b5f6ff12382e08f4ad10c0ff1b";
-export const gameplayAssetProofSha256="90dcbe52b35d2ec11a01784a96f195b5cd01ac141000886cb950c74864eec288";
+export const gameplayAssetReleaseVersion="0.0.3";
+export const gameplayAssetSourceCommit="8b8b40593b9deb54d32654e39fd7c1c1c4a9dc1a";
+export const gameplayAssetInventorySha256="69b88d38113a56061dfc0ea5e92ec51a0b181fcade6a99e1dcc5df1baecdde03";
+export const gameplayAssetProofSha256="287adc43a0456782044f0fd7601efd7b5087342972d9da4525923598754b1efc";
 
 const definitions=[
   ["any-note/circle-v1","any-note","circle-v1",5616,"0cd90824251657825a9c84499a43a59ce7e39112e32f9903b1e1836c2466945e"],
   ["athlete-marker/sphere-v1","athlete-marker","sphere-v1",3036,"be91826b05a9643a3923ad7d3af9d2e0e0c22bb29bac4bfa97a9758b43700bd3"],
   ["bomb/urchin-v1","bomb","urchin-v1",8364,"63d61feff050c284f2e3a228d345ea794c25bab48ab56cd4801d554c923def85"],
-  ["directional-arrow/outline-v1","directional-arrow","outline-v1",2876,"2355b83eaa954354685ac92f91d72558002d7439aea906494a2f20056d8056ce"],
+  ["directional-arrow/outline-v1","directional-arrow","outline-v1",3272,"c5ae744fbb151b101c2b1e732fdcaf54ac8549c746c10c1df5a13dba7e4ef869"],
   ["guard/shield-v1","guard","shield-v1",2848,"50eb6b6835ec6f2acfceb866d53a8f3f8b424d48259ac59c74a39f5bab731eee"],
-  ["track/blue-glass-v1","track","blue-glass-v1",2208,"802088bad3cc9174e7a94ae769ec5cdbf28b3942c08dc2b369216b5aeb1cfee6"],
+  ["track/blue-glass-v1","track","blue-glass-v1",2480,"46cb72ed47a235e9bf40305bac2355b02ca47aa6b39278503cd6fc1b32cef987"],
   ["wall/red-glass-v1","wall","red-glass-v1",3292,"ed6511c1ce1c196c9b735e40c0b4bf96375cd2f9b9dd0723c5fe5c5209b5d27a"]
 ];
 

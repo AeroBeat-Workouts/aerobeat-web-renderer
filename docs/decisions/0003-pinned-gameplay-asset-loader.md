@@ -5,11 +5,11 @@
 
 ## Context
 
-The approved cross-engine gameplay release is `aerobeat-asset-gameplay` `0.0.2` at commit `0ed97676a0a816b797b12b9f8d19a9d281b9da03`. The renderer needs package-local PlayCanvas containers before semantic visual replacement can land, without making the asset repository a runtime dependency or permitting stale asynchronous work to cross lifecycle boundaries.
+The approved cross-engine gameplay release is `aerobeat-asset-gameplay` `0.0.3` at commit `8b8b40593b9deb54d32654e39fd7c1c1c4a9dc1a`. The renderer needs package-local PlayCanvas containers before semantic visual replacement can land, without making the asset repository a runtime dependency or permitting stale asynchronous work to cross lifecycle boundaries.
 
 ## Decision
 
-Keep the asset repository canonical. Track a deterministic renderer sync/verify script which accepts only the pinned source commit, exact 17-file release inventory, inventory SHA-256 `1a5b66f543bae940b8bb789e9ab9979d073663b5f6ff12382e08f4ad10c0ff1b`, proof SHA-256 `90dcbe52b35d2ec11a01784a96f195b5cd01ac141000886cb950c74864eec288`, and every inventory byte count/hash. Package that release unchanged under `assets/gameplay/0.0.2/`.
+Keep the asset repository canonical. Track a deterministic renderer sync/verify script which accepts only the pinned source commit, exact 17-file release inventory, raw tree `aa37bf534cc592a4057127876d567eadc3496f49`, inventory SHA-256 `69b88d38113a56061dfc0ea5e92ec51a0b181fcade6a99e1dcc5df1baecdde03`, proof SHA-256 `287adc43a0456782044f0fd7601efd7b5087342972d9da4525923598754b1efc`, and every inventory byte count/hash. Package that release unchanged under `assets/gameplay/0.0.3/`. The arrow is fully opaque with a runtime-tintable core and structural white rim; the authored track body uses alpha `0.52`.
 
 Expose frozen normalized set and asset identities plus URLs resolved relative to the installed module. Fetch only those seven package-local URLs, verify bytes and SHA-256 before constructing PlayCanvas container assets, and keep every loader generation bound to one application. Abort fetches and reject stale parser completion on detach, destroy, replacement, and context loss. Context restoration creates a fresh generation.
 

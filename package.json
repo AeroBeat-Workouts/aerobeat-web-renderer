@@ -8,12 +8,14 @@
   },
   "files": [
     "src/",
+    "assets/",
     "README.md",
     "LICENSE.md",
     "docs/decisions/"
   ],
   "scripts": {
-    "check": "npm run check:types && npm run check:jsdoc && npm run check:imports && npm run check:components && npm run check:console && npm run check:renderer",
+    "check": "npm run check:types && npm run check:jsdoc && npm run check:imports && npm run check:components && npm run check:console && npm run check:assets && npm run check:renderer",
+    "check:assets": "node scripts/sync-gameplay-assets.js --verify && node scripts/validate-gameplay-assets.js && node scripts/validate-pack-inventory.js",
     "check:types": "tsc --noEmit --allowJs --checkJs --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM src/*.js",
     "check:jsdoc": "node scripts/validate-jsdoc-no-any.js",
     "check:imports": "node scripts/validate-public-imports.js",

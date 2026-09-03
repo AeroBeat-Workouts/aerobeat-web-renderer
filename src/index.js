@@ -1,6 +1,8 @@
 // @ts-check
 
 export { AeroPlayCanvasRenderer, aeroPlayCanvasRendererServiceId, createAeroPlayCanvasRenderer } from "./renderer-facade.js";
+export { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
+export { gameplayAssetForRole, gameplayAssetIds, gameplayAssetInventorySha256, gameplayAssetProofSha256, gameplayAssetReleaseVersion, gameplayAssetSet, gameplayAssetSourceCommit, gameplayAssets, resolveGameplayAssetUrl } from "./gameplay-assets.js";
 export { buildGameplaySceneModel, defaultGameplayTimingWindow, defaultRendererThemeTokens, defaultRendererTuning, gameplayIconIds, gameplayWorldGrid, timestampToWorldZ, worldPositionForCell } from "./gameplay-scene-model.js";
 export { normalizeBrandingIconManifest, normalizeIconAtlasData, rasterizeBrandingIconAtlas } from "./icon-atlas.js";
 export { colorTokenToRgba, compactRendererVisualProfile, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererTuning, normalizeRendererVisualProfile } from "./visual-profiles.js";

@@ -20,7 +20,9 @@ It does not own media, CV, the calibrated athlete grid, gameplay input, score or
 - `setTheme`, `setTuning`/`importTuning`, `resetTuning`, `exportTuning`, and `setBackgroundProjection` accept visual data only.
 - `uploadIconAtlas`, `normalizeBrandingIconManifest`, and `rasterizeBrandingIconAtlas` implement the canonical alpha-mask icon path.
 - `buildGameplaySceneModel` exposes the deterministic screenshot-free world model used by tests and diagnostics.
-- `getCapabilities` and `describe` expose immutable, serializable state without pixels, screenshots, canvases, textures, or media objects.
+- `gameplayAssetSet`, `gameplayAssets`, `gameplayAssetIds`, `gameplayAssetForRole`, and `resolveGameplayAssetUrl` expose the deeply immutable pinned `0.0.2` identity/URL contract. URLs resolve within the installed package's `assets/gameplay/0.0.2/` tree.
+- `PlayCanvasGameplayAssetPreloader` owns hash-checked local GLB fetch, container parsing, generation rejection, abort, explicit `idle`/`loading`/`ready`/`error`/`fallback`/`disposed` diagnostics, and per-application disposal. The facade integrates it automatically; this foundation does not yet replace gameplay geometry.
+- `getCapabilities` and `describe` expose immutable, serializable state without pixels, screenshots, canvases, textures, or media objects. `describe().gameplayAssets` reports the pinned release, source commit, inventory/proof hashes, loaded IDs, generation, readiness, errors, and bounded fallback reason.
 
 The legacy `AeroWebGl2Renderer`, `createAeroWebGl2Renderer`, `aero.renderer.webgl2`, `buildGameplayRenderPlan`, and 2D/2.5D gameplay plan are removed rather than aliased.
 
@@ -40,7 +42,7 @@ Boxing Spatial Grid maps its exact 4x3 cells, blocked/safe cells, punches, guard
 
 Assembly owns the display cadence. The facade never starts an engine RAF and never advances gameplay time. PlayCanvas 2.21.4 still requires its per-application activation/update path, so each facade disables `Application.requestAnimationFrame` and invokes bounded manual ticks only from caller render requests. Initial framegraph/application activation is bootstrapped synchronously. Entities are constructed with their explicit owning application so multiple `<aero-game>` instances remain isolated.
 
-Context loss removes the private atlas texture from PlayCanvas resource tracking. The next caller-owned render after restoration recreates it, avoiding stale extension state and autonomous recovery timers. `detach()` and synchronous idempotent `destroy()` release listeners, entities, materials, textures, the application, and pointer lock.
+Context loss removes the private atlas texture and pinned container assets from PlayCanvas resource tracking. Context restoration starts one fresh generation of the seven packaged local GLBs; stale fetch/parser completion is rejected. The next caller-owned render recreates the atlas, avoiding stale extension state and autonomous recovery timers. `detach()` and synchronous idempotent `destroy()` abort pending payload fetches and release container assets, listeners, entities, materials, textures, the application, and pointer lock. No engine RAF or non-package asset request is introduced.
 
 ## Branding contract
 

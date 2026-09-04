@@ -1,6 +1,7 @@
 // @ts-check
 
 import * as pc from "playcanvas";
+import {sha256Hex} from "@aerobeat/web-hash";
 import {gameplayAssets,gameplayAssetInventorySha256,gameplayAssetProofSha256,gameplayAssetReleaseVersion,gameplayAssetSourceCommit,resolveGameplayAssetUrl} from "./gameplay-assets.js";
 
 const terminalStates=Object.freeze(["ready","error","fallback","disposed"]);
@@ -95,8 +96,4 @@ function defaultLoadContainer(app,asset,signal){return new Promise((resolve,reje
   const cleanup=()=>{signal.removeEventListener("abort",abort);asset.off?.("load",loaded);asset.off?.("error",failed);};
   signal.addEventListener("abort",abort,{once:true});asset.once("load",loaded);asset.once("error",failed);app.assets.load(asset);
 });}
-async function sha256Hex(contents){
-  const subtle=globalThis.crypto?.subtle;if(!subtle)throw new Error("SHA-256 verification is unavailable");
-  return [...new Uint8Array(await subtle.digest("SHA-256",contents))].map((value)=>value.toString(16).padStart(2,"0")).join("");
-}
 function isAbort(error){return error instanceof DOMException&&error.name==="AbortError";}

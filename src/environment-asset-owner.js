@@ -1,6 +1,7 @@
 // @ts-check
 
 import * as pc from "playcanvas";
+import {sha256Hex} from "@aerobeat/web-hash";
 
 const ENVIRONMENT_MIME_TYPE="image/jpeg";
 const ENVIRONMENT_PROJECTION="equirectangular";
@@ -173,7 +174,6 @@ async function decodeJpeg(blob,signal){
   if(typeof globalThis.createImageBitmap!=="function")throw new Error("Local JPEG decoding is unavailable");
   const image=await globalThis.createImageBitmap(blob);if(signal.aborted){image.close();throw new DOMException("Environment JPEG decode aborted","AbortError");}return image;
 }
-async function sha256Hex(contents){const subtle=globalThis.crypto?.subtle;if(!subtle)throw new Error("SHA-256 verification is unavailable");return[...new Uint8Array(await subtle.digest("SHA-256",contents))].map((value)=>value.toString(16).padStart(2,"0")).join("");}
 function exactVector(value,expected,name){
   let prototype,descriptors,symbols;try{if(!Array.isArray(value))throw new TypeError();prototype=Object.getPrototypeOf(value);descriptors=Object.getOwnPropertyDescriptors(value);symbols=Object.getOwnPropertySymbols(value);}catch{throw new TypeError(`Environment ${name} is invalid`);}
   const keys=Object.keys(descriptors),expectedKeys=[...expected.keys()].map(String).concat("length");

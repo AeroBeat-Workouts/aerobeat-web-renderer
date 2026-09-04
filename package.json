@@ -23,7 +23,7 @@
     "check:console": "node scripts/validate-playwright-console-noise.js",
     "check:renderer": "node scripts/validate-gameplay-camera-pose.js && node scripts/validate-environment-owner.js && node scripts/validate-renderer-facade.js",
     "test": "npm run check",
-    "test:browser": "npm run check:console && node scripts/validate-camera-handedness.js && node scripts/validate-browser-renderer.js",
+    "test:browser": "npm run check:console && node scripts/validate-camera-handedness.js && node scripts/validate-browser-renderer.js && node scripts/validate-insecure-hash-assets.js",
     "demo": "npm --prefix .testbed run demo",
     "testbed:serve": "npm --prefix .testbed run serve"
   },
@@ -36,6 +36,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@aerobeat/web-hash": "file:../aerobeat-web-hash",
     "playcanvas": "^2.21.4"
   }
 }

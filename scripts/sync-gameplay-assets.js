@@ -9,6 +9,7 @@ import {fileURLToPath} from "node:url";
 const expectedCommit="32e0fc71c55f999a1fb16abf73dcb768b8294b3a";
 const expectedInventoryHash="efecf985fd1bc1024c9ffcb64faf92b76f3492df4f8ffa10e53277d5bac18698";
 const expectedProofHash="c1916a14d90aef230747185ed823c17bcae0e91229929595599f1bd3aee6e97b";
+const expectedReleaseTree="be36bbd03647bfb4654e0be1ed8b3f6446ced4ec";
 const release="0.0.4";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
@@ -23,9 +24,13 @@ if(!mode)throw new Error("Usage: node scripts/sync-gameplay-assets.js (--sync|--
 if(sourceArg>=0&&!args[sourceArg+1])throw new Error("--source requires a path");
 
 const commit=execFileSync("git",["rev-parse","HEAD"],{cwd:source,encoding:"utf8"}).trim();
-if(commit!==expectedCommit)throw new Error(`asset source commit mismatch: ${commit}`);
-const sourceStatus=execFileSync("git",["status","--porcelain","--untracked-files=all","--",`release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim();
-if(sourceStatus)throw new Error("pinned asset release files are dirty");
+try{execFileSync("git",["cat-file","-e",`${expectedCommit}^{commit}`],{cwd:source,stdio:"ignore"});}catch{throw new Error(`pinned asset source commit is unavailable: ${expectedCommit}`);}
+try{execFileSync("git",["merge-base","--is-ancestor",expectedCommit,commit],{cwd:source,stdio:"ignore"});}catch{throw new Error(`pinned asset source commit is not an ancestor of current HEAD: ${expectedCommit} !<= ${commit}`);}
+const pinnedReleaseTree=execFileSync("git",["rev-parse",`${expectedCommit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim(),currentReleaseTree=execFileSync("git",["rev-parse",`${commit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim();
+if(pinnedReleaseTree!==expectedReleaseTree)throw new Error(`pinned asset release tree mismatch: ${pinnedReleaseTree}`);
+if(currentReleaseTree!==expectedReleaseTree)throw new Error(`current asset release tree drifted: ${currentReleaseTree}`);
+const sourceStatus=execFileSync("git",["status","--porcelain","--untracked-files=no"],{cwd:source,encoding:"utf8"}).trim();
+if(sourceStatus)throw new Error("asset source tracked files are dirty");
 
 const sha256=(bytes)=>createHash("sha256").update(bytes).digest("hex");
 const inventoryBytes=await readFile(path.join(sourceRelease,"inventory.v1.json"));

@@ -1,5 +1,6 @@
 // @ts-check
 
+import { isFlowObstacleGeometry, isFlowObstacleGridMask } from "@aerobeat/web-contracts/flow-obstacle-contracts";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 
@@ -8,7 +9,7 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],geometry?:import("@aerobeat/web-contracts/flow-obstacle-contracts").AeroFlowObstacleGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
@@ -107,10 +108,13 @@ function targetObjects(frame,target,window,successZone,theme,tuning){
   const state=targetState(target,frame.nowMs,interval,window);
   const role=targetRole(target);
   if(flowObstacle){
-    const cells=target.cells.length?target.cells:target.cell===null?[]:[target.cell];
+    if(!isFlowObstacleGeometry(target.geometry)||!isFlowObstacleGridMask(target.cells,target.geometry))throw new TypeError("Flow obstacle source geometry and grid mask are invalid");
+    const geometry=target.geometry;
     const z0=timestampToWorldZ(interval.startMs,frame.nowMs,tuning.worldUnitsPerMs),z1=timestampToWorldZ(interval.endMs,frame.nowMs,tuning.worldUnitsPerMs);
-    const center=(z0+z1)/2,depth=Math.max(0.08,Math.abs(z1-z0));
-    return{objects:cells.map((cell,index)=>{const p=worldPositionForCell(cell);return p?sceneObject(`${target.id}:${index}`,"obstacle",role,target.id,{x:p.x,y:p.y,z:center},{x:1,y:1,z:depth},null,ASSET.wall,0,1,null,false,true,interval.startMs,interval.endMs,center,30,null,null,null):null;}).filter(Boolean),feedback:[]};
+    const center=(z0+z1)/2,depth=Math.abs(z1-z0);
+    const centerX=geometry.x+(geometry.width-1)/2-1.5,centerY=geometry.y+(geometry.height-1)/2;
+    const scaleX=(geometry.width-0.06)/GAMEPLAY_CELL_SIZE,scaleY=(geometry.height-0.06)/GAMEPLAY_CELL_SIZE;
+    return{objects:[sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:centerX,y:centerY,z:center},{x:scaleX,y:scaleY,z:depth},null,ASSET.wall,0,1,null,false,true,interval.startMs,interval.endMs,center,30,null,null,null)],feedback:[]};
   }
   const positions=targetPositions(frame,target);
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
@@ -161,7 +165,7 @@ function targetRole(target){return target.hand==="left"?"left":target.hand==="ri
 /** @param {AeroRenderableTarget} target @param {number} nowMs @param {{startMs:number,endMs:number}} interval @param {{beforeMs:number,afterMs:number}} window @returns {AeroSceneTargetState} */
 function targetState(target,nowMs,interval,window){if(target.judgement==="hit")return"hit";if(target.judgement==="miss")return"miss";if(nowMs>interval.endMs+window.afterMs)return"spent";if(nowMs>=interval.startMs-window.beforeMs&&nowMs<=interval.endMs+window.afterMs)return"active";return"pending";}
 /** @param {AeroRenderableTarget} target */
-function obstacleInterval(target){const startMs=Number(target.intervalStartMs??target.beatCenterMs),endMs=Number(target.intervalEndMs??target.endMs??startMs);if(target.intervalEndMs!==undefined&&target.endMs!==undefined&&target.intervalEndMs!==target.endMs)throw new TypeError("Flow obstacle end bounds conflict");if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs<startMs||endMs>86_400_000)throw new TypeError("Flow obstacle interval is invalid");return Object.freeze({startMs,endMs});}
+function obstacleInterval(target){const startMs=Number(target.intervalStartMs??target.beatCenterMs),endMs=Number(target.intervalEndMs??target.endMs??startMs);if(target.intervalEndMs!==undefined&&target.endMs!==undefined&&target.intervalEndMs!==target.endMs)throw new TypeError("Flow obstacle end bounds conflict");if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs<=startMs||endMs>86_400_000)throw new TypeError("Flow obstacle interval is invalid");return Object.freeze({startMs,endMs});}
 /** @param {AeroGameplayFrame} frame */
 function timingWindow(frame){const required=frame.presentation==="boxing_lanes";const before=frame.timingWindowBeforeMs??(required?NaN:defaultGameplayTimingWindow.beforeMs),after=frame.timingWindowAfterMs??(required?NaN:defaultGameplayTimingWindow.afterMs);if(![before,after].every((v)=>Number.isFinite(v)&&v>=0&&v<=10_000))throw new TypeError("Authoritative timing window is invalid");return Object.freeze({beforeMs:Number(before),afterMs:Number(after)});}
 /** @param {"early"|"active"|"late"} name @param {number} startZ @param {number} endZ @param {string} color @param {number} alpha */

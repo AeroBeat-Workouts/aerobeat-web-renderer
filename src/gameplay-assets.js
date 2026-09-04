@@ -1,9 +1,9 @@
 // @ts-check
 
-export const gameplayAssetReleaseVersion="0.0.4";
-export const gameplayAssetSourceCommit="32e0fc71c55f999a1fb16abf73dcb768b8294b3a";
-export const gameplayAssetInventorySha256="efecf985fd1bc1024c9ffcb64faf92b76f3492df4f8ffa10e53277d5bac18698";
-export const gameplayAssetProofSha256="c1916a14d90aef230747185ed823c17bcae0e91229929595599f1bd3aee6e97b";
+export const gameplayAssetReleaseVersion="0.0.5";
+export const gameplayAssetSourceCommit="2bd4712f00dd65a758aa064d0e709131f8af8c64";
+export const gameplayAssetInventorySha256="4984cca24b8121bc6657153304726f1f7ef05d878ca5220f3c3e2b6f2457a102";
+export const gameplayAssetProofSha256="4aac2274a9803a05e9ff533c02958cf1c5def66e0af1bf2fae3cc4479319f350";
 
 const definitions=[
   ["any-note/circle-v1","any-note","circle-v1",5616,"0cd90824251657825a9c84499a43a59ce7e39112e32f9903b1e1836c2466945e"],
@@ -12,7 +12,7 @@ const definitions=[
   ["directional-arrow/outline-v1","directional-arrow","outline-v1",3832,"1a1ffd53d02e07da8ba098e940d3a53d0041d1e865fe9a9682b19c721bccf513"],
   ["guard/shield-v1","guard","shield-v1",2848,"50eb6b6835ec6f2acfceb866d53a8f3f8b424d48259ac59c74a39f5bab731eee"],
   ["track/blue-glass-v1","track","blue-glass-v1",2480,"46cb72ed47a235e9bf40305bac2355b02ca47aa6b39278503cd6fc1b32cef987"],
-  ["wall/red-glass-v1","wall","red-glass-v1",3292,"ed6511c1ce1c196c9b735e40c0b4bf96375cd2f9b9dd0723c5fe5c5209b5d27a"]
+  ["wall/red-glass-v1","wall","red-glass-v1",3692,"1227bfbb7d5379b33f1468c1a0d7fffad07c9390654b54033f079ba602a84a37"]
 ];
 
 export const gameplayAssets=Object.freeze(definitions.map(([id,role,variant,bytes,sha256])=>Object.freeze({

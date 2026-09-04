@@ -6,13 +6,13 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedCommit="2bd4712f00dd65a758aa064d0e709131f8af8c64";
-const expectedSourceTree="b2336c6ebe8a90a49ee5beb3024e79bfaa078613";
-const expectedInventoryHash="4984cca24b8121bc6657153304726f1f7ef05d878ca5220f3c3e2b6f2457a102";
-const expectedProofHash="4aac2274a9803a05e9ff533c02958cf1c5def66e0af1bf2fae3cc4479319f350";
-const expectedSetHash="b5d50f1dff440b687c017f96b2bc0f06f5afdcd5e2a00522511f3803b4ec7ed2";
-const expectedReleaseTree="000653eace4b93f3c5d2eef11bd5c8255008b3de";
-const release="0.0.5";
+const expectedCommit="7dec076e243571144b7ead638d3e3f4780bcb9f4";
+const expectedSourceTree="62863270ed4455eee7132d9bb374522a46f72e30";
+const expectedInventoryHash="ba3f40ad3b178da9845a74c89d3a89115d13fa5bd86b291bf41031df70eabbf4";
+const expectedProofHash="ebeb42ffaa351bcdbd7ae8120b62762d16d8957acd8a4b1286b324ffa5e6cfdb";
+const expectedSetHash="3d72e1b488c2e9691d713b6dbcc84860bdf1790f82a1a210ae5b3d7bb71a1e2d";
+const expectedReleaseTree="846c41297230b5077ab1119880b729cc120e1098";
+const release="0.0.7";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
@@ -48,9 +48,11 @@ const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/defaul
 if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
 const expectedWall={adjacent_gap:[.06,.06],adjacent_instances_overlap:false,cell_pitch:[1,1],centered_pivot:true,closed_body:true,source_dimensions:[.94,.94,1],unit_cell_footprint:[.94,.94],xy_scale_authoritative:[1,1],z_scale_authoritative:true};
 if(JSON.stringify(proof.claims?.wall)!==JSON.stringify(expectedWall))throw new Error("source wall contract mismatch");
-for(const {path:relative} of inventory.payload.filter(({path:relative})=>relative.endsWith(".glb")&&relative!=="wall/red-glass-v1.glb")){
-  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,"release/raw/0.0.4",relative));
-  if(!currentBytes.equals(predecessorBytes))throw new Error(`non-wall GLB drifted from 0.0.4: ${relative}`);
+const markerClaim=proof.claims?.athlete_marker;
+if(markerClaim?.runtime_tint_material!=="mat/tint_base"||JSON.stringify(markerClaim.structural_materials)!==JSON.stringify(["mat/white","mat/charcoal"])||markerClaim.alpha_mode!=="OPAQUE"||markerClaim.depth_test!==true||markerClaim.depth_write!==true||markerClaim.winding!=="outward-ccw")throw new Error("source marker material/depth/culling contract mismatch");
+for(const {path:relative} of inventory.payload.filter(({path:relative})=>relative.endsWith(".glb")&&relative!=="athlete-marker/sphere-v1.glb")){
+  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,"release/raw/0.0.6",relative));
+  if(!currentBytes.equals(predecessorBytes))throw new Error(`non-marker GLB drifted from 0.0.6: ${relative}`);
 }
 const expectedFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
 if(expectedFiles.length!==17||new Set(expectedFiles).size!==17)throw new Error("source exact inventory mismatch");

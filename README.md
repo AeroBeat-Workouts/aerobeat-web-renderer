@@ -6,7 +6,7 @@ AeroBeat-owned PlayCanvas renderer for canonical GLB gameplay visuals, bounded w
 
 This package owns one PlayCanvas `Application` and graphics device per attached gameplay canvas, exact container/DPR sizing, deterministic world-scene projection, pinned canonical GLB loading and instancing, renderer-local bounded feedback glyphs, retained compatibility-only branding atlas upload, context recovery, visual-only debug camera controls, bounded resource pooling, capability truth, and deterministic teardown.
 
-It does not own media, CV, the calibrated athlete grid, gameplay input, score or judgement decisions, content loading, song time, transport, DOM presenters, or assembly policy. Every frame is derived from caller-owned absolute `nowMs` and resolved target records.
+It does not own media, CV, the calibrated athlete grid, gameplay input, score or judgement decisions, content loading, song time, transport, DOM presenters, or assembly policy. Every frame is derived from caller-owned absolute `nowMs` and resolved target records. Continuous walls consume the shared mode-neutral `aerobeat_top_left_grid` gameplay geometry (positive height downward), so future Boxing projection can reuse the same wall contract without a Flow-only shape.
 
 ## Public API
 

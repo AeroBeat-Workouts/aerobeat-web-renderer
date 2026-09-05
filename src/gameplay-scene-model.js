@@ -1,6 +1,6 @@
 // @ts-check
 
-import { isFlowObstacleGeometry, isFlowObstacleGridMask } from "@aerobeat/web-contracts/flow-obstacle-contracts";
+import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-contracts/obstacle-contracts";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 
@@ -9,7 +9,7 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],geometry?:import("@aerobeat/web-contracts/flow-obstacle-contracts").AeroFlowObstacleGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
@@ -107,18 +107,18 @@ function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p
 function targetObjects(frame,target,window,successZone,theme,tuning){
   if(!target||typeof target.id!=="string"||target.id.length<1||target.id.length>128||!Number.isFinite(target.beatCenterMs)||!Array.isArray(target.cells))throw new TypeError("Gameplay target is invalid");
   validateCellList(target.cells,"Target cells");if(target.cell!==null&&worldPositionForCell(target.cell)===null)throw new TypeError("Gameplay target cell is invalid");
-  const flowObstacle=frame.presentation==="flow"&&target.kind==="obstacle";
-  const interval=flowObstacle?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
+  const continuousObstacle=target.kind==="obstacle"&&target.gameplayGeometry!==undefined;
+  const interval=continuousObstacle?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
   const latest=interval.endMs+window.afterMs+tuning.spentCullMs;
   if(frame.nowMs>latest||interval.startMs-frame.nowMs>tuning.futureCullMs)return{objects:[],feedback:[]};
   const state=targetState(target,frame.nowMs,interval,window);
   const role=targetRole(target);
-  if(flowObstacle){
-    if(!isFlowObstacleGeometry(target.geometry)||!isFlowObstacleGridMask(target.cells,target.geometry))throw new TypeError("Flow obstacle source geometry and grid mask are invalid");
-    const geometry=target.geometry;
+  if(continuousObstacle){
+    if(!isObstacleGameplayGeometry(target.gameplayGeometry)||!isObstacleGridMask(target.cells,target.gameplayGeometry))throw new TypeError("Normalized obstacle gameplay geometry and grid mask are invalid");
+    const geometry=target.gameplayGeometry;
     const z0=timestampToWorldZ(interval.startMs,frame.nowMs,tuning.worldUnitsPerMs),z1=timestampToWorldZ(interval.endMs,frame.nowMs,tuning.worldUnitsPerMs);
     const center=(z0+z1)/2,depth=Math.abs(z1-z0);
-    const centerX=geometry.x+(geometry.width-1)/2-1.5,centerY=geometry.y+(geometry.height-1)/2;
+    const centerX=geometry.x+(geometry.width-1)/2-1.5,centerY=2-geometry.y-(geometry.height-1)/2;
     const scaleX=(geometry.width-0.06)/GAMEPLAY_CELL_SIZE,scaleY=(geometry.height-0.06)/GAMEPLAY_CELL_SIZE;
     const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
     const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:centerX,y:centerY,z:center},{x:scaleX,y:scaleY,z:depth},null,ASSET.wall,0,1,null,pulse,true,interval.startMs,interval.endMs,center,30,null,null,null);

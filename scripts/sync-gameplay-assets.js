@@ -26,9 +26,10 @@ if(!mode)throw new Error("Usage: node scripts/sync-gameplay-assets.js (--sync|--
 if(sourceArg>=0&&!args[sourceArg+1])throw new Error("--source requires a path");
 
 const commit=execFileSync("git",["rev-parse","HEAD"],{cwd:source,encoding:"utf8"}).trim();
-if(commit!==expectedCommit)throw new Error(`asset source HEAD must equal pinned creator commit: ${commit}`);
-const sourceTree=execFileSync("git",["rev-parse","HEAD^{tree}"],{cwd:source,encoding:"utf8"}).trim();
-if(sourceTree!==expectedSourceTree)throw new Error(`asset source tree mismatch: ${sourceTree}`);
+const creatorTree=execFileSync("git",["rev-parse",`${expectedCommit}^{tree}`],{cwd:source,encoding:"utf8"}).trim();
+if(creatorTree!==expectedSourceTree)throw new Error(`asset creator tree mismatch: ${creatorTree}`);
+try{execFileSync("git",["merge-base","--is-ancestor",expectedCommit,commit],{cwd:source,stdio:"ignore"});}
+catch{throw new Error(`asset source HEAD must descend from pinned creator commit: ${commit}`);}
 const pinnedReleaseTree=execFileSync("git",["rev-parse",`${expectedCommit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim(),currentReleaseTree=execFileSync("git",["rev-parse",`${commit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim();
 if(pinnedReleaseTree!==expectedReleaseTree)throw new Error(`pinned asset release tree mismatch: ${pinnedReleaseTree}`);
 if(currentReleaseTree!==expectedReleaseTree)throw new Error(`current asset release tree drifted: ${currentReleaseTree}`);

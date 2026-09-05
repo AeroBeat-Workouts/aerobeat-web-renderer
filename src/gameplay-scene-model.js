@@ -22,6 +22,7 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** Retained only as an input/rasterization compatibility contract; production targets no longer consume this atlas. */
 export const gameplayIconIds = Object.freeze(["boxing.glove","boxing.guard.crossed","boxing.guard.standard","boxing.hook.left","boxing.hook.right","boxing.squat","boxing.straight.left","boxing.straight.right","boxing.uppercut.left","boxing.uppercut.right","boxing.weave.left","boxing.weave.right","calibration.tpose","feedback.great","flow.directional","flow.directionless"]);
 const GAMEPLAY_CELL_SIZE=0.94;
+const BOXING_LANES=Object.freeze([Object.freeze({lane:"left",x:-1.35,y:1.1,width:1.7}),Object.freeze({lane:"right",x:1.35,y:1.1,width:1.7})]);
 export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-1.5,-0.5,0.5,1.5]),rowY:Object.freeze([2,1,0]),floorY:-0.72 });
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
 export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","targets","world_transparent_shadows_track_walls_feedback"]);
@@ -92,7 +93,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
 function addTrack(objects){for(let index=0;index<3;index+=1)objects.push(sceneObject(`track-${index}`,"track","neutral",null,{x:0,y:gameplayWorldGrid.floorY-0.08,z:-12-index*24},{x:1,y:1,z:1},null,ASSET.track,0,1,null,false,false,null,null,-12-index*24,20,null,null,null));}
 /** Tile exact authoritative timing bounds directly onto the canonical presentation lanes. Boundary tiles are clipped, never stretched. @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame @param {readonly AeroTimingZoneSegment[]} segments @param {AeroRendererTuning} tuning */
 function addTimingTiles(objects,frame,segments,tuning){
-  const lanes=frame.presentation==="boxing_lanes"?[{x:-1.35,width:1.7},{x:1.35,width:1.7}]:gameplayWorldGrid.columnX.map((x)=>({x,width:GAMEPLAY_CELL_SIZE}));
+  const lanes=frame.presentation==="boxing_lanes"?BOXING_LANES:gameplayWorldGrid.columnX.map((x)=>({x,width:GAMEPLAY_CELL_SIZE}));
   for(const segment of segments){let tileIndex=0;for(let cursor=segment.startZ;cursor<segment.endZ-1e-12;cursor+=TIMING_TILE_PITCH){const end=Math.min(segment.endZ,cursor+TIMING_TILE_PITCH),first=tileIndex===0,last=end>=segment.endZ-1e-12,visibleStart=cursor+(first?0:TIMING_TILE_GAP/2),visibleEnd=end-(last?0:TIMING_TILE_GAP/2),depth=visibleEnd-visibleStart;if(depth<=0)continue;for(const [laneIndex,lane] of lanes.entries())objects.push(sceneObject(`timing-${segment.name}-${tileIndex}-${laneIndex}`,"timing","neutral",null,{x:lane.x,y:TRACK_SURFACE_Y+SURFACE_BIAS,z:(visibleStart+visibleEnd)/2},{x:lane.width,y:.008,z:depth},null,null,0,segment.alpha,null,false,true,null,null,(visibleStart+visibleEnd)/2,15,null,null,null,null,segment.color));tileIndex+=1;}}
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame */
@@ -107,7 +108,8 @@ function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p
 function targetObjects(frame,target,window,successZone,theme,tuning){
   if(!target||typeof target.id!=="string"||target.id.length<1||target.id.length>128||!Number.isFinite(target.beatCenterMs)||!Array.isArray(target.cells))throw new TypeError("Gameplay target is invalid");
   validateCellList(target.cells,"Target cells");if(target.cell!==null&&worldPositionForCell(target.cell)===null)throw new TypeError("Gameplay target cell is invalid");
-  const continuousObstacle=target.kind==="obstacle"&&target.gameplayGeometry!==undefined;
+  if(target.kind==="obstacle"&&target.gameplayGeometry===undefined)throw new TypeError("Obstacle targets require normalized continuous geometry");
+  const continuousObstacle=target.kind==="obstacle";
   const interval=continuousObstacle?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
   const latest=interval.endMs+window.afterMs+tuning.spentCullMs;
   if(frame.nowMs>latest||interval.startMs-frame.nowMs>tuning.futureCullMs)return{objects:[],feedback:[]};
@@ -118,9 +120,20 @@ function targetObjects(frame,target,window,successZone,theme,tuning){
     const geometry=target.gameplayGeometry;
     const z0=timestampToWorldZ(interval.startMs,frame.nowMs,tuning.worldUnitsPerMs),z1=timestampToWorldZ(interval.endMs,frame.nowMs,tuning.worldUnitsPerMs);
     const center=(z0+z1)/2,depth=Math.abs(z1-z0);
+    const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
+    if(frame.presentation==="boxing_lanes"){
+      const lanes=target.family==="squat"?BOXING_LANES:BOXING_LANES.filter((entry)=>entry.lane===(target.lane??target.hand));
+      if(lanes.length!==(target.family==="squat"?2:1))throw new TypeError("Boxing lane obstacle placement is invalid");
+      const objects=[];
+      for(const [index,lane] of lanes.entries()){
+        const suffix=lanes.length===1?"":`:${index}`;
+        objects.push(sceneObject(`${target.id}:wall${suffix}`,"obstacle",role,target.id,{x:lane.x,y:lane.y,z:center},{x:lane.width/GAMEPLAY_CELL_SIZE,y:1,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null));
+        objects.push(sceneObject(`${target.id}:shadow${suffix}`,"shadow","neutral",target.id,{x:lane.x,y:gameplayWorldGrid.floorY+.018,z:center},{x:lane.width,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR));
+      }
+      return{objects,feedback:[]};
+    }
     const centerX=geometry.x+(geometry.width-1)/2-1.5,centerY=2-geometry.y-(geometry.height-1)/2;
     const scaleX=(geometry.width-0.06)/GAMEPLAY_CELL_SIZE,scaleY=(geometry.height-0.06)/GAMEPLAY_CELL_SIZE;
-    const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
     const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:centerX,y:centerY,z:center},{x:scaleX,y:scaleY,z:depth},null,ASSET.wall,0,1,null,pulse,true,interval.startMs,interval.endMs,center,30,null,null,null);
     const shadow=sceneObject(`${target.id}:shadow`,"shadow","neutral",target.id,{x:centerX,y:gameplayWorldGrid.floorY+.018,z:center},{x:geometry.width-.06,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR);
     return{objects:[wall,shadow],feedback:[]};

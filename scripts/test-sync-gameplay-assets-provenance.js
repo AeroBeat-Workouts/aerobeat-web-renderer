@@ -6,8 +6,8 @@ import path from "node:path";
 import {execFileSync,spawnSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const creatorCommit="7dec076e243571144b7ead638d3e3f4780bcb9f4";
-const creatorTree="62863270ed4455eee7132d9bb374522a46f72e30";
+const creatorCommit="8b190eecffdbdfc5dc914ea8e1d2f724bbcdc4d0";
+const creatorTree="9469446a4ad018b5554ff453ebf357a205b042bd";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const canonicalSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const validator=path.join(rendererRoot,"scripts/sync-gameplay-assets.js");
@@ -42,11 +42,11 @@ try{
   expectFailure("dirty worktree","asset source worktree is not fully clean");
   await rm(path.join(fixture,"untracked-provenance-probe"));
 
-  const proofPath=path.join(fixture,"release/raw/0.0.7/proof.v1.json");
+  const proofPath=path.join(fixture,"release/raw/0.0.8/proof.v1.json");
   await chmod(path.dirname(proofPath),0o755);
   await chmod(proofPath,0o644);
   await writeFile(proofPath,"{}\n");
-  git(["add","release/raw/0.0.7/proof.v1.json"]);
+  git(["add","release/raw/0.0.8/proof.v1.json"]);
   git(["commit","--quiet","-m","disposable raw release drift"]);
   expectFailure("raw release drift","current asset release tree drifted");
 

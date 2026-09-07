@@ -28,7 +28,7 @@ const BOXING_LANES=Object.freeze([Object.freeze({lane:"left",x:-1.35,y:1.1,width
 export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-1.5,-0.5,0.5,1.5]),rowY:Object.freeze([2,1,0]),floorY:-0.72 });
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
 export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","targets","world_transparent_shadows_track_walls_feedback"]);
-const ASSET=Object.freeze({arrow:"directional-arrow/outline-v1",circle:"any-note/circle-v1",guard:"guard/shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
+const ASSET=Object.freeze({arrow:"directional-arrow/rounded-outline-v1",circle:"any-note/outlined-circle-v1",guard:"guard/outlined-shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
 const REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
 
 /** @type {AeroRendererTuning} */
@@ -155,8 +155,8 @@ function targetObjects(frame,target,window,successZone,theme,tuning,bounceConfig
   const removal=state==="hit"?Object.freeze({elapsedMs,durationMs:REMOVAL_MS,progress:clamp(elapsedMs/REMOVAL_MS,0,1)}):null;
   const targetVisible=state==="hit"?elapsedMs<REMOVAL_MS:state==="miss"?elapsedMs<MISS_EXPIRY_MS:true;
   const removalScale=removal?0.92*(1-removal.progress):1;
-  const tintDistance=tuning.worldUnitsPerMs*60;
-  const tintMix=resolved||z<successZone.startZ?0:z<=successZone.endZ?clamp((z-successZone.startZ)/tintDistance,0,1):clamp(1-(z-successZone.endZ)/tintDistance,0,1);
+  const tintDistance=tuning.worldUnitsPerMs*60,dynamicNoteFill=isDynamicNoteFillTarget(target);
+  const tintMix=!dynamicNoteFill||resolved||z<successZone.startZ?0:z<=successZone.endZ?clamp((z-successZone.startZ)/tintDistance,0,1):clamp(1-(z-successZone.endZ)/tintDistance,0,1);
   const assetId=assetForTarget(target);
   const rotation=target.direction?directionRotation(target.direction):0;
   const pairKey=target.kind==="guard"?target.id:null;
@@ -182,7 +182,9 @@ function feedbackMotion(animation,elapsedMs,durationMs){
   return Object.freeze({x:0,y:bounce*BOUNCE_AMPLITUDE,scale:1+bounce*BOUNCE_AMPLITUDE});
 }
 /** @param {AeroRenderableTarget} target */
-function isBeatBounceSemanticTarget(target){return target.kind==="flow"&&target.family==="flow"||target.kind==="punch"&&["straight","hook","uppercut"].includes(target.family)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
+function isDynamicNoteFillTarget(target){return target.kind==="flow"&&target.family==="flow"||target.kind==="punch"&&["straight","hook","uppercut"].includes(target.family);}
+/** @param {AeroRenderableTarget} target */
+function isBeatBounceSemanticTarget(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
 /** @param {AeroRenderableTarget} target */
 function assetForTarget(target){if(target.kind==="guard")return ASSET.guard;if(target.kind==="bomb"||target.family==="bomb")return ASSET.bomb;return target.direction?ASSET.arrow:ASSET.circle;}
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target */
@@ -201,7 +203,7 @@ function targetPositions(frame,target){
 }
 /** @param {AeroRenderableTarget} target @returns {string|null} */
 function targetAppearanceColor(target){
-  if(target.kind!=="flow"&&target.kind!=="punch")return null;
+  if(!isDynamicNoteFillTarget(target))return null;
   if(!Object.hasOwn(target,"appearanceColor"))return null;
   const appearance=Object.freeze({appearanceColor:target.appearanceColor});
   if(!isPrivateNoteAppearance(appearance))throw new TypeError("Gameplay target appearance color is invalid");

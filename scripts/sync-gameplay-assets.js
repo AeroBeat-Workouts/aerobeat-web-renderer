@@ -6,13 +6,13 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedCommit="7dec076e243571144b7ead638d3e3f4780bcb9f4";
-const expectedSourceTree="62863270ed4455eee7132d9bb374522a46f72e30";
-const expectedInventoryHash="ba3f40ad3b178da9845a74c89d3a89115d13fa5bd86b291bf41031df70eabbf4";
-const expectedProofHash="ebeb42ffaa351bcdbd7ae8120b62762d16d8957acd8a4b1286b324ffa5e6cfdb";
-const expectedSetHash="3d72e1b488c2e9691d713b6dbcc84860bdf1790f82a1a210ae5b3d7bb71a1e2d";
-const expectedReleaseTree="846c41297230b5077ab1119880b729cc120e1098";
-const release="0.0.7";
+const expectedCommit="8b190eecffdbdfc5dc914ea8e1d2f724bbcdc4d0";
+const expectedSourceTree="9469446a4ad018b5554ff453ebf357a205b042bd";
+const expectedInventoryHash="ac30d6b70cbae96115a7c97f5ad02b3da21fde7fb77f69083f1090e268bab5ac";
+const expectedProofHash="ba8a52cf747ec5ab58dcd024c90f813a5c477541892f71da698ead6a65ca4758";
+const expectedSetHash="3a68a5380e29b6e5a44ac66fab78fb3e22f84f6da76c5393332ebf753311cef3";
+const expectedReleaseTree="e26ec4e8278860c60568bd2a89983cd09555ee75";
+const release="0.0.8";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
@@ -49,11 +49,21 @@ const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/defaul
 if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
 const expectedWall={adjacent_gap:[.06,.06],adjacent_instances_overlap:false,cell_pitch:[1,1],centered_pivot:true,closed_body:true,source_dimensions:[.94,.94,1],unit_cell_footprint:[.94,.94],xy_scale_authoritative:[1,1],z_scale_authoritative:true};
 if(JSON.stringify(proof.claims?.wall)!==JSON.stringify(expectedWall))throw new Error("source wall contract mismatch");
-const markerClaim=proof.claims?.athlete_marker;
-if(markerClaim?.runtime_tint_material!=="mat/tint_base"||JSON.stringify(markerClaim.structural_materials)!==JSON.stringify(["mat/white","mat/charcoal"])||markerClaim.alpha_mode!=="OPAQUE"||markerClaim.depth_test!==true||markerClaim.depth_write!==true||markerClaim.winding!=="outward-ccw")throw new Error("source marker material/depth/culling contract mismatch");
-for(const {path:relative} of inventory.payload.filter(({path:relative})=>relative.endsWith(".glb")&&relative!=="athlete-marker/sphere-v1.glb")){
-  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,"release/raw/0.0.6",relative));
-  if(!currentBytes.equals(predecessorBytes))throw new Error(`non-marker GLB drifted from 0.0.6: ${relative}`);
+const markerManifest=JSON.parse(await readFile(path.join(sourceRelease,"manifests/athlete-marker/sphere-v1.v1.json"),"utf8")),markerContract=markerManifest.materials?.contract;
+if(markerContract?.runtime_tint_material!=="mat/tint_base"||JSON.stringify(markerContract.structural_materials)!==JSON.stringify(["mat/white","mat/charcoal"])||markerContract.alpha_mode!=="OPAQUE"||markerContract.depth_test!==true||markerContract.depth_write!==true||markerContract.winding!=="outward-ccw")throw new Error("source marker material/depth/culling contract mismatch");
+const cueContracts=[
+  ["directional-arrow/rounded-outline-v1","note_fill",true,"mat/tint_base"],
+  ["any-note/outlined-circle-v1","note_fill",true,"mat/tint_base"],
+  ["guard/outlined-shield-v1","guard_fill",false,"mat/green"]
+];
+for(const [identity,fillRole,runtimeTintable,fillMaterial] of cueContracts){
+  const manifest=JSON.parse(await readFile(path.join(sourceRelease,`manifests/${identity}.v1.json`),"utf8")),contract=manifest.materials?.contract;
+  const expectedOrder=["outline_charcoal","outline_white","outline_charcoal",fillRole];
+  if(manifest.identity?.canonical_name!==identity||contract?.fill_material!==fillMaterial||contract?.runtime_tintable!==runtimeTintable||contract?.runtime_tint_material!==(runtimeTintable?fillMaterial:null)||JSON.stringify(contract?.face_band_order)!==JSON.stringify(expectedOrder)||contract?.styled_faces?.join(",")!=="+Z,-Z"||contract?.blend!=="opaque"||contract?.cull!=="back"||contract?.depth_test!==true||contract?.depth_write!==true)throw new Error(`source cue material-role contract mismatch: ${identity}`);
+}
+for(const relative of ["athlete-marker/sphere-v1.glb","bomb/urchin-v1.glb","track/blue-glass-v1.glb","wall/red-glass-v1.glb"]){
+  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,"release/raw/0.0.7",relative));
+  if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from 0.0.7: ${relative}`);
 }
 const expectedFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
 if(expectedFiles.length!==17||new Set(expectedFiles).size!==17)throw new Error("source exact inventory mismatch");

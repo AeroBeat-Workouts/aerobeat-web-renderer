@@ -1,16 +1,18 @@
 // @ts-check
 
-export const gameplayAssetReleaseVersion="0.0.7";
-export const gameplayAssetSourceCommit="7dec076e243571144b7ead638d3e3f4780bcb9f4";
-export const gameplayAssetInventorySha256="ba3f40ad3b178da9845a74c89d3a89115d13fa5bd86b291bf41031df70eabbf4";
-export const gameplayAssetProofSha256="ebeb42ffaa351bcdbd7ae8120b62762d16d8957acd8a4b1286b324ffa5e6cfdb";
+export const gameplayAssetReleaseVersion="0.0.8";
+export const gameplayAssetSourceCommit="8b190eecffdbdfc5dc914ea8e1d2f724bbcdc4d0";
+export const gameplayAssetSourceTree="9469446a4ad018b5554ff453ebf357a205b042bd";
+export const gameplayAssetRawTree="e26ec4e8278860c60568bd2a89983cd09555ee75";
+export const gameplayAssetInventorySha256="ac30d6b70cbae96115a7c97f5ad02b3da21fde7fb77f69083f1090e268bab5ac";
+export const gameplayAssetProofSha256="ba8a52cf747ec5ab58dcd024c90f813a5c477541892f71da698ead6a65ca4758";
 
 const definitions=[
-  ["any-note/circle-v1","any-note","circle-v1",5616,"0cd90824251657825a9c84499a43a59ce7e39112e32f9903b1e1836c2466945e"],
+  ["any-note/outlined-circle-v1","any-note","outlined-circle-v1",142020,"eb1368f09fe3034b9690e18f17e066ea4af7d20522f7c3ee009888c01f5235a6"],
   ["athlete-marker/sphere-v1","athlete-marker","sphere-v1",5496,"b2316b8ec013e9d9087a0bd6d9e5dcef643a34132f9c51fc2526c68d317f7530"],
   ["bomb/urchin-v1","bomb","urchin-v1",8364,"63d61feff050c284f2e3a228d345ea794c25bab48ab56cd4801d554c923def85"],
-  ["directional-arrow/outline-v1","directional-arrow","outline-v1",3832,"1a1ffd53d02e07da8ba098e940d3a53d0041d1e865fe9a9682b19c721bccf513"],
-  ["guard/shield-v1","guard","shield-v1",2848,"50eb6b6835ec6f2acfceb866d53a8f3f8b424d48259ac59c74a39f5bab731eee"],
+  ["directional-arrow/rounded-outline-v1","directional-arrow","rounded-outline-v1",152916,"1eb7d2d26bd2614b648a874dc7eaa2f0c41c8650c96a0efe5302ecfca5dcb784"],
+  ["guard/outlined-shield-v1","guard","outlined-shield-v1",93944,"5c456ed0d6db8fbc500b7d9815ac72a2f5e40ae86ee582f01b80b40e4c03e09e"],
   ["track/blue-glass-v1","track","blue-glass-v1",2480,"46cb72ed47a235e9bf40305bac2355b02ca47aa6b39278503cd6fc1b32cef987"],
   ["wall/red-glass-v1","wall","red-glass-v1",3692,"1227bfbb7d5379b33f1468c1a0d7fffad07c9390654b54033f079ba602a84a37"]
 ];
@@ -24,14 +26,23 @@ export const gameplayAssets=Object.freeze(definitions.map(([id,role,variant,byte
 export const gameplayAssetIds=Object.freeze(gameplayAssets.map(({id})=>id));
 const byId=new Map(gameplayAssets.map((asset)=>[asset.id,asset]));
 const byRole=new Map(gameplayAssets.map((asset)=>[asset.role,asset]));
+const cueMaterialRoles=new Map([
+  ["directional-arrow/rounded-outline-v1",new Map([["mat/charcoal","outline_charcoal"],["mat/white","outline_white"],["mat/tint_base","note_fill"]])],
+  ["any-note/outlined-circle-v1",new Map([["mat/charcoal","outline_charcoal"],["mat/white","outline_white"],["mat/tint_base","note_fill"]])],
+  ["guard/outlined-shield-v1",new Map([["mat/charcoal","outline_charcoal"],["mat/white","outline_white"],["mat/green","guard_fill"]])],
+  ["athlete-marker/sphere-v1",new Map([["mat/charcoal","marker_structure_charcoal"],["mat/white","marker_structure_white"],["mat/tint_base","marker_fill"]])]
+]);
 
 export const gameplayAssetSet=Object.freeze({
   schema:"aerobeat.gameplay-set/v1",
   name:"default-v1",
   release:gameplayAssetReleaseVersion,
-  constraints:Object.freeze({guardCanonicalAsset:"guard/shield-v1",guardInstancesPerBeat:2}),
+  constraints:Object.freeze({guardCanonicalAsset:"guard/outlined-shield-v1",guardInstancesPerBeat:2}),
   roles:Object.freeze(Object.fromEntries(gameplayAssets.map(({role,variant})=>[role,variant])))
 });
+
+/** Renderer-internal role lookup backed by sync-validated immutable manifest metadata. */
+export function gameplayAssetMaterialRole(assetId,materialName){return cueMaterialRoles.get(assetId)?.get(materialName)??null;}
 
 /** Resolve only a pinned renderer-owned GLB to a package-relative URL. */
 export function resolveGameplayAssetUrl(id,baseUrl=import.meta.url){

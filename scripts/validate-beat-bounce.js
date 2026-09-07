@@ -10,7 +10,7 @@ assert.equal(beatBounceOffsetY(A,S,H),0.9);
 assert(Math.abs(beatBounceOffsetY(15500,S,H)-0.59375)<=1e-12);
 assert.equal(beatBounceOffsetY(H,S,H),0);
 for(const invalid of [null,[],Object.create(null),new Date(),{...defaultBeatBounceConfig,extra:1},{...defaultBeatBounceConfig,leadBeats:"4"},{...defaultBeatBounceConfig,leadBeats:0},{...defaultBeatBounceConfig,heightWorldUnits:2},{...defaultBeatBounceConfig,apexFraction:NaN},{...defaultBeatBounceConfig,riseEasing:"bounce"},{...defaultBeatBounceConfig,__proto__:null}])assert.throws(()=>normalizeBeatBounceConfig(invalid));
-const accessor={...defaultBeatBounceConfig};Object.defineProperty(accessor,"leadBeats",{enumerable:true,get(){return 4;}});assert.throws(()=>normalizeBeatBounceConfig(accessor));
+let accessorCalled=false;const accessor={...defaultBeatBounceConfig};Object.defineProperty(accessor,"leadBeats",{enumerable:true,get(){accessorCalled=true;return 4;}});assert.throws(()=>normalizeBeatBounceConfig(accessor));assert.equal(accessorCalled,false,"descriptor rejection must not execute getters");
 assert.throws(()=>normalizeBeatBounceConfig(new Proxy({...defaultBeatBounceConfig},{})));
 const hidden={...defaultBeatBounceConfig};Object.defineProperty(hidden,"hidden",{value:1});assert.throws(()=>normalizeBeatBounceConfig(hidden));
 const symbol={...defaultBeatBounceConfig,[Symbol("x")]:1};assert.throws(()=>normalizeBeatBounceConfig(symbol));

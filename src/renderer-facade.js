@@ -82,7 +82,7 @@ export class AeroPlayCanvasRenderer {
   importTuning(value){if(this.destroyed)return this.describe();this.visualProfile=normalizeRendererVisualProfile(value);this.tuning=rendererTuningFromVisualProfile(this.visualProfile);return this.describe();}
   resetTuning(){if(!this.destroyed){this.visualProfile=defaultRendererVisualProfile;this.tuning=rendererTuningFromVisualProfile(this.visualProfile);}return this.describe();}
   exportTuning(){return this.visualProfile;}
-  setBeatBounceConfig(value){if(this.destroyed)return this.describe();const normalized=normalizeBeatBounceConfig(value);this.beatBounceConfig=normalized;return this.describe();}
+  setBeatBounceConfig(value){const normalized=normalizeBeatBounceConfig(value);if(this.destroyed)return this.describe();this.beatBounceConfig=normalized;return this.describe();}
   resetBeatBounceConfig(){if(!this.destroyed)this.beatBounceConfig=defaultBeatBounceConfig;return this.describe();}
   getSnapshot(){return this.describe();}
   setBackgroundProjection(value){if(!this.destroyed)this.background=normalizeBackgroundProjection(value);return this.describe();}

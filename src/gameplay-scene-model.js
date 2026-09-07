@@ -143,7 +143,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,bounceConfig
   }
   const positions=targetPositions(frame,target);
   if(target.bounceStartMs!==undefined&&(!Number.isFinite(target.bounceStartMs)||target.bounceStartMs<0||target.bounceStartMs>target.beatCenterMs))throw new TypeError("Gameplay target bounce start is invalid");
-  const bounceEligible=target.kind==="flow"||target.kind==="punch"||target.kind==="guard";
+  const bounceEligible=isBeatBounceSemanticTarget(target);
   const bounceOffset=bounceEligible&&target.bounceStartMs!==undefined&&state!=="hit"&&state!=="miss"?beatBounceOffsetY(frame.nowMs,target.bounceStartMs,target.beatCenterMs,bounceConfig):0;
   const iconPositions=bounceOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+bounceOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
@@ -181,6 +181,8 @@ function feedbackMotion(animation,elapsedMs,durationMs){
   const bounce=Math.sin(progress*Math.PI);
   return Object.freeze({x:0,y:bounce*BOUNCE_AMPLITUDE,scale:1+bounce*BOUNCE_AMPLITUDE});
 }
+/** @param {AeroRenderableTarget} target */
+function isBeatBounceSemanticTarget(target){return target.kind==="flow"&&target.family==="flow"||target.kind==="punch"&&["straight","hook","uppercut"].includes(target.family)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
 /** @param {AeroRenderableTarget} target */
 function assetForTarget(target){if(target.kind==="guard")return ASSET.guard;if(target.kind==="bomb"||target.family==="bomb")return ASSET.bomb;return target.direction?ASSET.arrow:ASSET.circle;}
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target */

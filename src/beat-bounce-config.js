@@ -22,12 +22,13 @@ export const defaultBeatBounceConfig = normalizeBeatBounceConfig({
 /** Strictly validate and canonicalize one v1 bounce config. @param {unknown} value */
 export function normalizeBeatBounceConfig(value){
   if(typeof globalThis.structuredClone!=="function")throw new TypeError("Beat bounce config structured-clone validation is unavailable");
+  let clone;try{clone=globalThis.structuredClone(value);}catch{throw new TypeError("Beat bounce config is not structured-cloneable");}
   if(value===null||typeof value!=="object"||Array.isArray(value)||Object.getPrototypeOf(value)!==Object.prototype)throw new TypeError("Beat bounce config must be a plain record");
   const ownKeys=Reflect.ownKeys(value);
   if(ownKeys.length!==keys.length||ownKeys.some((key)=>typeof key!=="string"||!keys.includes(key)))throw new TypeError("Beat bounce config keys are invalid");
   for(const key of ownKeys){const descriptor=Object.getOwnPropertyDescriptor(value,key);if(!descriptor||!("value" in descriptor)||!descriptor.enumerable)throw new TypeError("Beat bounce config must contain ordinary enumerable data properties");}
-  try{globalThis.structuredClone(value);}catch{throw new TypeError("Beat bounce config is not structured-cloneable");}
-  const data=(key)=>Object.getOwnPropertyDescriptor(value,key)?.value;
+  if(clone===null||typeof clone!=="object"||Array.isArray(clone)||Object.getPrototypeOf(clone)!==Object.prototype)throw new TypeError("Beat bounce config clone is invalid");
+  const data=(key)=>Object.getOwnPropertyDescriptor(clone,key)?.value;
   if(data("schema")!==beatBounceConfigSchema||data("version")!==beatBounceConfigVersion)throw new TypeError("Beat bounce config schema/version is invalid");
   const leadBeats=bounded(data("leadBeats"),beatBounceConfigBounds.leadBeats,"leadBeats");
   const heightWorldUnits=bounded(data("heightWorldUnits"),beatBounceConfigBounds.heightWorldUnits,"heightWorldUnits");

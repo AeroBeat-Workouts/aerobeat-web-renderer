@@ -1,6 +1,7 @@
 // @ts-check
 
 export { AeroPlayCanvasRenderer, aeroPlayCanvasRendererServiceId, createAeroPlayCanvasRenderer } from "./renderer-facade.js";
+export { beatBounceConfigArtifactFilename, beatBounceConfigArtifactMimeType, beatBounceConfigBounds, beatBounceConfigSchema, beatBounceConfigVersion, beatBounceEasings, beatBounceOffsetY, defaultBeatBounceConfig, maximumBeatBounceConfigBytes, normalizeBeatBounceConfig, serializeBeatBounceConfig } from "./beat-bounce-config.js";
 export { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 export { gameplayAssetForRole, gameplayAssetIds, gameplayAssetInventorySha256, gameplayAssetProofSha256, gameplayAssetReleaseVersion, gameplayAssetSet, gameplayAssetSourceCommit, gameplayAssets, resolveGameplayAssetUrl } from "./gameplay-assets.js";
 export { buildGameplaySceneModel, defaultGameplayTimingWindow, defaultRendererThemeTokens, defaultRendererTuning, gameplayIconIds, gameplayWorldGrid, timestampToWorldZ, worldPositionForCell } from "./gameplay-scene-model.js";

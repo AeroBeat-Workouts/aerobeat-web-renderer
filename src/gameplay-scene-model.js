@@ -2,6 +2,7 @@
 
 import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-contracts/obstacle-contracts";
 import { isPrivateNoteAppearance } from "@aerobeat/web-contracts/note-palette-contracts";
+import { beatBounceOffsetY, defaultBeatBounceConfig } from "./beat-bounce-config.js";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 
@@ -10,7 +11,7 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
@@ -49,8 +50,8 @@ export function worldPositionForCell(cell){
   return Object.freeze({x:gameplayWorldGrid.columnX[column],y:gameplayWorldGrid.rowY[row]});
 }
 
-/** @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} [theme] @param {AeroRendererTuning} [tuning] @returns {AeroGameplaySceneModel} */
-export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,tuning=defaultRendererTuning){
+/** @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} [theme] @param {AeroRendererTuning} [tuning] @param {typeof defaultBeatBounceConfig} [bounceConfig] @returns {AeroGameplaySceneModel} */
+export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,tuning=defaultRendererTuning,bounceConfig=defaultBeatBounceConfig){
   if(!isPresentation(frame?.presentation)||!Number.isFinite(frame.nowMs)||!Array.isArray(frame.targets))throw new TypeError("Gameplay frame is invalid");
   const window=timingWindow(frame);
   const startZ=timestampToWorldZ(frame.nowMs-window.afterMs,frame.nowMs,tuning.worldUnitsPerMs);
@@ -72,7 +73,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
   for(const target of sorted){
-    const result=targetObjects(frame,target,window,segments[2],theme,tuning);
+    const result=targetObjects(frame,target,window,segments[2],theme,tuning,bounceConfig);
     if(result.objects.length===0&&result.feedback.length===0)culled.push(target.id);
     else{objects.push(...result.objects);feedback.push(...result.feedback);}
   }
@@ -105,8 +106,8 @@ function addPresentationFloor(objects,frame){
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */
 function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:0.02},{x:GAMEPLAY_CELL_SIZE,y:GAMEPLAY_CELL_SIZE,z:0.035},null,null,0,role==="safe"?0.28:0.55,null,false,true,null,null,0,18,null,null,null));}
 
-/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroTimingZoneSegment} successZone @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning */
-function targetObjects(frame,target,window,successZone,theme,tuning){
+/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroTimingZoneSegment} successZone @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning @param {typeof defaultBeatBounceConfig} bounceConfig */
+function targetObjects(frame,target,window,successZone,theme,tuning,bounceConfig){
   if(!target||typeof target.id!=="string"||target.id.length<1||target.id.length>128||!Number.isFinite(target.beatCenterMs)||!Array.isArray(target.cells))throw new TypeError("Gameplay target is invalid");
   validateCellList(target.cells,"Target cells");if(target.cell!==null&&worldPositionForCell(target.cell)===null)throw new TypeError("Gameplay target cell is invalid");
   const appearanceColor=targetAppearanceColor(target);
@@ -141,6 +142,10 @@ function targetObjects(frame,target,window,successZone,theme,tuning){
     return{objects:[wall,shadow],feedback:[]};
   }
   const positions=targetPositions(frame,target);
+  if(target.bounceStartMs!==undefined&&(!Number.isFinite(target.bounceStartMs)||target.bounceStartMs<0||target.bounceStartMs>target.beatCenterMs))throw new TypeError("Gameplay target bounce start is invalid");
+  const bounceEligible=target.kind==="flow"||target.kind==="punch"||target.kind==="guard";
+  const bounceOffset=bounceEligible&&target.bounceStartMs!==undefined&&state!=="hit"&&state!=="miss"?beatBounceOffsetY(frame.nowMs,target.bounceStartMs,target.beatCenterMs,bounceConfig):0;
+  const iconPositions=bounceOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+bounceOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const resolved=state==="hit"||state==="miss";
   const z=state==="hit"?0:movingZ;
@@ -156,7 +161,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning){
   const rotation=target.direction?directionRotation(target.direction):0;
   const pairKey=target.kind==="guard"?target.id:null;
   const iconAppearanceColor=state==="miss"?MISS_COLOR:appearanceColor;
-  const icons=targetVisible?positions.map((p,index)=>sceneObject(`${target.id}:${index}`,"icon",role,target.id,{x:p.x,y:p.y,z},{x:tuning.roleScale*removalScale,y:tuning.roleScale*removalScale,z:tuning.roleScale*removalScale},null,assetId,rotation,state==="hit"?Math.max(0,1-(removal?.progress??1)):1,state,tintMix,Boolean(removal),null,null,z,10,pairKey,pairKey===null?null:index,removal,null,iconAppearanceColor)):[];
+  const icons=targetVisible?iconPositions.map((p,index)=>sceneObject(`${target.id}:${index}`,"icon",role,target.id,{x:p.x,y:p.y,z},{x:tuning.roleScale*removalScale,y:tuning.roleScale*removalScale,z:tuning.roleScale*removalScale},null,assetId,rotation,state==="hit"?Math.max(0,1-(removal?.progress??1)):1,state,tintMix,Boolean(removal),null,null,z,10,pairKey,pairKey===null?null:index,removal,null,iconAppearanceColor)):[];
   const shadows=targetVisible?positions.map((p,index)=>sceneObject(`${target.id}:shadow:${index}`,"shadow","neutral",target.id,{x:p.x,y:gameplayWorldGrid.floorY+.018,z},{x:.68*tuning.roleScale,y:.012,z:.34*tuning.roleScale},null,null,0,state==="hit"?Math.max(0,SHADOW_ALPHA*(1-(removal?.progress??1))):SHADOW_ALPHA,state,false,true,null,null,z,35,null,null,removal,null,SHADOW_COLOR)):[];
   /** @type {AeroGameplaySceneObject[]} */ const feedbackObjects=[];
   if(resolved&&target.kind!=="obstacle"&&target.kind!=="bomb"&&positions.length&&elapsedMs<tuning.feedbackDurationMs){

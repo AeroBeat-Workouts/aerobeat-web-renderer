@@ -156,7 +156,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const resolved=state==="hit"||state==="miss";
-  const z=state==="hit"?0:movingZ;
+  const z=resolved||frame.nowMs>=target.beatCenterMs?0:movingZ;
   if(resolved&&(!Number.isFinite(target.feedbackProgress)||Number(target.feedbackProgress)<0||Number(target.feedbackProgress)>1))throw new TypeError("Resolved target feedback progress is required");
   const feedbackProgress=clamp(Number.isFinite(target.feedbackProgress)?Number(target.feedbackProgress):0,0,1);
   const elapsedMs=resolved?feedbackProgress*tuning.feedbackDurationMs:0;

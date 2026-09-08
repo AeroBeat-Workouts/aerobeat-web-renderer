@@ -6,15 +6,15 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedReleaseCommit="6c8f9e09037e880de55af265212533b64e5800ca";
-const expectedReleaseSourceTree="15b66a5916cc9b3bd441eff1d0063913aa6eb124";
-const expectedAuditCommit="2f93b563e1363cf61e27d5e0b893b428b76dc569";
-const expectedAuditTree="f3d72488311e05f1070d1a78749cc8cd721e369e";
-const expectedInventoryHash="95ec22c1657d4931e42327e0544b86f782075288a3330a4d23b0fed07dce65fa";
-const expectedProofHash="e1726ca2bc3a0980cc86ba6184bf7da57079f7ee1e42e24094c47196a3dbace9";
-const expectedSetHash="ef9984842bbca55de52f0898ca86f90877e4fcff1503550310b2f35f3d7c1892";
-const expectedReleaseTree="541b693eabc11c716adca84931015213055ebfe8";
-const release="0.0.9";
+const expectedReleaseCommit="30a131cebe563f150334c0c937959f43fbe98049";
+const expectedReleaseSourceTree="912a09a743dc9d565509f847ea406bb999c28881";
+const expectedAuditCommit="49f77ff7f41e83531e302f7cd06600277defed88";
+const expectedAuditTree="3c0e5038fc193d0042850bad90a092579ec1e3b8";
+const expectedInventoryHash="a8eb2ea1306a6bf760b66b835d4b0dd3359601b46b1df682fe3805ee7e7e2bc8";
+const expectedProofHash="017a6c0efaf48f85130380d774502f25785783a7ad69d400f8c0f2275855c242";
+const expectedSetHash="d9d4ef4a0ee1d2fea3ac2d16f0426550c54df54d0af93ee1baf2c307460aa173";
+const expectedReleaseTree="0209faccacbd7a3157d32d198ac753e861731d41";
+const release="0.0.10";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
@@ -51,7 +51,7 @@ if(inventory.expected_asset_count!==7||inventory.immutable!==true||inventory.pay
 if(proof.release!==release||proof.inventory_sha256!==expectedInventoryHash)throw new Error("source proof contract mismatch");
 const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/default-v1.json");
 if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
-const expectedWall={adjacent_gap:[.06,.06],adjacent_instances_overlap:false,cell_pitch:[1,1],centered_pivot:true,closed_body:true,source_dimensions:[.94,.94,1],unit_cell_footprint:[.94,.94],xy_scale_authoritative:[1,1],z_scale_authoritative:true};
+const expectedWall={adjacent_gap:[.06,.06],adjacent_instances_overlap:false,body_triangles:12,cell_pitch:[1,1],centered_pivot:true,closed_body:true,edge_cage:false,material_primitives:1,source_dimensions:[.94,.94,1],uniform_surface:true,unit_cell_footprint:[.94,.94],xy_scale_authoritative:[1,1],z_scale_authoritative:true};
 if(JSON.stringify(proof.claims?.wall)!==JSON.stringify(expectedWall))throw new Error("source wall contract mismatch");
 const markerManifest=JSON.parse(await readFile(path.join(sourceRelease,"manifests/athlete-marker/sphere-v1.v1.json"),"utf8")),markerContract=markerManifest.materials?.contract;
 if(markerContract?.runtime_tint_material!=="mat/tint_base"||JSON.stringify(markerContract.structural_materials)!==JSON.stringify(["mat/white","mat/charcoal"])||markerContract.alpha_mode!=="OPAQUE"||markerContract.depth_test!==true||markerContract.depth_write!==true||markerContract.winding!=="outward-ccw")throw new Error("source marker material/depth/culling contract mismatch");
@@ -65,9 +65,9 @@ for(const [identity,fillRole,runtimeTintable,fillMaterial] of cueContracts){
   const expectedOrder=["outline_charcoal","outline_white","outline_charcoal",fillRole];
   if(manifest.identity?.canonical_name!==identity||contract?.fill_material!==fillMaterial||contract?.runtime_tintable!==runtimeTintable||contract?.runtime_tint_material!==(runtimeTintable?fillMaterial:null)||JSON.stringify(contract?.face_band_order)!==JSON.stringify(expectedOrder)||contract?.styled_faces?.join(",")!=="+Z,-Z"||contract?.blend!=="opaque"||contract?.cull!=="back"||contract?.depth_test!==true||contract?.depth_write!==true)throw new Error(`source cue material-role contract mismatch: ${identity}`);
 }
-for(const relative of ["athlete-marker/sphere-v1.glb","bomb/urchin-v1.glb","track/blue-glass-v1.glb","wall/red-glass-v1.glb"]){
-  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,"release/raw/0.0.7",relative));
-  if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from 0.0.7: ${relative}`);
+for(const relative of ["directional-arrow/rounded-outline-v1.glb","any-note/outlined-circle-v1.glb","guard/outlined-shield-v1.glb","athlete-marker/sphere-v1.glb","bomb/urchin-v1.glb","track/blue-glass-v1.glb"]){
+  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,"release/raw/0.0.9",relative));
+  if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from 0.0.9: ${relative}`);
 }
 const expectedFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
 if(expectedFiles.length!==17||new Set(expectedFiles).size!==17)throw new Error("source exact inventory mismatch");

@@ -1,13 +1,13 @@
 // @ts-check
 
-export const gameplayAssetReleaseVersion="0.0.9";
-export const gameplayAssetSourceCommit="6c8f9e09037e880de55af265212533b64e5800ca";
-export const gameplayAssetSourceTree="15b66a5916cc9b3bd441eff1d0063913aa6eb124";
-export const gameplayAssetAuditCommit="2f93b563e1363cf61e27d5e0b893b428b76dc569";
-export const gameplayAssetAuditTree="f3d72488311e05f1070d1a78749cc8cd721e369e";
-export const gameplayAssetRawTree="541b693eabc11c716adca84931015213055ebfe8";
-export const gameplayAssetInventorySha256="95ec22c1657d4931e42327e0544b86f782075288a3330a4d23b0fed07dce65fa";
-export const gameplayAssetProofSha256="e1726ca2bc3a0980cc86ba6184bf7da57079f7ee1e42e24094c47196a3dbace9";
+export const gameplayAssetReleaseVersion="0.0.10";
+export const gameplayAssetSourceCommit="30a131cebe563f150334c0c937959f43fbe98049";
+export const gameplayAssetSourceTree="912a09a743dc9d565509f847ea406bb999c28881";
+export const gameplayAssetAuditCommit="49f77ff7f41e83531e302f7cd06600277defed88";
+export const gameplayAssetAuditTree="3c0e5038fc193d0042850bad90a092579ec1e3b8";
+export const gameplayAssetRawTree="0209faccacbd7a3157d32d198ac753e861731d41";
+export const gameplayAssetInventorySha256="a8eb2ea1306a6bf760b66b835d4b0dd3359601b46b1df682fe3805ee7e7e2bc8";
+export const gameplayAssetProofSha256="017a6c0efaf48f85130380d774502f25785783a7ad69d400f8c0f2275855c242";
 
 const definitions=[
   ["any-note/outlined-circle-v1","any-note","outlined-circle-v1",142020,"eb1368f09fe3034b9690e18f17e066ea4af7d20522f7c3ee009888c01f5235a6"],
@@ -16,7 +16,7 @@ const definitions=[
   ["directional-arrow/rounded-outline-v1","directional-arrow","rounded-outline-v1",152916,"75435bc79c0278da5488ab05d1a97ac409cdab390e10483748c30a5aa67ad7e4"],
   ["guard/outlined-shield-v1","guard","outlined-shield-v1",93944,"5c456ed0d6db8fbc500b7d9815ac72a2f5e40ae86ee582f01b80b40e4c03e09e"],
   ["track/blue-glass-v1","track","blue-glass-v1",2480,"46cb72ed47a235e9bf40305bac2355b02ca47aa6b39278503cd6fc1b32cef987"],
-  ["wall/red-glass-v1","wall","red-glass-v1",3692,"1227bfbb7d5379b33f1468c1a0d7fffad07c9390654b54033f079ba602a84a37"]
+  ["wall/red-glass-v1","wall","red-glass-v1",2316,"6a336116709c2f3c1d92453fe1b3a2821e03d31128dae72d0fc700627fa94cd7"]
 ];
 
 export const gameplayAssets=Object.freeze(definitions.map(([id,role,variant,bytes,sha256])=>Object.freeze({

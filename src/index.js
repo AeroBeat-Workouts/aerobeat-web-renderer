@@ -1,7 +1,7 @@
 // @ts-check
 
 export { AeroPlayCanvasRenderer, aeroPlayCanvasRendererServiceId, createAeroPlayCanvasRenderer } from "./renderer-facade.js";
-export { beatBounceConfigArtifactFilename, beatBounceConfigArtifactMimeType, beatBounceConfigBounds, beatBounceConfigSchema, beatBounceConfigVersion, beatBounceEasings, beatBounceOffsetY, createBeatBounceConfig, defaultBeatBounceConfig, maximumBeatBounceConfigBytes, normalizeBeatBounceConfig, parseBeatBounceConfig, serializeBeatBounceConfig } from "./beat-bounce-config.js";
+export { createTestPresentationConfig, defaultTestPresentationConfig, maximumTestPresentationConfigBytes, normalizeTestPresentationConfig, parseTestPresentationConfig, serializeTestPresentationConfig, testPresentationBounceOffsetY, testPresentationConfigArtifactFilename, testPresentationConfigArtifactMimeType, testPresentationConfigBounds, testPresentationConfigSchema, testPresentationConfigVersion, testPresentationEasings, testPresentationSkyModes, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 export { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 export { gameplayAssetForRole, gameplayAssetIds, gameplayAssetInventorySha256, gameplayAssetProofSha256, gameplayAssetRawTree, gameplayAssetReleaseVersion, gameplayAssetSet, gameplayAssetSourceCommit, gameplayAssetSourceTree, gameplayAssets, resolveGameplayAssetUrl } from "./gameplay-assets.js";
 export { buildGameplaySceneModel, defaultGameplayTimingWindow, defaultRendererThemeTokens, defaultRendererTuning, gameplayIconIds, gameplayWorldGrid, timestampToWorldZ, worldPositionForCell } from "./gameplay-scene-model.js";

@@ -2,7 +2,7 @@
 
 import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-contracts/obstacle-contracts";
 import { isPrivateNoteAppearance } from "@aerobeat/web-contracts/note-palette-contracts";
-import { beatBounceOffsetY, defaultBeatBounceConfig } from "./beat-bounce-config.js";
+import { defaultTestPresentationConfig, testPresentationBounceOffsetY, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 
@@ -11,7 +11,7 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number}} AeroRenderableTarget */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
@@ -24,7 +24,8 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** Retained only as an input/rasterization compatibility contract; production targets no longer consume this atlas. */
 export const gameplayIconIds = Object.freeze(["boxing.glove","boxing.guard.crossed","boxing.guard.standard","boxing.hook.left","boxing.hook.right","boxing.squat","boxing.straight.left","boxing.straight.right","boxing.uppercut.left","boxing.uppercut.right","boxing.weave.left","boxing.weave.right","calibration.tpose","feedback.great","flow.directional","flow.directionless"]);
 const GAMEPLAY_CELL_SIZE=0.94;
-const BOXING_LANES=Object.freeze([Object.freeze({lane:"left",x:-1.35,y:1.1,width:1.7}),Object.freeze({lane:"right",x:1.35,y:1.1,width:1.7})]);
+const BOXING_LANE_WIDTH=1.7,BOXING_LANE_CANONICAL_TOP=2.47,BOXING_LANE_CANONICAL_BOTTOM=-.47,BOXING_LANE_CENTER_Y=(BOXING_LANE_CANONICAL_TOP+BOXING_LANE_CANONICAL_BOTTOM)/2,BOXING_LANE_HEIGHT=BOXING_LANE_CANONICAL_TOP-BOXING_LANE_CANONICAL_BOTTOM;
+function boxingLanes(config){const half=config.boxingLaneSeparationWorldUnits/2;return Object.freeze([Object.freeze({lane:"left",x:-half,y:BOXING_LANE_CENTER_Y,width:BOXING_LANE_WIDTH}),Object.freeze({lane:"right",x:half,y:BOXING_LANE_CENTER_Y,width:BOXING_LANE_WIDTH})]);}
 export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-1.5,-0.5,0.5,1.5]),rowY:Object.freeze([2,1,0]),floorY:-0.72 });
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
 export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","targets","world_transparent_shadows_track_walls_feedback"]);
@@ -50,8 +51,8 @@ export function worldPositionForCell(cell){
   return Object.freeze({x:gameplayWorldGrid.columnX[column],y:gameplayWorldGrid.rowY[row]});
 }
 
-/** @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} [theme] @param {AeroRendererTuning} [tuning] @param {typeof defaultBeatBounceConfig} [bounceConfig] @returns {AeroGameplaySceneModel} */
-export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,tuning=defaultRendererTuning,bounceConfig=defaultBeatBounceConfig){
+/** @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} [theme] @param {AeroRendererTuning} [tuning] @param {typeof defaultTestPresentationConfig} [presentationConfig] @returns {AeroGameplaySceneModel} */
+export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,tuning=defaultRendererTuning,presentationConfig=defaultTestPresentationConfig){
   if(!isPresentation(frame?.presentation)||!Number.isFinite(frame.nowMs)||!Array.isArray(frame.targets))throw new TypeError("Gameplay frame is invalid");
   const window=timingWindow(frame);
   const startZ=timestampToWorldZ(frame.nowMs-window.afterMs,frame.nowMs,tuning.worldUnitsPerMs);
@@ -66,14 +67,14 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   /** @type {AeroGameplaySceneObject[]} */ const feedback=[];
   /** @type {string[]} */ const culled=[];
   addTrack(objects);
-  addTimingTiles(objects,frame,segments,tuning);
+  addTimingTiles(objects,frame,segments,tuning,presentationConfig);
   addPresentationFloor(objects,frame);
   for(const cell of validateCellList(frame.safeCells??[],"Safe cells"))addCellState(objects,cell,"safe");
   for(const cell of validateCellList(frame.blockedCells??[],"Blocked cells"))addCellState(objects,cell,"obstacle");
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
   for(const target of sorted){
-    const result=targetObjects(frame,target,window,segments[2],theme,tuning,bounceConfig);
+    const result=targetObjects(frame,target,window,segments[2],theme,tuning,presentationConfig);
     if(result.objects.length===0&&result.feedback.length===0)culled.push(target.id);
     else{objects.push(...result.objects);feedback.push(...result.feedback);}
   }
@@ -93,9 +94,9 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
 
 /** Three deterministic canonical segments cover the present and visible future without stretching authored lane lines. @param {AeroGameplaySceneObject[]} objects */
 function addTrack(objects){for(let index=0;index<3;index+=1)objects.push(sceneObject(`track-${index}`,"track","neutral",null,{x:0,y:gameplayWorldGrid.floorY-0.08,z:-12-index*24},{x:1,y:1,z:1},null,ASSET.track,0,1,null,false,false,null,null,-12-index*24,20,null,null,null));}
-/** Tile exact authoritative timing bounds directly onto the canonical presentation lanes. Boundary tiles are clipped, never stretched. @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame @param {readonly AeroTimingZoneSegment[]} segments @param {AeroRendererTuning} tuning */
-function addTimingTiles(objects,frame,segments,tuning){
-  const lanes=frame.presentation==="boxing_lanes"?BOXING_LANES:gameplayWorldGrid.columnX.map((x)=>({x,width:GAMEPLAY_CELL_SIZE}));
+/** Tile exact authoritative timing bounds directly onto the canonical presentation lanes. Boundary tiles are clipped, never stretched. @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame @param {readonly AeroTimingZoneSegment[]} segments @param {AeroRendererTuning} tuning @param {typeof defaultTestPresentationConfig} config */
+function addTimingTiles(objects,frame,segments,tuning,config){
+  const lanes=frame.presentation==="boxing_lanes"?boxingLanes(config):gameplayWorldGrid.columnX.map((x)=>({x,width:GAMEPLAY_CELL_SIZE}));
   for(const segment of segments){let tileIndex=0;for(let cursor=segment.startZ;cursor<segment.endZ-1e-12;cursor+=TIMING_TILE_PITCH){const end=Math.min(segment.endZ,cursor+TIMING_TILE_PITCH),first=tileIndex===0,last=end>=segment.endZ-1e-12,visibleStart=cursor+(first?0:TIMING_TILE_GAP/2),visibleEnd=end-(last?0:TIMING_TILE_GAP/2),depth=visibleEnd-visibleStart;if(depth<=0)continue;for(const [laneIndex,lane] of lanes.entries())objects.push(sceneObject(`timing-${segment.name}-${tileIndex}-${laneIndex}`,"timing","neutral",null,{x:lane.x,y:TRACK_SURFACE_Y+SURFACE_BIAS,z:(visibleStart+visibleEnd)/2},{x:lane.width,y:.008,z:depth},null,null,0,segment.alpha,null,false,true,null,null,(visibleStart+visibleEnd)/2,15,null,null,null,null,segment.color));tileIndex+=1;}}
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame */
@@ -106,8 +107,8 @@ function addPresentationFloor(objects,frame){
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */
 function addCellState(objects,cell,role){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`${role}-${cell}`,"cell",role,null,{x:p.x,y:p.y,z:0.02},{x:GAMEPLAY_CELL_SIZE,y:GAMEPLAY_CELL_SIZE,z:0.035},null,null,0,role==="safe"?0.28:0.55,null,false,true,null,null,0,18,null,null,null));}
 
-/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroTimingZoneSegment} successZone @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning @param {typeof defaultBeatBounceConfig} bounceConfig */
-function targetObjects(frame,target,window,successZone,theme,tuning,bounceConfig){
+/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {{beforeMs:number,afterMs:number}} window @param {AeroTimingZoneSegment} successZone @param {AeroRendererThemeTokens} theme @param {AeroRendererTuning} tuning @param {typeof defaultTestPresentationConfig} presentationConfig */
+function targetObjects(frame,target,window,successZone,theme,tuning,presentationConfig){
   if(!target||typeof target.id!=="string"||target.id.length<1||target.id.length>128||!Number.isFinite(target.beatCenterMs)||!Array.isArray(target.cells))throw new TypeError("Gameplay target is invalid");
   validateCellList(target.cells,"Target cells");if(target.cell!==null&&worldPositionForCell(target.cell)===null)throw new TypeError("Gameplay target cell is invalid");
   const appearanceColor=targetAppearanceColor(target);
@@ -125,12 +126,12 @@ function targetObjects(frame,target,window,successZone,theme,tuning,bounceConfig
     const center=(z0+z1)/2,depth=Math.abs(z1-z0);
     const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
     if(frame.presentation==="boxing_lanes"){
-      const lanes=target.family==="squat"?BOXING_LANES:BOXING_LANES.filter((entry)=>entry.lane===(target.lane??target.hand));
+      const configuredLanes=boxingLanes(presentationConfig),lanes=target.family==="squat"?configuredLanes:configuredLanes.filter((entry)=>entry.lane===(target.lane??target.hand));
       if(lanes.length!==(target.family==="squat"?2:1))throw new TypeError("Boxing lane obstacle placement is invalid");
       const objects=[];
       for(const [index,lane] of lanes.entries()){
         const suffix=lanes.length===1?"":`:${index}`;
-        objects.push(sceneObject(`${target.id}:wall${suffix}`,"obstacle",role,target.id,{x:lane.x,y:lane.y,z:center},{x:lane.width/GAMEPLAY_CELL_SIZE,y:1,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null));
+        objects.push(sceneObject(`${target.id}:wall${suffix}`,"obstacle",role,target.id,{x:lane.x,y:lane.y,z:center},{x:lane.width/GAMEPLAY_CELL_SIZE,y:BOXING_LANE_HEIGHT/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null));
         objects.push(sceneObject(`${target.id}:shadow${suffix}`,"shadow","neutral",target.id,{x:lane.x,y:gameplayWorldGrid.floorY+.018,z:center},{x:lane.width,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR));
       }
       return{objects,feedback:[]};
@@ -141,11 +142,17 @@ function targetObjects(frame,target,window,successZone,theme,tuning,bounceConfig
     const shadow=sceneObject(`${target.id}:shadow`,"shadow","neutral",target.id,{x:centerX,y:gameplayWorldGrid.floorY+.018,z:center},{x:geometry.width-.06,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR);
     return{objects:[wall,shadow],feedback:[]};
   }
-  const positions=targetPositions(frame,target);
+  const positions=targetPositions(frame,target,presentationConfig);
   if(target.bounceStartMs!==undefined&&(!Number.isFinite(target.bounceStartMs)||target.bounceStartMs<0||target.bounceStartMs>target.beatCenterMs))throw new TypeError("Gameplay target bounce start is invalid");
-  const bounceEligible=isBeatBounceSemanticTarget(target);
-  const bounceOffset=bounceEligible&&target.bounceStartMs!==undefined&&state!=="hit"&&state!=="miss"?beatBounceOffsetY(frame.nowMs,target.bounceStartMs,target.beatCenterMs,bounceConfig):0;
-  const iconPositions=bounceOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+bounceOffset}));
+  if(target.normalSpawnMs!==undefined&&(!Number.isFinite(target.normalSpawnMs)||target.normalSpawnMs<0||target.normalSpawnMs>target.beatCenterMs))throw new TypeError("Gameplay target normal spawn is invalid");
+  if(target.skyPreludeStartMs!==undefined&&(!Number.isFinite(target.skyPreludeStartMs)||target.skyPreludeStartMs<0||target.skyPreludeStartMs>Number(target.normalSpawnMs)))throw new TypeError("Gameplay target sky prelude start is invalid");
+  const bounceEligible=isBeatBounceSemanticTarget(target),hasTrajectory=target.bounceStartMs!==undefined&&target.normalSpawnMs!==undefined&&target.skyPreludeStartMs!==undefined,normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs),skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
+  const visibilityStartMs=presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
+  if(bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"&&frame.nowMs<visibilityStartMs)return{objects:[],feedback:[]};
+  const effectiveBounceStart=Math.max(normalSpawnMs,target.bounceStartMs??normalSpawnMs);
+  const bounceOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationBounceOffsetY(frame.nowMs,effectiveBounceStart,target.beatCenterMs,presentationConfig):0;
+  const skyOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
+  const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const resolved=state==="hit"||state==="miss";
   const z=state==="hit"?0:movingZ;
@@ -187,11 +194,12 @@ function isDynamicNoteFillTarget(target){return target.kind==="flow"&&target.fam
 function isBeatBounceSemanticTarget(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
 /** @param {AeroRenderableTarget} target */
 function assetForTarget(target){if(target.kind==="guard")return ASSET.guard;if(target.kind==="bomb"||target.family==="bomb")return ASSET.bomb;return target.direction?ASSET.arrow:ASSET.circle;}
-/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target */
-function targetPositions(frame,target){
+/** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {typeof defaultTestPresentationConfig} config */
+function targetPositions(frame,target,config){
   if(frame.presentation==="boxing_lanes"){
-    if(target.kind==="guard"||target.family==="squat")return [{x:-1.35,y:1.1},{x:1.35,y:1.1}];
-    return [{x:(target.lane??target.hand)==="left"?-1.35:1.35,y:1.1}];
+    const lanes=boxingLanes(config);
+    if(target.kind==="guard"||target.family==="squat")return lanes.map(lane=>({x:lane.x,y:lane.y}));
+    const lane=lanes.find(entry=>entry.lane===(target.lane??target.hand));return lane?[{x:lane.x,y:lane.y}]:[];
   }
   if(target.kind==="guard"){
     const cells=target.cells.length>=2?target.cells.slice(0,2):[5,6];const pair=cells.map(worldPositionForCell);

@@ -6,13 +6,15 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedCommit="8b190eecffdbdfc5dc914ea8e1d2f724bbcdc4d0";
-const expectedSourceTree="9469446a4ad018b5554ff453ebf357a205b042bd";
-const expectedInventoryHash="ac30d6b70cbae96115a7c97f5ad02b3da21fde7fb77f69083f1090e268bab5ac";
-const expectedProofHash="ba8a52cf747ec5ab58dcd024c90f813a5c477541892f71da698ead6a65ca4758";
-const expectedSetHash="3a68a5380e29b6e5a44ac66fab78fb3e22f84f6da76c5393332ebf753311cef3";
-const expectedReleaseTree="e26ec4e8278860c60568bd2a89983cd09555ee75";
-const release="0.0.8";
+const expectedReleaseCommit="6c8f9e09037e880de55af265212533b64e5800ca";
+const expectedReleaseSourceTree="15b66a5916cc9b3bd441eff1d0063913aa6eb124";
+const expectedAuditCommit="2f93b563e1363cf61e27d5e0b893b428b76dc569";
+const expectedAuditTree="f3d72488311e05f1070d1a78749cc8cd721e369e";
+const expectedInventoryHash="95ec22c1657d4931e42327e0544b86f782075288a3330a4d23b0fed07dce65fa";
+const expectedProofHash="e1726ca2bc3a0980cc86ba6184bf7da57079f7ee1e42e24094c47196a3dbace9";
+const expectedSetHash="ef9984842bbca55de52f0898ca86f90877e4fcff1503550310b2f35f3d7c1892";
+const expectedReleaseTree="541b693eabc11c716adca84931015213055ebfe8";
+const release="0.0.9";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
@@ -26,11 +28,13 @@ if(!mode)throw new Error("Usage: node scripts/sync-gameplay-assets.js (--sync|--
 if(sourceArg>=0&&!args[sourceArg+1])throw new Error("--source requires a path");
 
 const commit=execFileSync("git",["rev-parse","HEAD"],{cwd:source,encoding:"utf8"}).trim();
-const creatorTree=execFileSync("git",["rev-parse",`${expectedCommit}^{tree}`],{cwd:source,encoding:"utf8"}).trim();
-if(creatorTree!==expectedSourceTree)throw new Error(`asset creator tree mismatch: ${creatorTree}`);
-try{execFileSync("git",["merge-base","--is-ancestor",expectedCommit,commit],{cwd:source,stdio:"ignore"});}
-catch{throw new Error(`asset source HEAD must descend from pinned creator commit: ${commit}`);}
-const pinnedReleaseTree=execFileSync("git",["rev-parse",`${expectedCommit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim(),currentReleaseTree=execFileSync("git",["rev-parse",`${commit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim();
+const auditTree=execFileSync("git",["rev-parse",`${expectedAuditCommit}^{tree}`],{cwd:source,encoding:"utf8"}).trim();
+if(commit!==expectedAuditCommit||auditTree!==expectedAuditTree)throw new Error(`asset source HEAD/audit tree mismatch: ${commit}/${auditTree}`);
+const releaseSourceTree=execFileSync("git",["rev-parse",`${expectedReleaseCommit}^{tree}`],{cwd:source,encoding:"utf8"}).trim();
+if(releaseSourceTree!==expectedReleaseSourceTree)throw new Error(`asset release source tree mismatch: ${releaseSourceTree}`);
+try{execFileSync("git",["merge-base","--is-ancestor",expectedReleaseCommit,expectedAuditCommit],{cwd:source,stdio:"ignore"});}
+catch{throw new Error("pinned asset audit must descend from pinned release commit");}
+const pinnedReleaseTree=execFileSync("git",["rev-parse",`${expectedReleaseCommit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim(),currentReleaseTree=execFileSync("git",["rev-parse",`${commit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim();
 if(pinnedReleaseTree!==expectedReleaseTree)throw new Error(`pinned asset release tree mismatch: ${pinnedReleaseTree}`);
 if(currentReleaseTree!==expectedReleaseTree)throw new Error(`current asset release tree drifted: ${currentReleaseTree}`);
 const sourceStatus=execFileSync("git",["status","--porcelain","--untracked-files=all"],{cwd:source,encoding:"utf8"}).trim();

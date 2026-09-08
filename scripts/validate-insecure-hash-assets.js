@@ -9,8 +9,8 @@ import { chromium } from "playwright";
 
 const root = process.cwd();
 const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "directional-arrow/rounded-outline-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
-const gameplayInventorySha256 = "ac30d6b70cbae96115a7c97f5ad02b3da21fde7fb77f69083f1090e268bab5ac";
-const gameplayProofSha256 = "ba8a52cf747ec5ab58dcd024c90f813a5c477541892f71da698ead6a65ca4758";
+const gameplayInventorySha256 = "95ec22c1657d4931e42327e0544b86f782075288a3330a4d23b0fed07dce65fa";
+const gameplayProofSha256 = "e1726ca2bc3a0980cc86ba6184bf7da57079f7ee1e42e24094c47196a3dbace9";
 const environmentRoot = resolve(root, "../aerobeat-environment-community");
 const brandingRoot = resolve(root, "../aerobeat-branding/icons/web-gameplay");
 const catalog = JSON.parse(await readFile(resolve(environmentRoot, ".testbed/assets/images/photosphere-catalog.json"), "utf8"));

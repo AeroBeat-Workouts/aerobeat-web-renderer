@@ -116,7 +116,8 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const continuousObstacle=target.kind==="obstacle";
   const interval=continuousObstacle?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
   const latest=interval.endMs+window.afterMs+tuning.spentCullMs;
-  if(frame.nowMs>latest||interval.startMs-frame.nowMs>tuning.futureCullMs)return{objects:[],feedback:[]};
+  const trajectoryStart=Number.isFinite(target.bounceStartMs)&&Number.isFinite(target.normalSpawnMs)&&Number.isFinite(target.skyPreludeStartMs)?(presentationConfig.skyMode==="prelude"?Number(target.skyPreludeStartMs):Number(target.normalSpawnMs)):null;
+  if(frame.nowMs>latest||(trajectoryStart===null?interval.startMs-frame.nowMs>tuning.futureCullMs:frame.nowMs<trajectoryStart))return{objects:[],feedback:[]};
   const state=targetState(target,frame.nowMs,interval,window);
   const role=targetRole(target);
   if(continuousObstacle){

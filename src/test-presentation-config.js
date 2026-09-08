@@ -9,7 +9,7 @@ export const testPresentationEasings=Object.freeze(["linear","in_quad","out_quad
 export const testPresentationSkyModes=Object.freeze(["off","prelude"]);
 export const testPresentationConfigBounds=deepFreeze({
   bounceLeadBeats:[0.25,8],bounceHeightWorldUnits:[0,1.5],bounceApexFraction:[0.15,0.85],
-  normalSpawnDistanceWorldUnits:[3,72],skyPreludeHeightWorldUnits:[0,24],skyPreludeDurationMs:[100,10_000],boxingLaneSeparationWorldUnits:[1.7,4]
+  normalSpawnDistanceWorldUnits:[3,72],skyPreludeHeightWorldUnits:[0,50],skyPreludeDurationMs:[100,10_000],boxingLaneSeparationWorldUnits:[1.7,4]
 });
 const keys=Object.freeze(["schema","version","bounceLeadBeats","bounceHeightWorldUnits","bounceApexFraction","bounceRiseEasing","bounceFallEasing","normalSpawnDistanceWorldUnits","skyMode","skyPreludeHeightWorldUnits","skyPreludeDurationMs","skyPreludeEasing","boxingLaneSeparationWorldUnits"]);
 /** @typedef {{schema:string,version:number,bounceLeadBeats:number,bounceHeightWorldUnits:number,bounceApexFraction:number,bounceRiseEasing:"linear"|"in_quad"|"out_quad"|"in_out_sine",bounceFallEasing:"linear"|"in_quad"|"out_quad"|"in_out_sine",normalSpawnDistanceWorldUnits:number,skyMode:"off"|"prelude",skyPreludeHeightWorldUnits:number,skyPreludeDurationMs:number,skyPreludeEasing:"linear"|"in_quad"|"out_quad"|"in_out_sine",boxingLaneSeparationWorldUnits:number}} TestPresentationConfig */
@@ -27,7 +27,7 @@ export function createTestPresentationConfig(bounceLeadBeats,bounceHeightWorldUn
     skyPreludeDurationMs:bounded(skyPreludeDurationMs,testPresentationConfigBounds.skyPreludeDurationMs,"skyPreludeDurationMs"),skyPreludeEasing:easing(skyPreludeEasing,"skyPreludeEasing"),
     boxingLaneSeparationWorldUnits:bounded(boxingLaneSeparationWorldUnits,testPresentationConfigBounds.boxingLaneSeparationWorldUnits,"boxingLaneSeparationWorldUnits")});
 }
-export const defaultTestPresentationConfig=createTestPresentationConfig(4,.9,.4,"out_quad","in_quad",15,"off",4,1200,"in_out_sine",2.7);
+export const defaultTestPresentationConfig=createTestPresentationConfig(2,.4,.4,"out_quad","in_quad",50,"prelude",24,1000,"in_out_sine",2.7);
 export function parseTestPresentationConfig(text){if(typeof text!=="string")throw new TypeError("Test presentation config JSON must be text");let value;try{value=JSON.parse(text);}catch{throw new TypeError("Test presentation config JSON is invalid");}return normalizeParsedRecord(value);}
 export function normalizeTestPresentationConfig(value){if((typeof value!=="object"&&typeof value!=="function")||value===null||!trustedConfigs.has(/** @type {TestPresentationConfig} */(value)))throw new TypeError("Test presentation config must be created by the trusted constructor or JSON parser");return /** @type {TestPresentationConfig} */(value);}
 export function serializeTestPresentationConfig(value){return `${JSON.stringify(normalizeTestPresentationConfig(value),null,2)}\n`;}

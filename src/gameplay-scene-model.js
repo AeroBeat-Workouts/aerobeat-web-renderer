@@ -12,7 +12,7 @@ import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
 /** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number}} AeroRenderableTarget */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{text:"Great"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
@@ -53,7 +53,7 @@ export function worldPositionForCell(cell){
 
 /** @param {AeroGameplayFrame} frame @param {AeroRendererThemeTokens} [theme] @param {AeroRendererTuning} [tuning] @param {typeof defaultTestPresentationConfig} [presentationConfig] @returns {AeroGameplaySceneModel} */
 export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,tuning=defaultRendererTuning,presentationConfig=defaultTestPresentationConfig){
-  if(!isPresentation(frame?.presentation)||!Number.isFinite(frame.nowMs)||!Array.isArray(frame.targets))throw new TypeError("Gameplay frame is invalid");
+  if(!isPresentation(frame?.presentation)||!Number.isFinite(frame.nowMs)||!Array.isArray(frame.targets)||!(frame.showGameplayGrid===undefined||typeof frame.showGameplayGrid==="boolean"))throw new TypeError("Gameplay frame is invalid");
   const window=timingWindow(frame);
   const startZ=timestampToWorldZ(frame.nowMs-window.afterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const endZ=timestampToWorldZ(frame.nowMs+window.beforeMs,frame.nowMs,tuning.worldUnitsPerMs);
@@ -101,7 +101,7 @@ function addTimingTiles(objects,frame,segments,tuning,config){
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame */
 function addPresentationFloor(objects,frame){
-  if(frame.presentation==="boxing_lanes")return;
+  if(frame.presentation==="boxing_lanes"||frame.showGameplayGrid===false)return;
   for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:p.y,z:0},{x:GAMEPLAY_CELL_SIZE,y:GAMEPLAY_CELL_SIZE,z:0.025},null,null,0,0.1,null,false,true,null,null,0,18,null,null,null));}
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */

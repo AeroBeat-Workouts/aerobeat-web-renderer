@@ -161,11 +161,12 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const skyOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
   const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
-  const resolved=state==="hit"||state==="miss",missCommit=ownEnumerableDataAdmission(target,"missCommitMs"),missCommitMs=missCommit.admitted?missCommit.value:undefined;
-  if(state==="hit"&&(!Number.isFinite(target.feedbackProgress)||Number(target.feedbackProgress)<0||Number(target.feedbackProgress)>1))throw new TypeError("Hit target feedback progress is required");
-  if(state==="miss"&&(!missCommit.admitted||!Number.isFinite(missCommitMs)||Number(missCommitMs)<0||Number(missCommitMs)>frame.nowMs||target.feedbackProgress!==undefined))throw new TypeError("Miss target requires an exact committed timestamp as one own enumerable data property and no feedback progress");
+  const resolved=state==="hit"||state==="miss",missCommit=ownEnumerableDataAdmission(target,"missCommitMs"),missCommitMs=missCommit.admitted?missCommit.value:undefined,feedbackProgress=ownEnumerableDataAdmission(target,"feedbackProgress"),feedbackProgressValue=feedbackProgress.admitted?feedbackProgress.value:undefined;
+  if(state==="hit"&&(!feedbackProgress.admitted||!Number.isFinite(feedbackProgressValue)||Number(feedbackProgressValue)<0||Number(feedbackProgressValue)>1))throw new TypeError("Hit target feedback progress is required as one exact own enumerable finite data value");
+  if(state==="miss"&&(!missCommit.admitted||!Number.isFinite(missCommitMs)||Number(missCommitMs)<0||Number(missCommitMs)>frame.nowMs||feedbackProgress.present))throw new TypeError("Miss target requires an exact committed timestamp as one own enumerable data property and no feedback progress");
   if(state!=="miss"&&missCommit.present)throw new TypeError("Miss committed timestamp is forbidden on non-miss targets");
-  const elapsedMs=state==="miss"?frame.nowMs-Number(missCommitMs):state==="hit"?Number(target.feedbackProgress)*tuning.feedbackDurationMs:0;
+  if(state!=="hit"&&state!=="miss"&&feedbackProgress.present)throw new TypeError("Feedback progress is forbidden on non-hit targets");
+  const elapsedMs=state==="miss"?frame.nowMs-Number(missCommitMs):state==="hit"?Number(feedbackProgressValue)*tuning.feedbackDurationMs:0;
   const z=state==="miss"?(frame.nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
   const removal=state==="hit"?Object.freeze({elapsedMs,durationMs:REMOVAL_MS,progress:clamp(elapsedMs/REMOVAL_MS,0,1)}):null;
   const targetVisible=state==="hit"?elapsedMs<REMOVAL_MS:state==="miss"?elapsedMs<MISS_EXPIRY_MS:true;

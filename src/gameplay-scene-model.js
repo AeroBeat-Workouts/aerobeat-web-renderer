@@ -12,7 +12,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
@@ -161,11 +161,12 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const skyOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
   const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
-  const resolved=state==="hit"||state==="miss";
-  if(resolved&&(!Number.isFinite(target.feedbackProgress)||Number(target.feedbackProgress)<0||Number(target.feedbackProgress)>1))throw new TypeError("Resolved target feedback progress is required");
-  const feedbackProgress=clamp(Number.isFinite(target.feedbackProgress)?Number(target.feedbackProgress):0,0,1);
-  const elapsedMs=resolved?feedbackProgress*tuning.feedbackDurationMs:0;
-  const z=state==="miss"?elapsedMs*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
+  const resolved=state==="hit"||state==="miss",hasMissCommit=target.missCommitMs!==undefined;
+  if(state==="hit"&&(!Number.isFinite(target.feedbackProgress)||Number(target.feedbackProgress)<0||Number(target.feedbackProgress)>1))throw new TypeError("Hit target feedback progress is required");
+  if(state==="miss"&&(!Number.isFinite(target.missCommitMs)||Number(target.missCommitMs)<0||Number(target.missCommitMs)>frame.nowMs||target.feedbackProgress!==undefined))throw new TypeError("Miss target requires an exact committed timestamp and no feedback progress");
+  if(state!=="miss"&&hasMissCommit)throw new TypeError("Miss committed timestamp is forbidden on non-miss targets");
+  const elapsedMs=state==="miss"?frame.nowMs-Number(target.missCommitMs):state==="hit"?Number(target.feedbackProgress)*tuning.feedbackDurationMs:0;
+  const z=state==="miss"?(frame.nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
   const removal=state==="hit"?Object.freeze({elapsedMs,durationMs:REMOVAL_MS,progress:clamp(elapsedMs/REMOVAL_MS,0,1)}):null;
   const targetVisible=state==="hit"?elapsedMs<REMOVAL_MS:state==="miss"?elapsedMs<MISS_EXPIRY_MS:true;
   const removalScale=removal?0.92*(1-removal.progress):1;

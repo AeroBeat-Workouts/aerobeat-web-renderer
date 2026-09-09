@@ -38,9 +38,9 @@ for(const presentation of presentations){
   }
   const zSamples=[];
   for(const elapsedMs of[0,1,100,349]){
-    const missed={...pending,judgement:/** @type {const} */("miss"),feedbackProgress:elapsedMs/350};
+    const missed={...pending,judgement:/** @type {const} */("miss"),missCommitMs:COMMIT_MS};
     const sample=parts(buildGameplaySceneModel(frame(presentation,COMMIT_MS+elapsedMs,missed)));
-    const expectedZ=elapsedMs*SPEED;
+    const expectedZ=(LATE_MS+1+elapsedMs)*SPEED;
     assert.equal(sample.icon?.targetId,"same-id",`${presentation} preserves same ID after miss commit`);
     assert.equal(sample.icon?.appearanceColor,MISS,`${presentation} committed miss is gray`);
     approximate(sample.icon?.position.z??NaN,expectedZ,`${presentation} miss icon speed at ${elapsedMs}`);
@@ -51,9 +51,9 @@ for(const presentation of presentations){
     assert.equal(sample.label?.feedback?.animation,"shake");
     zSamples.push(sample.icon?.position.z??NaN);
   }
-  assert.deepEqual(zSamples,[0,.006,.6,2.094],`${presentation} miss Z is exact and monotonic`);
+  assert.deepEqual(zSamples,[1.086,1.092,1.686,3.18],`${presentation} miss Z is exact and monotonic`);
   for(const elapsedMs of[350,351]){
-    const expired={...pending,judgement:/** @type {const} */("miss"),feedbackProgress:1};
+    const expired={...pending,judgement:/** @type {const} */("miss"),missCommitMs:COMMIT_MS};
     const model=buildGameplaySceneModel(frame(presentation,COMMIT_MS+elapsedMs,expired));
     assert.equal(model.objects.some(entry=>entry.targetId==="same-id"),false,`${presentation} miss disappears once at commit+${elapsedMs}`);
   }
@@ -62,13 +62,14 @@ for(const presentation of presentations){
   assert.equal(hitAt(79).icon?.position.z,0,`${presentation} hit removal stays at crossing`);
   assert.equal(hitAt(80).icon,undefined,`${presentation} hit still disappears at 80ms`);
 }
+assert.throws(()=>buildGameplaySceneModel(frame("flow",COMMIT_MS,{...targetFor("flow"),judgement:"miss"})),/exact committed timestamp/);assert.throws(()=>buildGameplaySceneModel(frame("flow",COMMIT_MS,{...targetFor("flow"),judgement:"miss",missCommitMs:COMMIT_MS,feedbackProgress:0})),/no feedback progress/);assert.throws(()=>buildGameplaySceneModel(frame("flow",COMMIT_MS,{...targetFor("flow"),missCommitMs:COMMIT_MS})),/forbidden on non-miss/);
 
 const noncanonicalTuning={...defaultRendererTuning,worldUnitsPerMs:.012};
-const canonicalMiss=parts(buildGameplaySceneModel(frame("flow",COMMIT_MS+100,{...targetFor("flow"),judgement:/** @type {const} */("miss"),feedbackProgress:100/350}),undefined,noncanonicalTuning));
-approximate(canonicalMiss.icon?.position.z??NaN,.6,"committed miss speed must remain canonical even when prototype approach tuning differs");
+const canonicalMiss=parts(buildGameplaySceneModel(frame("flow",COMMIT_MS+100,{...targetFor("flow"),judgement:/** @type {const} */("miss"),missCommitMs:COMMIT_MS}),undefined,noncanonicalTuning));
+approximate(canonicalMiss.icon?.position.z??NaN,1.686,"committed miss speed must remain canonical even when prototype approach tuning differs");
 
 const laneTarget=targetFor("boxing_lanes","lane-target");
-const laneGuard={id:"lane-guard",kind:/** @type {const} */("guard"),hand:/** @type {const} */("both"),family:/** @type {const} */("guard"),cell:null,cells:[],lane:null,beatCenterMs:CENTER_MS,judgement:/** @type {const} */("miss"),feedbackProgress:0};
+const laneGuard={id:"lane-guard",kind:/** @type {const} */("guard"),hand:/** @type {const} */("both"),family:/** @type {const} */("guard"),cell:null,cells:[],lane:null,beatCenterMs:CENTER_MS,judgement:/** @type {const} */("miss"),missCommitMs:COMMIT_MS};
 const laneWall={id:"lane-wall",kind:/** @type {const} */("obstacle"),hand:/** @type {const} */("neutral"),family:/** @type {const} */("squat"),cell:null,cells:[0],gameplayGeometry:{schema:/** @type {const} */("aerobeat/obstacle_gameplay_geometry"),version:/** @type {const} */(1),coordinateSpace:/** @type {const} */("aerobeat_top_left_grid"),x:0,y:0,width:1,height:1},lane:null,beatCenterMs:1500,intervalStartMs:1500,intervalEndMs:1600};
 const laneModel=buildGameplaySceneModel({presentation:"boxing_lanes",nowMs:COMMIT_MS,timingWindowBeforeMs:180,timingWindowAfterMs:180,targets:[laneTarget,laneGuard,laneWall]});
 const centers=entry=>[...new Set(laneModel.objects.filter(entry).map(object=>object.position.x))].sort((a,b)=>a-b);

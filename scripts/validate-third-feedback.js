@@ -31,10 +31,10 @@ for(const presentation of presentations){
   for(const nowMs of[CENTER_MS,CENTER_MS+LATE_MS]){
     const sample=parts(buildGameplaySceneModel(frame(presentation,nowMs,pending)));
     assert.equal(sample.icon?.targetId,"same-id",`${presentation} preserves pending ID at ${nowMs}`);
-    assert.equal(sample.icon?.position.z,0,`${presentation} pending target freezes at crossing through inclusive late window`);
+    approximate(sample.icon?.position.z??NaN,(nowMs-CENTER_MS)*SPEED,`${presentation} pending target continues through the inclusive late window`);
     assert.equal(sample.icon?.appearanceColor,APPEARANCE,`${presentation} pending target retains authored appearance`);
     assert.equal(sample.icon?.tintMix,0,`${presentation} pending target uses authored appearance rather than white after crossing`);
-    assert.equal(sample.shadow?.position.z,0,`${presentation} pending shadow tracks crossing target`);
+    approximate(sample.shadow?.position.z??NaN,(nowMs-CENTER_MS)*SPEED,`${presentation} pending shadow tracks the moving target`);
   }
   const zSamples=[];
   for(const elapsedMs of[0,1,100,349]){

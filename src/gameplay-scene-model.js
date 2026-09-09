@@ -12,16 +12,16 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupOrdinal?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean}} AeroGameplayFrame */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number}} AeroRendererTuning */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** @typedef {{text:"Great"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
-/** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_ribbon"|"guidance_halo"|"guidance_number_plate"|"guidance_number_glyph",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,tintColor:string|null,appearanceColor:string|null,tintMix:number,whiteCore:boolean,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,guidanceText:string|null,guidanceRank:number|null}} AeroGameplaySceneObject */
+/** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,tintColor:string|null,appearanceColor:string|null,tintMix:number,whiteCore:boolean,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null}} AeroGameplaySceneObject */
 /** @typedef {{name:"early"|"active"|"late",startZ:number,endZ:number,color:string,alpha:number}} AeroTimingZoneSegment */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,objects:readonly AeroGameplaySceneObject[],timingZone:Readonly<{beforeMs:number,afterMs:number,startZ:number,endZ:number,segments:readonly AeroTimingZoneSegment[]}>,camera:typeof defaultGameplayCameraPose,grid:Readonly<{columns:4,rows:3,columnX:readonly number[],rowY:readonly number[],floorY:number}>,overlay:Readonly<{kind:string,dim:number,countdown:number|null}>,assets:Readonly<{release:string,identities:readonly string[],guardCanonicalAsset:string,guardInstancesPerBeat:number}>,renderOrder:readonly string[],culledTargetIds:readonly string[]}} AeroGameplaySceneModel */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,objects:readonly AeroGameplaySceneObject[],timingZone:Readonly<{beforeMs:number,afterMs:number,startZ:number,endZ:number,segments:readonly AeroTimingZoneSegment[]}>,guidance:Readonly<{mode:"off"|"song_beat_grid"|"target_arrivals",visibleBandCount:number,culledBandCount:number}>,camera:typeof defaultGameplayCameraPose,grid:Readonly<{columns:4,rows:3,columnX:readonly number[],rowY:readonly number[],floorY:number}>,overlay:Readonly<{kind:string,dim:number,countdown:number|null}>,assets:Readonly<{release:string,identities:readonly string[],guardCanonicalAsset:string,guardInstancesPerBeat:number}>,renderOrder:readonly string[],culledTargetIds:readonly string[]}} AeroGameplaySceneModel */
 
 /** Retained only as an input/rasterization compatibility contract; production targets no longer consume this atlas. */
 export const gameplayIconIds = Object.freeze(["boxing.glove","boxing.guard.crossed","boxing.guard.standard","boxing.hook.left","boxing.hook.right","boxing.squat","boxing.straight.left","boxing.straight.right","boxing.uppercut.left","boxing.uppercut.right","boxing.weave.left","boxing.weave.right","calibration.tpose","feedback.great","flow.directional","flow.directionless"]);
@@ -30,9 +30,9 @@ const BOXING_LANE_WIDTH=1.7,BOXING_LANE_CANONICAL_TOP=2.47,BOXING_LANE_CANONICAL
 function boxingLanes(config){const half=config.boxingLaneSeparationWorldUnits/2;return Object.freeze([Object.freeze({lane:"left",x:-half,y:BOXING_LANE_CENTER_Y,width:BOXING_LANE_WIDTH}),Object.freeze({lane:"right",x:half,y:BOXING_LANE_CENTER_Y,width:BOXING_LANE_WIDTH})]);}
 export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),rows:/** @type {3} */(3),columnX:Object.freeze([-1.5,-0.5,0.5,1.5]),rowY:Object.freeze([2,1,0]),floorY:-0.72 });
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
-export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","guidance_ribbon","guidance_halo","targets","guidance_number_plate","guidance_number_glyph","world_transparent_shadows_track_walls_feedback"]);
+export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","guidance_bands","targets","world_transparent_shadows_track_walls_feedback"]);
 const ASSET=Object.freeze({arrow:"directional-arrow/rounded-outline-v1",circle:"any-note/outlined-circle-v1",guard:"guard/outlined-shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
-const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,MISS_LABEL_CLEARANCE_WORLD_UNITS=.85,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
+const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_GUIDANCE_BANDS=12,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,MISS_LABEL_CLEARANCE_WORLD_UNITS=.85,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
 
 /** @type {AeroRendererTuning} */
 export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"2",hash:"visual-playcanvas-v2",dprCap:2,roleScale:1,worldUnitsPerMs:CANONICAL_WORLD_UNITS_PER_MS,futureCullMs:10_000,spentCullMs:600,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25 });
@@ -76,12 +76,12 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   for(const cell of validateCellList(frame.blockedCells??[],"Blocked cells"))addCellState(objects,cell,"obstacle");
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
-  const guidance=validateAndRankGuidanceGroups(sorted,frame.nowMs,window);
-  if(experiment.nextUpRibbon&&guidance.next)objects.push(guidanceRibbon(frame,guidance.next,presentationConfig,tuning));
+  const guidance=buildGuidanceBands(frame,sorted,window,experiment.guidanceBandMode,presentationConfig,tuning);
+  objects.push(...guidance.objects);
   for(const target of sorted){
     const result=targetObjects(frame,target,window,segments[2],theme,tuning,presentationConfig);
     if(result.objects.length===0&&result.feedback.length===0)culled.push(target.id);
-    else{objects.push(...result.objects);feedback.push(...result.feedback);if(result.objects.length)objects.push(...guidanceObjectsForTarget(target,result.objects,guidance.ranks,experiment));}
+    else{objects.push(...result.objects);feedback.push(...result.feedback);}
   }
   const retainedFeedback=feedback.sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id)).slice(-MAX_FEEDBACK).sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id));
   objects.push(...retainedFeedback);
@@ -90,6 +90,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   return Object.freeze({
     presentation:frame.presentation,nowMs:frame.nowMs,objects:Object.freeze(objects),
     timingZone:Object.freeze({beforeMs:window.beforeMs,afterMs:window.afterMs,startZ,endZ,segments}),
+    guidance:Object.freeze({mode:experiment.guidanceBandMode,visibleBandCount:guidance.objects.length,culledBandCount:guidance.culledCount}),
     camera:defaultGameplayCameraPose,grid:gameplayWorldGrid,
     overlay:Object.freeze({kind:overlayKind,dim:clamp(frame.calibrationDim??(overlayKind==="none"?0:0.62),0,1),countdown:normalizeCountdown(frame.countdown)}),
     assets:Object.freeze({release:String(gameplayAssetSet.release),identities:Object.freeze(gameplayAssetIds.map(String)),guardCanonicalAsset:String(gameplayAssetSet.constraints.guardCanonicalAsset),guardInstancesPerBeat:gameplayAssetSet.constraints.guardInstancesPerBeat}),
@@ -106,7 +107,7 @@ function addTimingTiles(objects,frame,segments,tuning,config){
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {AeroGameplayFrame} frame */
 function addPresentationFloor(objects,frame){
-  if(frame.presentation==="boxing_lanes"||frame.showGameplayGrid===false)return;
+  if(frame.presentation==="boxing_lanes"||frame.showGameplayGrid!==true)return;
   for(let cell=0;cell<12;cell+=1){const p=worldPositionForCell(cell);if(p)objects.push(sceneObject(`cell-${cell}`,"cell","neutral",null,{x:p.x,y:p.y,z:0},{x:GAMEPLAY_CELL_SIZE,y:GAMEPLAY_CELL_SIZE,z:0.025},null,null,0,0.1,null,false,true,null,null,0,18,null,null,null));}
 }
 /** @param {AeroGameplaySceneObject[]} objects @param {number} cell @param {"safe"|"obstacle"} role */
@@ -164,7 +165,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   if(resolved&&(!Number.isFinite(target.feedbackProgress)||Number(target.feedbackProgress)<0||Number(target.feedbackProgress)>1))throw new TypeError("Resolved target feedback progress is required");
   const feedbackProgress=clamp(Number.isFinite(target.feedbackProgress)?Number(target.feedbackProgress):0,0,1);
   const elapsedMs=resolved?feedbackProgress*tuning.feedbackDurationMs:0;
-  const z=state==="miss"?elapsedMs*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"||frame.nowMs>=target.beatCenterMs?0:movingZ;
+  const z=state==="miss"?elapsedMs*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
   const removal=state==="hit"?Object.freeze({elapsedMs,durationMs:REMOVAL_MS,progress:clamp(elapsedMs/REMOVAL_MS,0,1)}):null;
   const targetVisible=state==="hit"?elapsedMs<REMOVAL_MS:state==="miss"?elapsedMs<MISS_EXPIRY_MS:true;
   const removalScale=removal?0.92*(1-removal.progress):1;
@@ -187,29 +188,40 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   return{objects:[...icons,...shadows],feedback:feedbackObjects};
 }
 
-/** Validate private immutable grouping metadata and rank at most the next three unresolved groups. @param {readonly AeroRenderableTarget[]} targets @param {number} nowMs @param {{beforeMs:number,afterMs:number}} window */
-function validateAndRankGuidanceGroups(targets,nowMs,window){
-  const groups=new Map(),ordinals=new Map();
+/** Build bounded renderer-only guidance from caller-owned mapped beat times or stable actionable group identity. @param {AeroGameplayFrame} frame @param {readonly AeroRenderableTarget[]} targets @param {{beforeMs:number,afterMs:number}} window @param {"off"|"song_beat_grid"|"target_arrivals"} mode @param {typeof defaultTestPresentationConfig} config @param {AeroRendererTuning} tuning */
+function buildGuidanceBands(frame,targets,window,mode,config,tuning){
+  const supplied=frame.guidanceBeatTimestampsMs;
+  if(supplied!==undefined&&(!Array.isArray(supplied)||supplied.length>MAX_GUIDANCE_BEAT_TIMESTAMPS||supplied.some((value)=>!Number.isFinite(value)||value<0||value>86_400_000)))throw new TypeError("Guidance beat timestamps are invalid");
+  if(mode!=="song_beat_grid"&&supplied?.length)throw new TypeError("Guidance beat timestamps require song beat-grid mode");
+  /** @type {{identity:string,beatCenterMs:number,members:AeroRenderableTarget[]}[]} */ const groups=[];
+  const byIdentity=new Map();
   for(const target of targets){
-    const hasOrdinal=Object.hasOwn(target,"arrivalGroupOrdinal"),hasIdentity=Object.hasOwn(target,"arrivalGroupIdentity"),eligible=isGuidanceEligible(target);
-    if(hasOrdinal!==hasIdentity)throw new TypeError("Arrival group metadata must be paired");
-    if(!hasOrdinal)continue;
-    if(!eligible)throw new TypeError("Hazard and checkpoint targets cannot carry arrival group metadata");
-    const ordinal=target.arrivalGroupOrdinal,identity=target.arrivalGroupIdentity;
-    if(!Number.isSafeInteger(ordinal)||Number(ordinal)<=0||Number(ordinal)>1_000_000||typeof identity!=="string"||identity.length<1||identity.length>128)throw new TypeError("Arrival group metadata is invalid");
-    const ordinalIdentity=ordinals.get(ordinal);if(ordinalIdentity!==undefined&&ordinalIdentity!==identity)throw new TypeError("Arrival group ordinal identity conflicts");ordinals.set(ordinal,identity);
-    const existing=groups.get(identity);if(existing&&(existing.ordinal!==ordinal||existing.beatCenterMs!==target.beatCenterMs))throw new TypeError("Arrival group identity conflicts");
-    const group=existing??{identity,ordinal:Number(ordinal),beatCenterMs:target.beatCenterMs,members:[]};group.members.push(target);groups.set(identity,group);
+    if(!Object.hasOwn(target,"arrivalGroupIdentity"))continue;
+    if(!isGuidanceEligible(target))throw new TypeError("Hazard and checkpoint targets cannot carry arrival group identity");
+    const identity=target.arrivalGroupIdentity;
+    if(typeof identity!=="string"||identity.length<1||identity.length>128)throw new TypeError("Arrival group identity is invalid");
+    const existing=byIdentity.get(identity);if(existing&&existing.beatCenterMs!==target.beatCenterMs)throw new TypeError("Arrival group identity conflicts");
+    const group=existing??{identity,beatCenterMs:target.beatCenterMs,members:[]};group.members.push(target);byIdentity.set(identity,group);
   }
-  const unresolved=[...groups.values()].filter((group)=>group.members.some((target)=>target.judgement!=="hit"&&target.judgement!=="miss"&&nowMs<=target.beatCenterMs+window.afterMs)).sort((a,b)=>a.beatCenterMs-b.beatCenterMs||a.ordinal-b.ordinal||a.identity.localeCompare(b.identity));
-  const ranks=new Map(unresolved.slice(0,3).map((group,index)=>[group.identity,index+1]));return Object.freeze({ranks,next:unresolved[0]??null});
+  groups.push(...byIdentity.values());
+  if(mode==="off")return Object.freeze({objects:Object.freeze([]),culledCount:0});
+  const leadMs=config.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs,minMs=frame.nowMs+window.beforeMs,maxMs=frame.nowMs+leadMs;
+  let timestamps;
+  let cap;
+  if(mode==="song_beat_grid"){
+    const values=supplied??[];if(new Set(values).size!==values.length||values.some((value,index)=>index>0&&value<=values[index-1]))throw new TypeError("Guidance beat timestamps must be unique and strictly increasing");
+    timestamps=values.filter((value)=>value>minMs&&value<=maxMs);cap=MAX_SONG_GUIDANCE_BANDS;
+  }else{
+    timestamps=groups.filter((group)=>group.beatCenterMs>minMs&&group.beatCenterMs<=maxMs&&group.members.some((target)=>target.judgement!=="hit"&&target.judgement!=="miss")).sort((a,b)=>a.beatCenterMs-b.beatCenterMs||a.identity.localeCompare(b.identity)).map((group)=>group.beatCenterMs);
+    timestamps=[...new Set(timestamps)];cap=MAX_TARGET_GUIDANCE_BANDS;
+  }
+  const retained=timestamps.slice(0,cap),objects=retained.map((timestamp,index)=>guidanceBand(frame,timestamp,index,config,tuning));
+  return Object.freeze({objects:Object.freeze(objects),culledCount:Math.max(0,timestamps.length-retained.length)});
 }
 /** @param {AeroRenderableTarget} target */
 function isGuidanceEligible(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
-/** @param {AeroGameplayFrame} frame @param {{identity:string,ordinal:number,beatCenterMs:number}} group @param {typeof defaultTestPresentationConfig} config @param {AeroRendererTuning} tuning */
-function guidanceRibbon(frame,group,config,tuning){const z=timestampToWorldZ(group.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs),lanes=frame.presentation==="boxing_lanes"?boxingLanes(config):[{x:0,width:4}],left=Math.min(...lanes.map((lane)=>lane.x-lane.width/2)),right=Math.max(...lanes.map((lane)=>lane.x+lane.width/2));return sceneObject(`guidance-ribbon:${group.identity}`,"guidance_ribbon","neutral",null,{x:(left+right)/2,y:TRACK_SURFACE_Y+.018,z},{x:right-left,y:.018,z:.055},null,null,0,.72,null,0,true,null,null,z,19,null,null,null,null,"#d9f5ff",null,1);}
-/** @param {AeroRenderableTarget} target @param {readonly AeroGameplaySceneObject[]} targetObjectsForRecord @param {Map<string,number>} ranks @param {typeof defaultGameplayVisualExperimentConfig} experiment */
-function guidanceObjectsForTarget(target,targetObjectsForRecord,ranks,experiment){const identity=target.arrivalGroupIdentity;if(typeof identity!=="string")return[];const rank=ranks.get(identity);if(rank===undefined)return[];const ordinal=Number(target.arrivalGroupOrdinal),result=[];for(const icon of targetObjectsForRecord.filter((entry)=>entry.kind==="icon")){if(experiment.attentionHalo){const size=1.22+(3-rank)*.08,alpha=[.78,.58,.4][rank-1];result.push(sceneObject(`${icon.id}:guidance-halo`,"guidance_halo","neutral",null,{...icon.position},{x:icon.scale.x*size,y:icon.scale.y*size,z:.035},null,null,0,alpha,null,0,true,null,null,icon.position.z,21,null,null,null,null,"#d9f5ff",null,rank));}if(experiment.arrivalGroupNumbers){const y=icon.position.y+icon.scale.y*.72;result.push(sceneObject(`${icon.id}:guidance-number-plate`,"guidance_number_plate","neutral",null,{x:icon.position.x,y,z:icon.position.z+.012},{x:.48,y:.3,z:.025},null,null,0,.94,null,0,true,null,null,icon.position.z,23,null,null,null,null,"#171a22",null,rank));result.push(sceneObject(`${icon.id}:guidance-number-glyph`,"guidance_number_glyph","neutral",null,{x:icon.position.x,y,z:icon.position.z+.026},{x:.42,y:.24,z:.01},null,null,0,1,null,0,true,null,null,icon.position.z,24,null,null,null,null,"#ffffff",String(ordinal),rank));}}return result;}
+/** @param {AeroGameplayFrame} frame @param {number} timestamp @param {number} index @param {typeof defaultTestPresentationConfig} config @param {AeroRendererTuning} tuning */
+function guidanceBand(frame,timestamp,index,config,tuning){const z=timestampToWorldZ(timestamp,frame.nowMs,tuning.worldUnitsPerMs),lanes=frame.presentation==="boxing_lanes"?boxingLanes(config):[{x:0,width:4}],left=Math.min(...lanes.map((lane)=>lane.x-lane.width/2)),right=Math.max(...lanes.map((lane)=>lane.x+lane.width/2));return sceneObject(`guidance-band-${index}`,"guidance_band","neutral",null,{x:(left+right)/2,y:TRACK_SURFACE_Y+.018,z},{x:right-left,y:.018,z:.055},null,null,0,.32,null,0,true,null,null,z,19,null,null,null,null,"#d9f5ff");}
 /** Deterministic caller-time feedback motion; no engine delta or random state participates. @param {"bounce"|"shake"} animation @param {number} elapsedMs @param {number} durationMs */
 function feedbackMotion(animation,elapsedMs,durationMs){
   const progress=clamp(elapsedMs/Math.max(1,durationMs),0,1);
@@ -257,7 +269,7 @@ function timingWindow(frame){const required=frame.presentation==="boxing_lanes";
 /** @param {"early"|"active"|"late"} name @param {number} startZ @param {number} endZ @param {string} color @param {number} alpha */
 function zone(name,startZ,endZ,color,alpha){return Object.freeze({name,startZ:Math.min(startZ,endZ),endZ:Math.max(startZ,endZ),color,alpha});}
 /** @returns {AeroGameplaySceneObject} */
-function sceneObject(id,kind,role,targetId,position,scale,iconId,assetId,rotationZRad,alpha,state,tintMix,transparent,intervalStartMs,intervalEndMs,sortDepth,renderOrder,guardPairKey,guardPairIndex,removal,feedback=null,appearanceColor=null,guidanceText=null,guidanceRank=null){return Object.freeze({id,kind,role,targetId,position:Object.freeze(position),scale:Object.freeze(scale),rotationZRad,alpha,iconId,assetId,tintColor:Number(tintMix)>0?"#ffffff":null,appearanceColor,tintMix:Number(tintMix),whiteCore:Number(tintMix)>0,state,transparent,intervalStartMs,intervalEndMs,sortDepth,renderOrder,guardPairKey,guardPairIndex,removal,feedback,guidanceText,guidanceRank});}
+function sceneObject(id,kind,role,targetId,position,scale,iconId,assetId,rotationZRad,alpha,state,tintMix,transparent,intervalStartMs,intervalEndMs,sortDepth,renderOrder,guardPairKey,guardPairIndex,removal,feedback=null,appearanceColor=null){return Object.freeze({id,kind,role,targetId,position:Object.freeze(position),scale:Object.freeze(scale),rotationZRad,alpha,iconId,assetId,tintColor:Number(tintMix)>0?"#ffffff":null,appearanceColor,tintMix:Number(tintMix),whiteCore:Number(tintMix)>0,state,transparent,intervalStartMs,intervalEndMs,sortDepth,renderOrder,guardPairKey,guardPairIndex,removal,feedback});}
 /** Arrow identity points +Y; rotate only around local Z to the authoritative direction. @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection} direction */
 function directionRotation(direction){const rotations=new Map([["up",0],["up-right",-Math.PI/4],["right",-Math.PI/2],["down-right",-Math.PI*3/4],["down",Math.PI],["down-left",Math.PI*3/4],["left",Math.PI/2],["up-left",Math.PI/4]]);const rotation=rotations.get(direction);if(rotation===undefined)throw new TypeError("Gameplay direction is unsupported");return rotation;}
 /** @param {readonly number[]} cells @param {string} label */

@@ -55,8 +55,8 @@ Implement the renderer-owned combined successor approved by Derrick: exact marke
 - [x] Run `npm run test:browser`.
 - [x] Run `npm pack --dry-run --json`.
 - [x] Audit diff for no asset mutation, no assembly changes, no `.beads/interactions.jsonl` inclusion, and no dormant cue runtime.
-- [ ] Commit and push current branch; leave `ac0` in progress for QA.
-- [ ] Record exact commit/tree and API changes for assembly pinning.
+- [x] Commit and push current branch; leave `ac0` in progress for QA.
+- [x] Record exact commit/tree and API changes for assembly pinning in the coder handoff.
 
 ## Results
 

@@ -30,10 +30,10 @@ export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),row
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
 export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","targets","world_transparent_shadows_track_walls_feedback"]);
 const ASSET=Object.freeze({arrow:"directional-arrow/rounded-outline-v1",circle:"any-note/outlined-circle-v1",guard:"guard/outlined-shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
-const REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
+const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,MISS_LABEL_CLEARANCE_WORLD_UNITS=.85,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
 
 /** @type {AeroRendererTuning} */
-export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"2",hash:"visual-playcanvas-v2",dprCap:2,roleScale:1,worldUnitsPerMs:0.006,futureCullMs:10_000,spentCullMs:600,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25 });
+export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"2",hash:"visual-playcanvas-v2",dprCap:2,roleScale:1,worldUnitsPerMs:CANONICAL_WORLD_UNITS_PER_MS,futureCullMs:10_000,spentCullMs:600,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25 });
 /** @type {AeroRendererThemeTokens} */
 export const defaultRendererThemeTokens = Object.freeze({ leftHandColor:"#2693ff",rightHandColor:"#39c96b",guardColor:"#9a67ea",obstacleColor:"#e5484d",receptorColor:"#d9f5ff",approachLeadMs:2500,targetStartScale:0.48,targetHitScale:1,approachEasing:"linear",hitEasing:"ease-out",missEasing:"ease-out" });
 
@@ -156,15 +156,15 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const resolved=state==="hit"||state==="miss";
-  const z=resolved||frame.nowMs>=target.beatCenterMs?0:movingZ;
   if(resolved&&(!Number.isFinite(target.feedbackProgress)||Number(target.feedbackProgress)<0||Number(target.feedbackProgress)>1))throw new TypeError("Resolved target feedback progress is required");
   const feedbackProgress=clamp(Number.isFinite(target.feedbackProgress)?Number(target.feedbackProgress):0,0,1);
   const elapsedMs=resolved?feedbackProgress*tuning.feedbackDurationMs:0;
+  const z=state==="miss"?elapsedMs*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"||frame.nowMs>=target.beatCenterMs?0:movingZ;
   const removal=state==="hit"?Object.freeze({elapsedMs,durationMs:REMOVAL_MS,progress:clamp(elapsedMs/REMOVAL_MS,0,1)}):null;
   const targetVisible=state==="hit"?elapsedMs<REMOVAL_MS:state==="miss"?elapsedMs<MISS_EXPIRY_MS:true;
   const removalScale=removal?0.92*(1-removal.progress):1;
   const tintDistance=tuning.worldUnitsPerMs*60,dynamicNoteFill=isDynamicNoteFillTarget(target);
-  const tintMix=!dynamicNoteFill||resolved||z<successZone.startZ?0:z<=successZone.endZ?clamp((z-successZone.startZ)/tintDistance,0,1):clamp(1-(z-successZone.endZ)/tintDistance,0,1);
+  const tintMix=!dynamicNoteFill||resolved||frame.nowMs>=target.beatCenterMs||z<successZone.startZ?0:z<=successZone.endZ?clamp((z-successZone.startZ)/tintDistance,0,1):clamp(1-(z-successZone.endZ)/tintDistance,0,1);
   const assetId=assetForTarget(target);
   const rotation=target.direction?directionRotation(target.direction):0;
   const pairKey=target.kind==="guard"?target.id:null;
@@ -173,11 +173,11 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const shadows=targetVisible?positions.map((p,index)=>sceneObject(`${target.id}:shadow:${index}`,"shadow","neutral",target.id,{x:p.x,y:gameplayWorldGrid.floorY+.018,z},{x:.68*tuning.roleScale,y:.012,z:.34*tuning.roleScale},null,null,0,state==="hit"?Math.max(0,SHADOW_ALPHA*(1-(removal?.progress??1))):SHADOW_ALPHA,state,false,true,null,null,z,35,null,null,removal,null,SHADOW_COLOR)):[];
   /** @type {AeroGameplaySceneObject[]} */ const feedbackObjects=[];
   if(resolved&&target.kind!=="obstacle"&&target.kind!=="bomb"&&positions.length&&elapsedMs<tuning.feedbackDurationMs){
-    const crossingZ=0,hit=state==="hit";
+    const feedbackZ=state==="miss"?z:0,hit=state==="hit";
     const alpha=elapsedMs<=FEEDBACK_HOLD_MS?1:clamp(1-(elapsedMs-FEEDBACK_HOLD_MS)/FEEDBACK_FADE_MS,0,1),motion=feedbackMotion(hit?"bounce":"shake",elapsedMs,tuning.feedbackDurationMs);
     const visual=Object.freeze({text:/** @type {"Great"|"Miss"} */(hit?"Great":"Miss"),holdMs:FEEDBACK_HOLD_MS,fadeMs:FEEDBACK_FADE_MS,totalMs:tuning.feedbackDurationMs,elapsedMs,alpha,faceColor:hit?"#ffffff":"#e5484d",separationColor:hit?"#171a22":"#ffffff",depthBias:0.01,apparentHeightCssPx:hit?GREAT_HEIGHT_CSS_PX:MISS_HEIGHT_CSS_PX,offsetX:motion.x,offsetY:motion.y,scale:motion.scale,animation:/** @type {"bounce"|"shake"} */(hit?"bounce":"shake")});
     const crossingPositions=target.kind==="guard"?[{x:(positions[0].x+positions[positions.length-1].x)/2,y:positions[0].y}]:positions.slice(0,1);
-    for(const [index,p] of crossingPositions.entries())feedbackObjects.push(sceneObject(`${target.id}:feedback:${index}`,"feedback",role,target.id,{x:p.x,y:p.y,z:crossingZ},{x:1,y:1,z:1},null,null,0,alpha,state,false,true,null,null,crossingZ,40,null,null,removal,visual));
+    for(const [index,p] of crossingPositions.entries())feedbackObjects.push(sceneObject(`${target.id}:feedback:${index}`,"feedback",role,target.id,{x:p.x,y:p.y+(hit?0:MISS_LABEL_CLEARANCE_WORLD_UNITS),z:feedbackZ},{x:1,y:1,z:1},null,null,0,alpha,state,false,true,null,null,feedbackZ,40,null,null,removal,visual));
   }
   return{objects:[...icons,...shadows],feedback:feedbackObjects};
 }

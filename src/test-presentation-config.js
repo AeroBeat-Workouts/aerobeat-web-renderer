@@ -27,7 +27,7 @@ export function createTestPresentationConfig(bounceLeadBeats,bounceHeightWorldUn
     skyPreludeDurationMs:bounded(skyPreludeDurationMs,testPresentationConfigBounds.skyPreludeDurationMs,"skyPreludeDurationMs"),skyPreludeEasing:easing(skyPreludeEasing,"skyPreludeEasing"),
     boxingLaneSeparationWorldUnits:bounded(boxingLaneSeparationWorldUnits,testPresentationConfigBounds.boxingLaneSeparationWorldUnits,"boxingLaneSeparationWorldUnits")});
 }
-export const defaultTestPresentationConfig=createTestPresentationConfig(2,.4,.4,"out_quad","in_quad",50,"prelude",24,1000,"in_out_sine",2.7);
+export const defaultTestPresentationConfig=createTestPresentationConfig(2,.4,.4,"out_quad","in_quad",50,"prelude",50,1000,"in_out_sine",1.8);
 export function parseTestPresentationConfig(text){if(typeof text!=="string")throw new TypeError("Test presentation config JSON must be text");let value;try{value=JSON.parse(text);}catch{throw new TypeError("Test presentation config JSON is invalid");}return normalizeParsedRecord(value);}
 export function normalizeTestPresentationConfig(value){if((typeof value!=="object"&&typeof value!=="function")||value===null||!trustedConfigs.has(/** @type {TestPresentationConfig} */(value)))throw new TypeError("Test presentation config must be created by the trusted constructor or JSON parser");return /** @type {TestPresentationConfig} */(value);}
 export function serializeTestPresentationConfig(value){return `${JSON.stringify(normalizeTestPresentationConfig(value),null,2)}\n`;}

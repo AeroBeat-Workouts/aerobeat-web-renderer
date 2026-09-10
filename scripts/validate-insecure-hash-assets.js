@@ -74,17 +74,19 @@ assert.ok(nonLoopback, "A genuine non-loopback IPv4 interface is required");
 const browser = await chromium.launch({ headless: true });
 try {
   const run = async (origin, expectedSecure) => {
+    const expectedPageUrl = `${origin}/.testbed/demo/index.html`;
     const page = await browser.newPage({ viewport: { width: 320, height: 180 } });
     const noise = [];
     page.on("console", (message) => {
       const type = message.type();
       const text = message.text();
-      const sourceUrl = message.location().url;
-      if (["warning", "error"].includes(type) && !isExpectedReadPixelsWarning(type, text, sourceUrl)) noise.push(`console:${type}:${text}:sourceUrl=${JSON.stringify(sourceUrl)}`);
+      const location = message.location();
+      const sourceUrl = location.url;
+      if (["warning", "error"].includes(type) && !isExpectedReadPixelsWarning(type, text, sourceUrl, location.lineNumber, location.columnNumber, expectedPageUrl)) noise.push(`console:${type}:${text}:sourceUrl=${JSON.stringify(sourceUrl)}`);
     });
     page.on("pageerror", (error) => noise.push(`pageerror:${error.message}`));
     page.on("response", (response) => { if (!response.ok()) noise.push(`http:${response.status()}:${response.url()}`); });
-    await page.goto(`${origin}/.testbed/demo/index.html`, { waitUntil: "networkidle" });
+    await page.goto(expectedPageUrl, { waitUntil: "networkidle" });
     const context = await page.evaluate(() => ({ isSecureContext, subtleType: typeof globalThis.crypto?.subtle, hostname: location.hostname }));
     assert.equal(context.isSecureContext, expectedSecure);
     assert.equal(context.subtleType, expectedSecure ? "object" : "undefined");

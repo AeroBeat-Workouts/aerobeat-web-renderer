@@ -21,11 +21,12 @@ const server=createServer(async(request,response)=>{try{
 }catch{response.writeHead(404).end();}});
 await new Promise((done)=>server.listen(0,"127.0.0.1",done));
 const address=server.address();if(!address||typeof address==="string")throw new Error("Browser server failed");
+const expectedPageUrl=`http://127.0.0.1:${address.port}/.testbed/demo/index.html`;
 const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage({viewport:{width:844,height:390},deviceScaleFactor:1});
-  const noise=[];page.on("console",message=>{const type=message.type(),text=message.text(),sourceUrl=message.location().url;if(["warning","error"].includes(type)&&!isExpectedReadPixelsWarning(type,text,sourceUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",error=>noise.push(`pageerror: ${error.message}`));
-  await page.goto(`http://127.0.0.1:${address.port}/.testbed/demo/index.html`,{waitUntil:"networkidle"});
+  const noise=[];page.on("console",message=>{const type=message.type(),text=message.text(),location=message.location(),sourceUrl=location.url;if(["warning","error"].includes(type)&&!isExpectedReadPixelsWarning(type,text,sourceUrl,location.lineNumber,location.columnNumber,expectedPageUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",error=>noise.push(`pageerror: ${error.message}`));
+  await page.goto(expectedPageUrl,{waitUntil:"networkidle"});
   await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__?.ready===true&&globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const evidence=await page.evaluate(async()=>{
     const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0],canvas=document.querySelector("#primary canvas");

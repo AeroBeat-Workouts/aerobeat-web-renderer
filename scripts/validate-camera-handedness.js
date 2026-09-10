@@ -19,14 +19,15 @@ const server=createServer(async(request,response)=>{try{
 }catch{response.writeHead(404).end();}});
 await new Promise((done)=>server.listen(0,"127.0.0.1",done));
 const address=server.address();if(!address||typeof address==="string")throw new Error("Browser server failed");port=address.port;
+const expectedPageUrl=`http://127.0.0.1:${port}/.testbed/demo/index.html`;
 const browser=await chromium.launch({headless:true});
 const matrix=[];
 try{
   for(const embedding of ["direct","real_cross_origin_iframe"])for(const viewport of [{name:"portrait",width:390,height:844},{name:"landscape",width:844,height:390}])for(const requestedDpr of [1,3]){
     const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},deviceScaleFactor:requestedDpr});const page=await context.newPage(),noise=[];
-    page.on("console",(message)=>{const type=message.type(),text=message.text(),sourceUrl=message.location().url;if((type==="warning"||type==="error")&&!isExpectedReadPixelsWarning(type,text,sourceUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",(error)=>noise.push(`pageerror: ${error.message}`));
+    page.on("console",(message)=>{const type=message.type(),text=message.text(),location=message.location(),sourceUrl=location.url;if((type==="warning"||type==="error")&&!isExpectedReadPixelsWarning(type,text,sourceUrl,location.lineNumber,location.columnNumber,expectedPageUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",(error)=>noise.push(`pageerror: ${error.message}`));
     try{
-      await page.goto(embedding==="direct"?`http://127.0.0.1:${port}/.testbed/demo/index.html`:`http://localhost:${port}/iframe-host.html`,{waitUntil:"networkidle"});
+      await page.goto(embedding==="direct"?expectedPageUrl:`http://localhost:${port}/iframe-host.html`,{waitUntil:"networkidle"});
       const target=embedding==="direct"?page:page.frames().find((frame)=>frame!==page.mainFrame());if(!target)throw new Error("Real cross-origin renderer iframe missing");await target.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__?.ready===true);
       const evidence=await target.evaluate(({width,height,requestedDpr})=>{
         const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0],canvas=document.querySelector("#primary canvas");

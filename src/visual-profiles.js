@@ -1,7 +1,7 @@
 // @ts-check
 
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
-import { defaultRendererThemeTokens, defaultRendererTuning } from "./gameplay-scene-model.js";
+import { defaultRendererThemeTokens, defaultRendererTuning, rendererVisualScaleBounds } from "./gameplay-scene-model.js";
 
 /** @typedef {import("./gameplay-scene-model.js").AeroRendererThemeTokens} AeroRendererThemeTokens */
 /** @typedef {import("./gameplay-scene-model.js").AeroRendererTuning} AeroRendererTuning */
@@ -53,17 +53,33 @@ export function normalizeRendererTheme(value) {
  */
 export function normalizeRendererTuning(value) {
   if (!isRecord(value)) return defaultRendererTuning;
-  const numberNames = ["dprCap","roleScale","worldUnitsPerMs","futureCullMs","spentCullMs","targetSize","obstacleHeight","timingZoneHeight","feedbackDurationMs","hitPulseScale","greatEndScale"];
+  const numberNames = ["dprCap","roleScale","noteScaleFactor","obstacleScaleFactor","bombScaleFactor","markerScaleFactor","worldUnitsPerMs","futureCullMs","spentCullMs","targetSize","obstacleHeight","timingZoneHeight","feedbackDurationMs","hitPulseScale","greatEndScale"];
   const requiredNames = ["id","version",...numberNames];
   const keys = Object.keys(value);
   if (!keys.every((key)=>requiredNames.includes(key)||key==="hash") || !requiredNames.every((key)=>keys.includes(key)) || typeof value.id!=="string" || value.id.length===0 || typeof value.version!=="string" || value.version.length===0 || !numberNames.every((name)=>typeof value[name]==="number"&&Number.isFinite(value[name]))) return defaultRendererTuning;
+  const scaleClamp=(raw)=>clamp(Number(raw),rendererVisualScaleBounds.min,rendererVisualScaleBounds.max);
   const normalized = {
     id:value.id,version:value.version,
-    dprCap:clamp(Number(value.dprCap),1,4),roleScale:clamp(Number(value.roleScale),0.5,1.5),worldUnitsPerMs:clamp(Number(value.worldUnitsPerMs),0.001,0.02),futureCullMs:clamp(Number(value.futureCullMs),500,10_000),spentCullMs:clamp(Number(value.spentCullMs),100,2000),targetSize:clamp(Number(value.targetSize),0.3,2),obstacleHeight:clamp(Number(value.obstacleHeight),1,8),timingZoneHeight:clamp(Number(value.timingZoneHeight),0.005,0.2),feedbackDurationMs:clamp(Number(value.feedbackDurationMs),120,1000),hitPulseScale:clamp(Number(value.hitPulseScale),1,1.25),greatEndScale:clamp(Number(value.greatEndScale),1,1.5)
+    dprCap:clamp(Number(value.dprCap),1,4),roleScale:clamp(Number(value.roleScale),0.5,1.5),noteScaleFactor:scaleClamp(value.noteScaleFactor),obstacleScaleFactor:scaleClamp(value.obstacleScaleFactor),bombScaleFactor:scaleClamp(value.bombScaleFactor),markerScaleFactor:scaleClamp(value.markerScaleFactor),worldUnitsPerMs:clamp(Number(value.worldUnitsPerMs),0.001,0.02),futureCullMs:clamp(Number(value.futureCullMs),500,10_000),spentCullMs:clamp(Number(value.spentCullMs),100,2000),targetSize:clamp(Number(value.targetSize),0.3,2),obstacleHeight:clamp(Number(value.obstacleHeight),1,8),timingZoneHeight:clamp(Number(value.timingZoneHeight),0.005,0.2),feedbackDurationMs:clamp(Number(value.feedbackDurationMs),120,1000),hitPulseScale:clamp(Number(value.hitPulseScale),1,1.25),greatEndScale:clamp(Number(value.greatEndScale),1,1.5)
   };
   const hash=stableVisualHash(normalized);
   if(value.hash!==undefined&&value.hash!==hash&&value.hash!==defaultRendererTuning.hash)return defaultRendererTuning;
   return Object.freeze({...normalized,hash});
+}
+
+/**
+ * Deterministic content-hashed identity for the four per-class visual scale
+ * percentages (Game Setup v3). The stable string keeps tuning identity
+ * deterministic across sessions while every percent change is observable.
+ *
+ * @param {{noteScalePercent:number,obstacleScalePercent:number,bombScalePercent:number,markerScalePercent:number}} scales
+ * @returns {string}
+ */
+export function rendererVisualScalesIdentity(scales) {
+  const canonical = `note:${Math.round(Number(scales.noteScalePercent))}|obstacle:${Math.round(Number(scales.obstacleScalePercent))}|bomb:${Math.round(Number(scales.bombScalePercent))}|marker:${Math.round(Number(scales.markerScalePercent))}`;
+  let hash = 2166136261;
+  for (let index = 0; index < canonical.length; index += 1) { hash ^= canonical.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  return `visual-scales-${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
 /**
@@ -88,16 +104,28 @@ export function normalizeRendererVisualProfile(value) {
   return expected;
 }
 
-/** @param {AeroRendererVisualProfileSelection} profile @returns {AeroRendererTuning} */
-export function rendererTuningFromVisualProfile(profile) {
+/**
+ * @param {AeroRendererVisualProfileSelection} profile
+ * @param {{noteScalePercent?:number,obstacleScalePercent?:number,bombScalePercent?:number,markerScalePercent?:number}} [visualScales]
+ * @returns {AeroRendererTuning}
+ */
+export function rendererTuningFromVisualProfile(profile, visualScales) {
   const motionIntensity = profile.settings.motionIntensity;
   const roleScale = profile.settings.roleScale;
+  const noteScaleFactor = visualScales?.noteScalePercent !== undefined ? Number(visualScales.noteScalePercent) / 100 : 1;
+  const obstacleScaleFactor = visualScales?.obstacleScalePercent !== undefined ? Number(visualScales.obstacleScalePercent) / 100 : 1;
+  const bombScaleFactor = visualScales?.bombScalePercent !== undefined ? Number(visualScales.bombScalePercent) / 100 : 1;
+  const markerScaleFactor = visualScales?.markerScalePercent !== undefined ? Number(visualScales.markerScalePercent) / 100 : 1;
   return normalizeRendererTuning({
     ...defaultRendererTuning,
     id:profile.identity.profileId,
     version:profile.identity.profileVersion,
     hash:undefined,
     roleScale,
+    noteScaleFactor,
+    obstacleScaleFactor,
+    bombScaleFactor,
+    markerScaleFactor,
     targetSize:defaultRendererTuning.targetSize*(0.9+0.1*motionIntensity)
   });
 }

@@ -128,6 +128,8 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const role=targetRole(target);
   if(continuousObstacle){
     if(!isObstacleGameplayGeometry(target.gameplayGeometry)||!isObstacleGridMask(target.cells,target.gameplayGeometry))throw new TypeError("Normalized obstacle gameplay geometry and grid mask are invalid");
+    const wallVisibleSpawnMs=Math.max(0,interval.startMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs);
+    if(state!=="hit"&&state!=="miss"&&frame.nowMs<wallVisibleSpawnMs)return{objects:[],feedback:[]};
     const geometry=target.gameplayGeometry;
     const z0=timestampToWorldZ(interval.startMs,frame.nowMs,tuning.worldUnitsPerMs),z1=timestampToWorldZ(interval.endMs,frame.nowMs,tuning.worldUnitsPerMs);
     const center=(z0+z1)/2,depth=Math.abs(z1-z0);
@@ -155,7 +157,8 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   if(target.skyPreludeStartMs!==undefined&&(!Number.isFinite(target.skyPreludeStartMs)||target.skyPreludeStartMs<0||target.skyPreludeStartMs>Number(target.normalSpawnMs)))throw new TypeError("Gameplay target sky prelude start is invalid");
   const bounceEligible=isBeatBounceSemanticTarget(target),hasTrajectory=target.bounceStartMs!==undefined&&target.normalSpawnMs!==undefined&&target.skyPreludeStartMs!==undefined,normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs),skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
   const visibilityStartMs=presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
-  if(bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"&&frame.nowMs<visibilityStartMs)return{objects:[],feedback:[]};
+  const hardGateMs=hasTrajectory?visibilityStartMs:normalSpawnMs;
+  if(state!=="hit"&&state!=="miss"&&frame.nowMs<hardGateMs)return{objects:[],feedback:[]};
   const effectiveBounceStart=Math.max(normalSpawnMs,target.bounceStartMs??normalSpawnMs);
   const bounceOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationBounceOffsetY(frame.nowMs,effectiveBounceStart,target.beatCenterMs,presentationConfig):0;
   const skyOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;

@@ -10,8 +10,8 @@ import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root = process.cwd();
 const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "directional-arrow/rounded-outline-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
-const gameplayInventorySha256 = "a8eb2ea1306a6bf760b66b835d4b0dd3359601b46b1df682fe3805ee7e7e2bc8";
-const gameplayProofSha256 = "017a6c0efaf48f85130380d774502f25785783a7ad69d400f8c0f2275855c242";
+const gameplayInventorySha256 = "e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
+const gameplayProofSha256 = "0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
 const environmentRoot = resolve(root, "../aerobeat-environment-community");
 const brandingRoot = resolve(root, "../aerobeat-branding/icons/web-gameplay");
 const catalog = JSON.parse(await readFile(resolve(environmentRoot, ".testbed/assets/images/photosphere-catalog.json"), "utf8"));

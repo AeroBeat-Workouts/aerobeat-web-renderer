@@ -1,17 +1,17 @@
 // @ts-check
 
-export const gameplayAssetReleaseVersion="0.0.10";
-export const gameplayAssetSourceCommit="30a131cebe563f150334c0c937959f43fbe98049";
-export const gameplayAssetSourceTree="912a09a743dc9d565509f847ea406bb999c28881";
-export const gameplayAssetAuditCommit="49f77ff7f41e83531e302f7cd06600277defed88";
-export const gameplayAssetAuditTree="3c0e5038fc193d0042850bad90a092579ec1e3b8";
-export const gameplayAssetRawTree="0209faccacbd7a3157d32d198ac753e861731d41";
-export const gameplayAssetInventorySha256="a8eb2ea1306a6bf760b66b835d4b0dd3359601b46b1df682fe3805ee7e7e2bc8";
-export const gameplayAssetProofSha256="017a6c0efaf48f85130380d774502f25785783a7ad69d400f8c0f2275855c242";
+export const gameplayAssetReleaseVersion="0.0.11";
+export const gameplayAssetSourceCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
+export const gameplayAssetSourceTree="d027617131fe2e291e451c5414169c52a6a5b867";
+export const gameplayAssetAuditCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
+export const gameplayAssetAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
+export const gameplayAssetRawTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";
+export const gameplayAssetInventorySha256="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
+export const gameplayAssetProofSha256="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
 
 const definitions=[
   ["any-note/outlined-circle-v1","any-note","outlined-circle-v1",142020,"eb1368f09fe3034b9690e18f17e066ea4af7d20522f7c3ee009888c01f5235a6"],
-  ["athlete-marker/sphere-v1","athlete-marker","sphere-v1",5496,"b2316b8ec013e9d9087a0bd6d9e5dcef643a34132f9c51fc2526c68d317f7530"],
+  ["athlete-marker/sphere-v1","athlete-marker","sphere-v1",90520,"f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc"],
   ["bomb/urchin-v1","bomb","urchin-v1",8364,"63d61feff050c284f2e3a228d345ea794c25bab48ab56cd4801d554c923def85"],
   ["directional-arrow/rounded-outline-v1","directional-arrow","rounded-outline-v1",152916,"75435bc79c0278da5488ab05d1a97ac409cdab390e10483748c30a5aa67ad7e4"],
   ["guard/outlined-shield-v1","guard","outlined-shield-v1",93944,"5c456ed0d6db8fbc500b7d9815ac72a2f5e40ae86ee582f01b80b40e4c03e09e"],

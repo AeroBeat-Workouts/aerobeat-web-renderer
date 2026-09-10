@@ -5,6 +5,7 @@ import {createServer} from "node:http";
 import {readFile} from "node:fs/promises";
 import {extname,normalize,resolve} from "node:path";
 import {chromium} from "playwright";
+import {isExpectedReadPixelsWarning} from "./browser-console-policy.js";
 
 const root=process.cwd(),brandingRoot=resolve(root,"../aerobeat-branding/icons/web-gameplay");
 const server=createServer(async(request,response)=>{try{const pathname=new URL(request.url??"/","http://127.0.0.1").pathname,brandingRelative=pathname.startsWith("/branding/")?pathname.slice(10):null,relative=pathname==="/"?".testbed/demo/index.html":pathname.slice(1),file=brandingRelative===null?normalize(resolve(root,relative)):normalize(resolve(brandingRoot,brandingRelative)),allowed=brandingRelative===null?root:brandingRoot;if(file!==allowed&&!file.startsWith(`${allowed}/`)){response.writeHead(403).end();return;}const content=await readFile(file),types={".html":"text/html",".js":"text/javascript",".json":"application/json",".svg":"image/svg+xml",".glb":"model/gltf-binary"};response.writeHead(200,{"content-type":types[extname(file)]??"application/octet-stream","cache-control":"no-store"});response.end(content);}catch{response.writeHead(404).end();}});
@@ -12,7 +13,7 @@ await new Promise((done)=>server.listen(0,"127.0.0.1",done));const address=serve
 const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage({viewport:{width:844,height:390},deviceScaleFactor:1}),noise=[];
-  page.on("console",(message)=>{const text=message.text();if((message.type()==="warning"||message.type()==="error")&&!text.includes("GPU stall due to ReadPixels"))noise.push(`${message.type()}: ${text}`);});page.on("pageerror",(error)=>noise.push(`pageerror: ${error.message}`));
+  page.on("console",(message)=>{const type=message.type(),text=message.text(),sourceUrl=message.location().url;if((type==="warning"||type==="error")&&!isExpectedReadPixelsWarning(type,text,sourceUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",(error)=>noise.push(`pageerror: ${error.message}`));
   await page.goto(`http://127.0.0.1:${address.port}/.testbed/demo/index.html`,{waitUntil:"networkidle"});await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__?.ready===true&&globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const evidence=await page.evaluate(async()=>{
     const pc=await import("playcanvas"),prototype=pc.StandardMaterial.prototype,originalUpdate=prototype.update;let updates=0;prototype.update=function(){updates+=1;return originalUpdate.call(this);};

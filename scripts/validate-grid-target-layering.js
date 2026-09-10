@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { mkdir, readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { chromium } from "playwright";
+import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root=process.cwd();
 const brandingRoot=resolve(root,"../aerobeat-branding/icons/web-gameplay");
@@ -23,7 +24,7 @@ const address=server.address();if(!address||typeof address==="string")throw new 
 const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage({viewport:{width:844,height:390},deviceScaleFactor:1});
-  const noise=[];page.on("console",message=>{if(["warning","error"].includes(message.type())&&!message.text().includes("GPU stall due to ReadPixels"))noise.push(`${message.type()}: ${message.text()}`);});page.on("pageerror",error=>noise.push(`pageerror: ${error.message}`));
+  const noise=[];page.on("console",message=>{const type=message.type(),text=message.text(),sourceUrl=message.location().url;if(["warning","error"].includes(type)&&!isExpectedReadPixelsWarning(type,text,sourceUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",error=>noise.push(`pageerror: ${error.message}`));
   await page.goto(`http://127.0.0.1:${address.port}/.testbed/demo/index.html`,{waitUntil:"networkidle"});
   await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__?.ready===true&&globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const evidence=await page.evaluate(async()=>{

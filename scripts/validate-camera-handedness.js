@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { chromium } from "playwright";
+import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root=process.cwd(),brandingRoot=resolve(root,"../aerobeat-branding/icons/web-gameplay");
 let port=0;
@@ -23,7 +24,7 @@ const matrix=[];
 try{
   for(const embedding of ["direct","real_cross_origin_iframe"])for(const viewport of [{name:"portrait",width:390,height:844},{name:"landscape",width:844,height:390}])for(const requestedDpr of [1,3]){
     const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},deviceScaleFactor:requestedDpr});const page=await context.newPage(),noise=[];
-    page.on("console",(message)=>{const text=message.text();if((message.type()==="warning"||message.type()==="error")&&!text.includes("GPU stall due to ReadPixels"))noise.push(`${message.type()}: ${text}`);});page.on("pageerror",(error)=>noise.push(`pageerror: ${error.message}`));
+    page.on("console",(message)=>{const type=message.type(),text=message.text(),sourceUrl=message.location().url;if((type==="warning"||type==="error")&&!isExpectedReadPixelsWarning(type,text,sourceUrl))noise.push(`${type}: ${text} [sourceUrl=${JSON.stringify(sourceUrl)}]`);});page.on("pageerror",(error)=>noise.push(`pageerror: ${error.message}`));
     try{
       await page.goto(embedding==="direct"?`http://127.0.0.1:${port}/.testbed/demo/index.html`:`http://localhost:${port}/iframe-host.html`,{waitUntil:"networkidle"});
       const target=embedding==="direct"?page:page.frames().find((frame)=>frame!==page.mainFrame());if(!target)throw new Error("Real cross-origin renderer iframe missing");await target.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__?.ready===true);

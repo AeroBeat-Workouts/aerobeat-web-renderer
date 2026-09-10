@@ -6,6 +6,7 @@ import { networkInterfaces } from "node:os";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { chromium } from "playwright";
+import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root = process.cwd();
 const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "directional-arrow/rounded-outline-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
@@ -76,7 +77,10 @@ try {
     const page = await browser.newPage({ viewport: { width: 320, height: 180 } });
     const noise = [];
     page.on("console", (message) => {
-      if (["warning", "error"].includes(message.type()) && !message.text().includes("GPU stall due to ReadPixels")) noise.push(`console:${message.type()}:${message.text()}`);
+      const type = message.type();
+      const text = message.text();
+      const sourceUrl = message.location().url;
+      if (["warning", "error"].includes(type) && !isExpectedReadPixelsWarning(type, text, sourceUrl)) noise.push(`console:${type}:${text}:sourceUrl=${JSON.stringify(sourceUrl)}`);
     });
     page.on("pageerror", (error) => noise.push(`pageerror:${error.message}`));
     page.on("response", (response) => { if (!response.ok()) noise.push(`http:${response.status()}:${response.url()}`); });

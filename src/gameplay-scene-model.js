@@ -126,33 +126,35 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const continuousObstacle=target.kind==="obstacle";
   const interval=continuousObstacle?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
   const latest=interval.endMs+window.afterMs+tuning.spentCullMs;
-  const trajectoryStart=continuousObstacle&&Number.isFinite(target.normalSpawnMs)?Number(target.normalSpawnMs):Number.isFinite(target.bounceStartMs)&&Number.isFinite(target.normalSpawnMs)&&Number.isFinite(target.skyPreludeStartMs)?(presentationConfig.skyMode==="prelude"?Number(target.skyPreludeStartMs):Number(target.normalSpawnMs)):null;
+  const obstacleNormalSpawnMs=continuousObstacle&&Number.isFinite(target.normalSpawnMs)?target.normalSpawnMs:null,obstacleSkyStartMs=obstacleNormalSpawnMs===null?null:Math.max(0,obstacleNormalSpawnMs-presentationConfig.skyPreludeDurationMs);
+  const trajectoryStart=obstacleNormalSpawnMs!==null?(presentationConfig.skyMode==="prelude"?obstacleSkyStartMs:obstacleNormalSpawnMs):Number.isFinite(target.bounceStartMs)&&Number.isFinite(target.normalSpawnMs)&&Number.isFinite(target.skyPreludeStartMs)?(presentationConfig.skyMode==="prelude"?Number(target.skyPreludeStartMs):Number(target.normalSpawnMs)):null;
   if(frame.nowMs>latest||(trajectoryStart===null?interval.startMs-frame.nowMs>tuning.futureCullMs:frame.nowMs<trajectoryStart))return{objects:[],feedback:[]};
   const state=targetState(target,frame.nowMs,interval,window);
   const role=targetRole(target);
   if(continuousObstacle){
     if(!isObstacleGameplayGeometry(target.gameplayGeometry)||!isObstacleGridMask(target.cells,target.gameplayGeometry))throw new TypeError("Normalized obstacle gameplay geometry and grid mask are invalid");
-    const wallVisibleSpawnMs=Math.max(0,interval.startMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs);
-    if(state!=="hit"&&state!=="miss"&&frame.nowMs<wallVisibleSpawnMs)return{objects:[],feedback:[]};
+    const wallGateMs=obstacleNormalSpawnMs!==null?(presentationConfig.skyMode==="prelude"?obstacleSkyStartMs:obstacleNormalSpawnMs):Math.max(0,interval.startMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs);
+    if(state!=="hit"&&state!=="miss"&&frame.nowMs<wallGateMs)return{objects:[],feedback:[]};
     const geometry=target.gameplayGeometry;
     const obstacleScale=tuning.obstacleScaleFactor;
     const z0=timestampToWorldZ(interval.startMs,frame.nowMs,tuning.worldUnitsPerMs),z1=timestampToWorldZ(interval.endMs,frame.nowMs,tuning.worldUnitsPerMs);
     const center=(z0+z1)/2,depth=Math.abs(z1-z0);
     const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
+    const wallLiftY=obstacleNormalSpawnMs!==null&&presentationConfig.skyMode==="prelude"&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,obstacleSkyStartMs,obstacleNormalSpawnMs,presentationConfig):0;
     if(frame.presentation==="boxing_lanes"){
       const configuredLanes=boxingLanes(presentationConfig),lanes=target.family==="squat"?configuredLanes:configuredLanes.filter((entry)=>entry.lane===(target.lane??target.hand));
       if(lanes.length!==(target.family==="squat"?2:1))throw new TypeError("Boxing lane obstacle placement is invalid");
       const objects=[];
       for(const [index,lane] of lanes.entries()){
         const suffix=lanes.length===1?"":`:${index}`;
-        objects.push(sceneObject(`${target.id}:wall${suffix}`,"obstacle",role,target.id,{x:lane.x,y:lane.y,z:center},{x:lane.width/GAMEPLAY_CELL_SIZE,y:BOXING_LANE_HEIGHT/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null));
+        objects.push(sceneObject(`${target.id}:wall${suffix}`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:lane.width/GAMEPLAY_CELL_SIZE,y:BOXING_LANE_HEIGHT/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null));
         objects.push(sceneObject(`${target.id}:shadow${suffix}`,"shadow","neutral",target.id,{x:lane.x,y:gameplayWorldGrid.floorY+.018,z:center},{x:lane.width,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR));
       }
       return{objects,feedback:[]};
     }
     const centerX=geometry.x+(geometry.width-1)/2-1.5,centerY=2-geometry.y-(geometry.height-1)/2;
     const scaleX=(geometry.width-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,scaleY=(geometry.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE;
-    const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:centerX,y:centerY,z:center},{x:scaleX,y:scaleY,z:depth},null,ASSET.wall,0,1,null,pulse,true,interval.startMs,interval.endMs,center,30,null,null,null);
+    const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:centerX,y:centerY+wallLiftY,z:center},{x:scaleX,y:scaleY,z:depth},null,ASSET.wall,0,1,null,pulse,true,interval.startMs,interval.endMs,center,30,null,null,null);
     const shadow=sceneObject(`${target.id}:shadow`,"shadow","neutral",target.id,{x:centerX,y:gameplayWorldGrid.floorY+.018,z:center},{x:geometry.width-.06,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR);
     return{objects:[wall,shadow],feedback:[]};
   }
@@ -160,13 +162,13 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   if(target.bounceStartMs!==undefined&&(!Number.isFinite(target.bounceStartMs)||target.bounceStartMs<0||target.bounceStartMs>target.beatCenterMs))throw new TypeError("Gameplay target bounce start is invalid");
   if(target.normalSpawnMs!==undefined&&(!Number.isFinite(target.normalSpawnMs)||target.normalSpawnMs<0||target.normalSpawnMs>target.beatCenterMs))throw new TypeError("Gameplay target normal spawn is invalid");
   if(target.skyPreludeStartMs!==undefined&&(!Number.isFinite(target.skyPreludeStartMs)||target.skyPreludeStartMs<0||target.skyPreludeStartMs>Number(target.normalSpawnMs)))throw new TypeError("Gameplay target sky prelude start is invalid");
-  const bounceEligible=isBeatBounceSemanticTarget(target),hasTrajectory=target.bounceStartMs!==undefined&&target.normalSpawnMs!==undefined&&target.skyPreludeStartMs!==undefined,normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs),skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
+  const isBomb=target.kind==="bomb",bounceEligible=!isBomb&&isBeatBounceSemanticTarget(target),hasTrajectory=target.bounceStartMs!==undefined&&target.normalSpawnMs!==undefined&&target.skyPreludeStartMs!==undefined,normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs),skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
   const visibilityStartMs=presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
-  const hardGateMs=hasTrajectory?visibilityStartMs:normalSpawnMs;
+  const hardGateMs=hasTrajectory?visibilityStartMs:presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
   if(state!=="hit"&&state!=="miss"&&frame.nowMs<hardGateMs)return{objects:[],feedback:[]};
   const effectiveBounceStart=Math.max(normalSpawnMs,target.bounceStartMs??normalSpawnMs);
   const bounceOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationBounceOffsetY(frame.nowMs,effectiveBounceStart,target.beatCenterMs,presentationConfig):0;
-  const skyOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
+  const skyOffset=(bounceEligible&&hasTrajectory||isBomb)&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
   const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const resolved=state==="hit"||state==="miss",missCommit=ownEnumerableDataAdmission(target,"missCommitMs"),missCommitMs=missCommit.admitted?missCommit.value:undefined,feedbackProgress=ownEnumerableDataAdmission(target,"feedbackProgress"),feedbackProgressValue=feedbackProgress.admitted?feedbackProgress.value:undefined;

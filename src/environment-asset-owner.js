@@ -77,7 +77,7 @@ export class PlayCanvasEnvironmentAssetOwner{
   async loadFresh(app){
     const descriptor=this.descriptor;if(!descriptor||!this.fetchFn||this.state==="disposed")return this.fail(new Error("Environment asset loading is unavailable"));
     this.disposeCurrent();this.app=app;const generation=++this.generation,controller=new AbortController();this.controller=controller;this.state="loading";this.errorMessage=null;
-    /** @type {{app:unknown,root:pc.Entity|null,material:pc.StandardMaterial|null,texture:pc.Texture|null,mesh:pc.Mesh|null,image:{width:number,height:number,close?:()=>void}|null}|null} */
+    /** @type {{app:unknown,root:pc.Entity|null,material:pc.StandardMaterial|null,texture:pc.Texture|null,mesh:pc.Mesh|null,layer:pc.Layer|null,image:{width:number,height:number,close?:()=>void}|null}|null} */
     let staged=null,ownsStaged=false;
     try{
       const url=resolveSameOriginEnvironmentUrl(descriptor.url,this.locationHref);
@@ -92,12 +92,13 @@ export class PlayCanvasEnvironmentAssetOwner{
       const digest=await sha256Hex(contents);if(digest!==descriptor.sha256)throw new Error("Environment asset hash mismatch");
       this.assertCurrent(app,generation,controller.signal,descriptor);
       const image=await this.decodeImage(new Blob([contents],{type:descriptor.mimeType}),controller.signal);
-      staged={app,root:null,material:null,texture:null,mesh:null,image};ownsStaged=true;
+      staged={app,root:null,material:null,texture:null,mesh:null,layer:null,image};ownsStaged=true;
       if(image.width!==descriptor.dimensions[0]||image.height!==descriptor.dimensions[1])throw new Error("Environment asset decoded dimensions mismatch");
       this.assertCurrent(app,generation,controller.signal,descriptor);
-      const sphere=this.createSphere(app,image,descriptor);staged.root=sphere.root;staged.material=sphere.material;staged.texture=sphere.texture;staged.mesh=sphere.mesh;
+      const sphere=this.createSphere(app,image,descriptor,createEnvironmentLayer(app));staged.root=sphere.root;staged.material=sphere.material;staged.texture=sphere.texture;staged.mesh=sphere.mesh;staged.layer=sphere.layer??null;
       this.assertCurrent(app,generation,controller.signal,descriptor);
       this.record=staged;ownsStaged=false;
+      for(const camera of app.root.findComponents?.("camera")??[]){if(camera?.layers?.includes(pc.LAYERID_SKYBOX)&&!camera.layers.includes(staged.layer.id))camera.layers=[...camera.layers,staged.layer.id];}
       app.root.addChild(sphere.root);this.assertCurrent(app,generation,controller.signal,descriptor);
       this.applyTransform();this.assertCurrent(app,generation,controller.signal,descriptor);
       sphere.root.enabled=this.visible;this.assertCurrent(app,generation,controller.signal,descriptor);
@@ -116,6 +117,7 @@ export class PlayCanvasEnvironmentAssetOwner{
     try{record.material?.destroy();}catch{}record.material=null;
     try{record.texture?.destroy();}catch{}record.texture=null;
     try{record.mesh?.destroy();}catch{}record.mesh=null;
+    if(record.layer){const layer=record.layer,app=record.app;record.layer=null;if(app&&app.scene?.layers?.removeOpaque)try{app.scene.layers.removeOpaque(layer);}catch{}}
     try{record.image?.close?.();}catch{}record.image=null;
   }
   isCurrent(app,generation,descriptor){return this.app===app&&this.generation===generation&&this.descriptor===descriptor&&this.state==="loading";}
@@ -155,7 +157,7 @@ export function resolveSameOriginEnvironmentUrl(value,locationHref=globalThis.lo
   return url;
 }
 
-function createPhotosphere(app,image,descriptor){
+function createPhotosphere(app,image,descriptor,envLayer){
   const geometry=new pc.SphereGeometry({radius:ENVIRONMENT_RADIUS,latitudeBands:ENVIRONMENT_LATITUDE_BANDS,longitudeBands:ENVIRONMENT_LONGITUDE_BANDS,calculateTangents:false});
   for(let index=0;index<geometry.positions.length;index+=3){geometry.positions[index]*=-1;geometry.positions[index+2]*=-1;geometry.normals[index]*=-1;geometry.normals[index+2]*=-1;}
   for(let index=0;index<geometry.uvs.length;index+=2)geometry.uvs[index]=1-geometry.uvs[index];
@@ -165,9 +167,17 @@ function createPhotosphere(app,image,descriptor){
   texture.setSource(image);
   const material=new pc.StandardMaterial();material.name=`aerobeat-environment:${descriptor.id}:unlit`;material.useLighting=false;material.useSkybox=false;material.emissive=new pc.Color(1,1,1);material.emissiveMap=texture;material.diffuse=new pc.Color(0,0,0);material.blendType=pc.BLEND_NONE;material.opacity=1;material.depthTest=false;material.depthWrite=false;material.cull=pc.CULLFACE_FRONT;material.update();
   const root=new pc.Entity("aero-environment-photosphere",app),meshInstance=new pc.MeshInstance(mesh,material);meshInstance.cull=false;meshInstance.drawOrder=0;
-  root.addComponent("render",{meshInstances:[meshInstance],layers:[pc.LAYERID_SKYBOX],castShadows:false,receiveShadows:false});
+  root.addComponent("render",{meshInstances:[meshInstance],layers:[envLayer.id],castShadows:false,receiveShadows:false});
   root.tags.add("aerobeat-environment-background");
-  return{root,material,texture,mesh,triangleCount:ENVIRONMENT_TRIANGLES};
+  return{root,material,texture,mesh,layer:envLayer,triangleCount:ENVIRONMENT_TRIANGLES};
+}
+/** Opaque sublayer registered BEFORE the World layer so the backdrop paints before gameplay geometry. */
+function createEnvironmentLayer(app){
+  const composition=app.scene?.layers;if(!composition||!composition.getLayerById)throw new Error("Environment photosphere requires a PlayCanvas layer composition");
+  const world=composition.getLayerById(pc.LAYERID_WORLD);if(!world)throw new Error("Environment photosphere requires the PlayCanvas World layer");
+  const layer=new pc.Layer({name:"Aero Environment Photosphere",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false});
+  composition.insertOpaque(layer,Math.max(0,composition.getOpaqueIndex(world)));
+  return layer;
 }
 
 async function decodeJpeg(blob,signal){

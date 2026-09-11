@@ -64,15 +64,24 @@ assert.throws(()=>normalizeEnvironmentTransform(proxiedTransform),/proxies/);
 assert.throws(()=>normalizeEnvironmentTransform(proxiedPositionTransform),/proxies/);
 assert.throws(()=>normalizeEnvironmentTransform(proxiedRotationTransform),/proxies/);
 
+function fakeComposition(){
+ const layerList=[],subLayerList=[],layerOpaqueIndexMap=new Map(),layerTransparentIndexMap=new Map(),insertOpaqueCalls=[];
+ const updateLayerMaps=()=>{layerOpaqueIndexMap.clear();layerTransparentIndexMap.clear();for(let index=0;index<layerList.length;index+=1)(subLayerList[index]?layerTransparentIndexMap:layerOpaqueIndexMap).set(layerList[index],index);};
+ const world={id:0,name:"World"};layerList.push(world);subLayerList.push(false);updateLayerMaps();
+ return{layerList,subLayerList,insertOpaqueCalls,
+  getLayerById:(id)=>id===0?world:null,getOpaqueIndex:(layer)=>layerOpaqueIndexMap.get(layer)??-1,
+  insertOpaque(layer,index){insertOpaqueCalls.push({layer,index});layerList.splice(index,0,layer);subLayerList.splice(index,0,false);updateLayerMaps();},
+  removeOpaque(layer){const index=layerList.findIndex((entry,isSub)=>entry===layer&&!isSub);if(index<0)return;layerList.splice(index,1);subLayerList.splice(index,1);updateLayerMaps();}};
+}
 function harness(options={}){
- const roots=[],created=[],closed=[];
- const makeApp=()=>({graphicsDevice:{},assets:{list(){return[];}},root:{addChild(root){root.parent=true;roots.push(root);}}});
+ const roots=[],created=[],closed=[],layerEvents=[];
+ const makeApp=()=>{const composition=fakeComposition();return{graphicsDevice:{},assets:{list(){return[];}},scene:{layers:composition},root:{addChild(root){root.parent=true;roots.push(root);}}};};
  const app=makeApp();
  const fetch=options.fetch??(async()=>new Response(jpeg,{status:200,headers:{"content-type":"image/jpeg"}}));
  const decodeImage=options.decodeImage??(async()=>({width:4096,height:2048,close(){closed.push(this);}}));
- const createSphere=options.createSphere??((_app,image)=>{const root=fakeRoot(),material=fakeResource(),texture=fakeResource(),mesh=fakeResource();created.push({root,material,texture,mesh,image});return{root,material,texture,mesh,triangleCount:1024};});
+ const createSphere=options.createSphere??((_app,image,descriptor,envLayer)=>{const root=fakeRoot(),material=fakeResource(),texture=fakeResource(),mesh=fakeResource(),layer=envLayer??{id:999,enabled:true};created.push({root,material,texture,mesh,image,layer});layerEvents.push("created");return{root,material,texture,mesh,layer,triangleCount:1024};});
  const owner=new PlayCanvasEnvironmentAssetOwner({fetch,decodeImage,createSphere,locationHref:"https://game.test/play"});
- return{owner,app,makeApp,roots,created,closed};
+ return{owner,app,makeApp,roots,created,closed,layerEvents,composition:app.scene.layers};
 }
 function fakeRoot(){return{name:"aero-environment-photosphere",enabled:true,parent:false,destroyed:false,destroyCount:0,position:[0,0,0],rotation:[0,0,0],scale:[1,1,1],setPosition(...value){this.position=value;},setEulerAngles(...value){this.rotation=value;},setLocalScale(...value){this.scale=value;},destroy(){this.destroyed=true;++this.destroyCount;}};}
 function fakeResource(){return{destroyed:false,destroyCount:0,destroy(){this.destroyed=true;++this.destroyCount;}};}
@@ -163,4 +172,13 @@ for(const throwingBoundary of["position","enabled"]){
  const first=harness(),second=harness();await first.owner.setDescriptor(descriptor);await second.owner.setDescriptor(descriptor);await Promise.all([first.owner.attach(first.app),second.owner.attach(second.app)]);assert.notEqual(first.created[0].root,second.created[0].root);assert.notEqual(first.created[0].texture,second.created[0].texture);first.owner.dispose();assert.equal(second.owner.describe().state,"ready","instances must remain independent");second.owner.dispose();
 }
 assert.equal(pc.LAYERID_SKYBOX,2);assert.throws(()=>new PlayCanvasEnvironmentAssetOwner().setVisible(1),/boolean/);
+{
+ const {owner,app,created,composition,layerEvents}=harness();await owner.setDescriptor(descriptor);await owner.attach(app);
+ const envLayer=created[0].layer;assert.ok(envLayer,"photosphere must be created on a dedicated owned layer");assert.notEqual(envLayer.id,pc.LAYERID_SKYBOX,"photosphere must no longer render on the shared Skybox slot");assert.equal(envLayer.name,"Aero Environment Photosphere");assert.equal(envLayer.clearColorBuffer,false);assert.equal(envLayer.clearDepthBuffer,false);assert.equal(envLayer.clearStencilBuffer,false);
+ assert.deepEqual(composition.insertOpaqueCalls,[{layer:envLayer,index:0}],"dedicated env layer must register as an opaque sublayer at the World opaque index");
+ assert.equal(composition.getOpaqueIndex(envLayer),0,"env layer must sit at or before the World opaque index");const worldIndex=composition.getOpaqueIndex(composition.getLayerById(0));assert.ok(worldIndex>=1,"World must register after the env layer");
+ owner.dispose();assert.equal(composition.layerList.length,1,"owned env layer must be removed from the composition on dispose");assert.deepEqual(layerEvents,["created"]);
+ const lost=harness();await lost.owner.setDescriptor(descriptor);await lost.owner.attach(lost.app);assert.equal(lost.composition.layerList.length,2,"context attach must register exactly one env layer");lost.owner.handleContextLost();assert.equal(lost.composition.layerList.length,1,"context loss must release the owned env layer");
+ const reattached=lost.makeApp();await lost.owner.attach(reattached);assert.equal(reattached.scene.layers.layerList.length,2,"reattach must register a fresh env layer");lost.owner.dispose();assert.equal(reattached.scene.layers.layerList.length,1);
+}
 console.log("Generic photosphere descriptor/transform bounds, anchoring, atomic rejection, one-resident replacement, same-origin/hash/type/dimension gates, stale generations, context restore, disposal, and multi-instance validation passed.");

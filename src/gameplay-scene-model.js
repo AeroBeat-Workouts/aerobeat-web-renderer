@@ -15,7 +15,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
 /** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two clip-plane halves with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,evictedAtMs?:number}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
@@ -25,11 +25,14 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,noteScaleFactor:number,obstacleScaleFactor:number,bombScaleFactor:number,markerScaleFactor:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number,aftermathGravityWUPerS2:number,aftermathRestitution:number,aftermathBounceCount:number,aftermathEvictedFadeMs:number,aftermathSettledTumbleRadPerS:number,aftermathSliceSeparationWU:number,aftermathLaunchVelocities:AeroAftermathLaunchVelocities,hazardGlowRampMs:number,hazardGlowDecayMs:number}} AeroRendererTuning */
 /** @typedef {{text:"Great"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
-/** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band"|"aftermath"|"hazard_glow",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,tintColor:string|null,appearanceColor:string|null,tintMix:number,whiteCore:boolean,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,aftermath?:AeroAftermathVisual|AeroHazardGlowVisual|null}} AeroGameplaySceneObject */
+/** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band"|"aftermath"|"hazard_glow"|"tolerance_cone"|"collider_square",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,tintColor:string|null,appearanceColor:string|null,tintMix:number,whiteCore:boolean,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,aftermath?:AeroAftermathVisual|AeroHazardGlowVisual|AeroToleranceConeVisual|AeroColliderSquareVisual|null}} AeroGameplaySceneObject */
 /** Closed-form aftermath pose for one settled/launching icon entity. @typedef {{targetId:string,family:AeroAftermathFamily,elapsedMs:number,settleMs:number,phase:"flight"|"settled",sliceSign:1|-1|null,offsetXWU:number}} AeroAftermathVisual */
 /** Presentation-only full-viewport hazard glow; no coordinates or event internals. @typedef {{present:boolean,activeCount:number,intensity:number,rampMs:number,decayMs:number}} AeroHazardGlowVisual */
+/** 0.0.53 W2: presentation-only summary of the two debug-visibility overlays (tolerance cones + collider squares). @typedef {{visibleToleranceRange:boolean,visibleColliderRadius:boolean,colliderRadius:number,directionToleranceDegrees:number,coneCount:number,squareCount:number}} AeroColliderOverlayVisual */
+/** Geometry for one tolerance-cone debug scene object (kind `tolerance_cone`): authored direction unit vector, half-angle, inner (footprint) radius, outer radius, and the closed-form fan geometry (positions/indices) for the facade to build a mesh. @typedef {{directionX:number,directionY:number,toleranceDegrees:number,innerRadius:number,radius:number,positions:Float32Array,indices:Uint16Array,vertexCount:number,triangleCount:number}} AeroToleranceConeVisual */
+/** Geometry for one collider-square debug scene object (kind `collider_square`): the inflated half-extent (TARGET_HALF_EXTENT + colliderRadius) in world X-Y. @typedef {{halfExtent:number}} AeroColliderSquareVisual */
 /** @typedef {{name:"early"|"active"|"late",startZ:number,endZ:number,color:string,alpha:number}} AeroTimingZoneSegment */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,objects:readonly AeroGameplaySceneObject[],timingZone:Readonly<{beforeMs:number,afterMs:number,startZ:number,endZ:number,segments:readonly AeroTimingZoneSegment[]}>,guidance:Readonly<{mode:"off"|"song_beat_grid"|"target_arrivals",visibleBandCount:number,culledBandCount:number}>,camera:typeof defaultGameplayCameraPose,grid:Readonly<{columns:4,rows:3,columnX:readonly number[],rowY:readonly number[],floorY:number}>,overlay:Readonly<{kind:string,dim:number,countdown:number|null}>,assets:Readonly<{release:string,identities:readonly string[],guardCanonicalAsset:string,guardInstancesPerBeat:number}>,renderOrder:readonly string[],culledTargetIds:readonly string[],hazardGlow:AeroHazardGlowVisual,aftermathVisuals:Readonly<{count:number,cap:number}>}} AeroGameplaySceneModel */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,objects:readonly AeroGameplaySceneObject[],timingZone:Readonly<{beforeMs:number,afterMs:number,startZ:number,endZ:number,segments:readonly AeroTimingZoneSegment[]}>,guidance:Readonly<{mode:"off"|"song_beat_grid"|"target_arrivals",visibleBandCount:number,culledBandCount:number}>,camera:typeof defaultGameplayCameraPose,grid:Readonly<{columns:4,rows:3,columnX:readonly number[],rowY:readonly number[],floorY:number}>,overlay:Readonly<{kind:string,dim:number,countdown:number|null}>,assets:Readonly<{release:string,identities:readonly string[],guardCanonicalAsset:string,guardInstancesPerBeat:number}>,renderOrder:readonly string[],culledTargetIds:readonly string[],hazardGlow:AeroHazardGlowVisual,aftermathVisuals:Readonly<{count:number,cap:number}>,colliderOverlay:AeroColliderOverlayVisual}} AeroGameplaySceneModel */
 
 /** Retained only as an input/rasterization compatibility contract; production targets no longer consume this atlas. */
 export const gameplayIconIds = Object.freeze(["boxing.glove","boxing.guard.crossed","boxing.guard.standard","boxing.hook.left","boxing.hook.right","boxing.squat","boxing.straight.left","boxing.straight.right","boxing.uppercut.left","boxing.uppercut.right","boxing.weave.left","boxing.weave.right","calibration.tpose","feedback.great","flow.directional","flow.directionless"]);
@@ -42,6 +45,21 @@ export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timi
 const ASSET=Object.freeze({arrow:"directional-arrow/rounded-outline-v1",circle:"any-note/outlined-circle-v1",guard:"guard/outlined-shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
 /** Aftermath presentation constant: icon half-height used to seat settled pieces on the floor. */
 const AFTERMATH_ICON_HALF_HEIGHT_WU=0.45;
+/** 0.0.53 W2: logical target footprint half-extent in athlete-grid units (mirrors `aerobeat-web-gameplay` `TARGET_HALF_EXTENT`). The collider hit region is this square inflated by `colliderRadius`. */
+const TARGET_HALF_EXTENT=0.375;
+/** 0.0.53 W2: default per-frame collider settings (used when the optional frame fields are absent). */
+const DEFAULT_COLLIDER_RADIUS=0.12;
+const DEFAULT_DIRECTION_TOLERANCE_DEGREES=45;
+/** 0.0.53 W2: debug-overlay presentation constants — bounded-alpha translucent fill and distinct colors. */
+const TOLERANCE_CONE_ALPHA=0.2;
+const COLLIDER_SQUARE_ALPHA=0.3;
+const TOLERANCE_CONE_COLOR="#39c96b";
+const COLLIDER_SQUARE_COLOR="#9a67ea";
+const TARGET_MARKER_ALPHA=0.9;
+const TARGET_MARKER_COLOR="#ffffff";
+/** 0.0.53 W2: arc tessellation and radial span for the tolerance-cone sector. */
+const TOLERANCE_CONE_ARC_STEPS=24;
+const TOLERANCE_CONE_RADIUS_WU=1.1;
 const AFTERMATH_MAX_ENTRIES=8;
 const AFTERMATH_MAX_HAZARD_EVENTS=32;
 const HAZARD_GLOW_COLOR="#e5484d";
@@ -78,6 +96,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   if(frame.aftermath!==undefined&&!isValidAftermathList(frame.aftermath))throw new TypeError("Frame aftermath entries are invalid");
   if(frame.hazardContacts!==undefined&&!isValidHazardContactList(frame.hazardContacts))throw new TypeError("Frame hazard contact events are invalid");
   const reach=normalizeFrameRowReach(frame.rowReach);
+  const colliderOverlay=normalizeColliderOverlay(frame);
   const window=timingWindow(frame);
   const startZ=timestampToWorldZ(frame.nowMs-window.afterMs,frame.nowMs,tuning.worldUnitsPerMs);
   const endZ=timestampToWorldZ(frame.nowMs+window.beforeMs,frame.nowMs,tuning.worldUnitsPerMs);
@@ -107,6 +126,8 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
     else{objects.push(...result.objects);feedback.push(...result.feedback);}
   }
   for(const entry of frame.aftermath??[])objects.push(...aftermathObjects(entry,frame.nowMs,tuning));
+  const overlayObjects=colliderOverlayObjects(frame,sorted,colliderOverlay);
+  objects.push(...overlayObjects);
   const retainedFeedback=feedback.sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id)).slice(-MAX_FEEDBACK).sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id));
   objects.push(...retainedFeedback);
   const aftermathEntries=frame.aftermath??[];
@@ -124,7 +145,8 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
     assets:Object.freeze({release:String(gameplayAssetSet.release),identities:Object.freeze(gameplayAssetIds.map(String)),guardCanonicalAsset:String(gameplayAssetSet.constraints.guardCanonicalAsset),guardInstancesPerBeat:gameplayAssetSet.constraints.guardInstancesPerBeat}),
     renderOrder:gameplaySceneRenderOrder,culledTargetIds:Object.freeze(culled),
     hazardGlow:hazardGlowVisual(glowState,tuning),
-    aftermathVisuals:Object.freeze({count:aftermathEntries.length,cap:AFTERMATH_MAX_ENTRIES})
+    aftermathVisuals:Object.freeze({count:aftermathEntries.length,cap:AFTERMATH_MAX_ENTRIES}),
+    colliderOverlay:colliderOverlayVisual(colliderOverlay,overlayObjects)
   });
 }
 
@@ -531,6 +553,110 @@ function isValidAftermathList(value){
     return true;
   });
 }
+// 0.0.53 W2 — debug-visibility overlays (visible tolerance range cone + collider radius square).
+// Pure per-frame functions of (frame, targets, collider settings). Both overlays are OFF by default
+// (absent frame fields → default false) and produce zero scene objects when off.
+
+/** @typedef {Readonly<{visibleToleranceRange:boolean,visibleColliderRadius:boolean,colliderRadius:number,directionToleranceDegrees:number}>} AeroColliderOverlaySettings */
+
+/**
+ * Authoritative 8-way authored direction → world unit vector (X-Y plane). Mirrors
+ * `aerobeat-web-gameplay` `authoredDirectionCone` semantics: `up` = +Y. World X-Y is exactly the
+ * athlete-grid plane under the default top-down camera.
+ * @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection} direction
+ * @returns {{x:number,y:number}}
+ */
+export function directionUnitVector(direction){
+  const vectors=new Map([["up",[0,1]],["up-right",[Math.SQRT1_2,Math.SQRT1_2]],["right",[1,0]],["down-right",[Math.SQRT1_2,-Math.SQRT1_2]],["down",[0,-1]],["down-left",[-Math.SQRT1_2,-Math.SQRT1_2]],["left",[-1,0]],["up-left",[-Math.SQRT1_2,Math.SQRT1_2]]]);
+  const vector=vectors.get(direction);
+  if(!vector)throw new TypeError("Gameplay direction is unsupported");
+  return Object.freeze({x:vector[0],y:vector[1]});
+}
+
+/**
+ * Normalize the optional 0.0.53 per-frame collider-overlay fields. Absent → defaults
+ * (visibleToleranceRange=false, visibleColliderRadius=false, colliderRadius=0.12,
+ * directionToleranceDegrees=45). Present values must be strictly boolean/finite and in the
+ * gameplay bounds (radius 0..0.5, tolerance 0..90).
+ * @param {AeroGameplayFrame} frame
+ * @returns {AeroColliderOverlaySettings}
+ */
+export function normalizeColliderOverlay(frame){
+  const readBool=(value)=>value===undefined?false:typeof value==="boolean"?value:(()=>{throw new TypeError("Collider overlay flag must be boolean");})();
+  const readNumber=(value,fallback,bounds)=>value===undefined?fallback:typeof value==="number"&&Number.isFinite(value)&&value>=bounds[0]&&value<=bounds[1]?value:(()=>{throw new TypeError("Collider overlay number is invalid");})();
+  return Object.freeze({
+    visibleToleranceRange:readBool(frame.visibleToleranceRange),
+    visibleColliderRadius:readBool(frame.visibleColliderRadius),
+    colliderRadius:readNumber(frame.colliderRadius,DEFAULT_COLLIDER_RADIUS,[0,0.5]),
+    directionToleranceDegrees:readNumber(frame.directionToleranceDegrees,DEFAULT_DIRECTION_TOLERANCE_DEGREES,[0,90])
+  });
+}
+
+/**
+ * Closed-form sector geometry for one tolerance cone: a triangle fan from the target center
+ * spanning the entry arc (2×`toleranceDegrees` around the authored `direction` unit vector).
+ * The fan is a full sector from the center to `radius` in the X-Y plane (Z=0); the target
+ * footprint (inflated square, half-extent `innerRadius`) is drawn separately as a small disc.
+ * Returns flat position arrays (x,y,z per vertex) and the fan index list.
+ * @param {number} cx @param {number} cy @param {{x:number,y:number}} direction @param {number} toleranceDegrees @param {number} radius @param {number} [steps]
+ * @returns {{positions:Float32Array,indices:Uint16Array,vertexCount:number,triangleCount:number}}
+ */
+export function toleranceConeGeometry(cx,cy,direction,toleranceDegrees,radius,steps=TOLERANCE_CONE_ARC_STEPS){
+  const base=Math.atan2(direction.y,direction.x),half=toleranceDegrees*Math.PI/180;
+  const startAngle=base+half,endAngle=base-half;
+  const positions=new Float32Array((steps+2)*3),indices=new Uint16Array(steps*3);
+  positions[0]=cx;positions[1]=cy;positions[2]=0;
+  for(let i=0;i<=steps;i+=1){
+    const angle=startAngle+((endAngle-startAngle)*i)/steps,off=(i+1)*3;
+    positions[off]=cx+radius*Math.cos(angle);
+    positions[off+1]=cy+radius*Math.sin(angle);
+    positions[off+2]=0;
+  }
+  let cursor=0;
+  for(let i=0;i<steps;i+=1){indices[cursor++]=0;indices[cursor++]=1+i;indices[cursor++]=2+i;}
+  return Object.freeze({positions,indices,vertexCount:positions.length/3,triangleCount:steps});
+}
+
+/**
+ * Build the bounded scene objects for the two debug overlays from the sorted, visible targets.
+ * Returns an empty array when both overlay flags are off (zero cost).
+ * @param {AeroGameplayFrame} frame @param {readonly AeroRenderableTarget[]} sorted @param {AeroColliderOverlaySettings} overlay
+ * @returns {AeroGameplaySceneObject[]}
+ */
+export function colliderOverlayObjects(frame,sorted,overlay){
+  if(!overlay.visibleToleranceRange&&!overlay.visibleColliderRadius)return[];
+  /** @type {AeroGameplaySceneObject[]} */ const objects=[];
+  const halfExtent=TARGET_HALF_EXTENT+overlay.colliderRadius;
+  for(const target of sorted){
+    // Only directional notes carry a tolerance cone; collider squares draw for every visible target.
+    const direction=target.direction?directionUnitVector(target.direction):null;
+    const positions=targetPositions(frame,target,defaultTestPresentationConfig,normalizeFrameRowReach(frame.rowReach));
+    if(positions.length===0)continue;
+    for(let i=0;i<positions.length;i+=1){
+      const p=positions[i];
+      if(overlay.visibleColliderRadius){
+        const visual=Object.freeze({halfExtent});
+        objects.push(sceneObject(`${target.id}:collider:${i}`,"collider_square","neutral",target.id,{x:p.x,y:p.y,z:0},{x:halfExtent*2,y:halfExtent*2,z:0.012},null,null,0,COLLIDER_SQUARE_ALPHA,null,0,true,null,null,0,45,null,null,null,null,COLLIDER_SQUARE_COLOR,visual));
+      }
+      if(overlay.visibleToleranceRange&&direction){
+        const geometry=toleranceConeGeometry(p.x,p.y,direction,overlay.directionToleranceDegrees,TOLERANCE_CONE_RADIUS_WU);
+        const visual=Object.freeze({directionX:direction.x,directionY:direction.y,toleranceDegrees:overlay.directionToleranceDegrees,innerRadius:halfExtent,radius:TOLERANCE_CONE_RADIUS_WU,positions:geometry.positions,indices:geometry.indices,vertexCount:geometry.vertexCount,triangleCount:geometry.triangleCount});
+        objects.push(sceneObject(`${target.id}:tolerance:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z:0.006},{x:1,y:1,z:1},null,null,0,TOLERANCE_CONE_ALPHA,null,0,true,null,null,0,46,null,null,null,null,TOLERANCE_CONE_COLOR,visual));
+        // Small target-point marker at the center (distinct, high-alpha disc).
+        objects.push(sceneObject(`${target.id}:target-point:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z:0.009},{x:0.06,y:0.06,z:0.06},null,null,0,TARGET_MARKER_ALPHA,null,0,true,null,null,0,47,null,null,null,null,TARGET_MARKER_COLOR,null));
+      }
+    }
+  }
+  return objects;
+}
+
+/** @param {AeroColliderOverlaySettings} overlay @param {AeroGameplaySceneObject[]} objects @returns {AeroColliderOverlayVisual} */
+function colliderOverlayVisual(overlay,objects){
+  let coneCount=0,squareCount=0;
+  for(const object of objects){if(object.kind==="collider_square")squareCount+=1;else if(object.kind==="tolerance_cone"&&object.aftermath&&"directionX" in object.aftermath)coneCount+=1;}
+  return Object.freeze({visibleToleranceRange:overlay.visibleToleranceRange,visibleColliderRadius:overlay.visibleColliderRadius,colliderRadius:overlay.colliderRadius,directionToleranceDegrees:overlay.directionToleranceDegrees,coneCount,squareCount});
+}
+
 /** Validate a bounded, plain-data hazard contact events list. @param {unknown} value */
 function isValidHazardContactList(value){
   if(!Array.isArray(value)||value.length>AFTERMATH_MAX_HAZARD_EVENTS)return false;

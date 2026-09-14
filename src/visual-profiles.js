@@ -53,18 +53,21 @@ export function normalizeRendererTheme(value) {
  */
 export function normalizeRendererTuning(value) {
   if (!isRecord(value)) return defaultRendererTuning;
-  const numberNames = ["dprCap","roleScale","noteScaleFactor","obstacleScaleFactor","bombScaleFactor","markerScaleFactor","worldUnitsPerMs","futureCullMs","spentCullMs","targetSize","obstacleHeight","timingZoneHeight","feedbackDurationMs","hitPulseScale","greatEndScale"];
+  const numberNames = ["dprCap","roleScale","noteScaleFactor","obstacleScaleFactor","bombScaleFactor","markerScaleFactor","worldUnitsPerMs","futureCullMs","spentCullMs","targetSize","obstacleHeight","timingZoneHeight","feedbackDurationMs","hitPulseScale","greatEndScale","aftermathGravityWUPerS2","aftermathRestitution","aftermathBounceCount","aftermathEvictedFadeMs","aftermathSettledTumbleRadPerS","aftermathSliceSeparationWU","hazardGlowRampMs","hazardGlowDecayMs"];
   const requiredNames = ["id","version",...numberNames];
+  const optionalKeys = ["hash","aftermathLaunchVelocities"];
   const keys = Object.keys(value);
-  if (!keys.every((key)=>requiredNames.includes(key)||key==="hash") || !requiredNames.every((key)=>keys.includes(key)) || typeof value.id!=="string" || value.id.length===0 || typeof value.version!=="string" || value.version.length===0 || !numberNames.every((name)=>typeof value[name]==="number"&&Number.isFinite(value[name]))) return defaultRendererTuning;
+  if (!keys.every((key)=>requiredNames.includes(key)||optionalKeys.includes(key)) || !requiredNames.every((key)=>keys.includes(key)) || typeof value.id!=="string" || value.id.length===0 || typeof value.version!=="string" || value.version.length===0 || !numberNames.every((name)=>typeof value[name]==="number"&&Number.isFinite(value[name]))) return defaultRendererTuning;
   const scaleClamp=(raw)=>clamp(Number(raw),rendererVisualScaleBounds.min,rendererVisualScaleBounds.max);
   const normalized = {
     id:value.id,version:value.version,
-    dprCap:clamp(Number(value.dprCap),1,4),roleScale:clamp(Number(value.roleScale),0.5,1.5),noteScaleFactor:scaleClamp(value.noteScaleFactor),obstacleScaleFactor:scaleClamp(value.obstacleScaleFactor),bombScaleFactor:scaleClamp(value.bombScaleFactor),markerScaleFactor:scaleClamp(value.markerScaleFactor),worldUnitsPerMs:clamp(Number(value.worldUnitsPerMs),0.001,0.02),futureCullMs:clamp(Number(value.futureCullMs),500,10_000),spentCullMs:clamp(Number(value.spentCullMs),100,2000),targetSize:clamp(Number(value.targetSize),0.3,2),obstacleHeight:clamp(Number(value.obstacleHeight),1,8),timingZoneHeight:clamp(Number(value.timingZoneHeight),0.005,0.2),feedbackDurationMs:clamp(Number(value.feedbackDurationMs),120,1000),hitPulseScale:clamp(Number(value.hitPulseScale),1,1.25),greatEndScale:clamp(Number(value.greatEndScale),1,1.5)
+    dprCap:clamp(Number(value.dprCap),1,4),roleScale:clamp(Number(value.roleScale),0.5,1.5),noteScaleFactor:scaleClamp(value.noteScaleFactor),obstacleScaleFactor:scaleClamp(value.obstacleScaleFactor),bombScaleFactor:scaleClamp(value.bombScaleFactor),markerScaleFactor:scaleClamp(value.markerScaleFactor),worldUnitsPerMs:clamp(Number(value.worldUnitsPerMs),0.001,0.02),futureCullMs:clamp(Number(value.futureCullMs),500,10_000),spentCullMs:clamp(Number(value.spentCullMs),100,2000),targetSize:clamp(Number(value.targetSize),0.3,2),obstacleHeight:clamp(Number(value.obstacleHeight),1,8),timingZoneHeight:clamp(Number(value.timingZoneHeight),0.005,0.2),feedbackDurationMs:clamp(Number(value.feedbackDurationMs),120,1000),hitPulseScale:clamp(Number(value.hitPulseScale),1,1.25),greatEndScale:clamp(Number(value.greatEndScale),1,1.5),
+    aftermathGravityWUPerS2:clamp(Number(value.aftermathGravityWUPerS2),1,30),aftermathRestitution:clamp(Number(value.aftermathRestitution),0,0.9),aftermathBounceCount:clamp(Math.round(Number(value.aftermathBounceCount)),0,4),aftermathEvictedFadeMs:clamp(Number(value.aftermathEvictedFadeMs),50,1000),aftermathSettledTumbleRadPerS:clamp(Number(value.aftermathSettledTumbleRadPerS),0,10),aftermathSliceSeparationWU:clamp(Number(value.aftermathSliceSeparationWU),0,1),hazardGlowRampMs:clamp(Number(value.hazardGlowRampMs),10,1000),hazardGlowDecayMs:clamp(Number(value.hazardGlowDecayMs),100,5000)
   };
   const hash=stableVisualHash(normalized);
   if(value.hash!==undefined&&value.hash!==hash&&value.hash!==defaultRendererTuning.hash)return defaultRendererTuning;
-  return Object.freeze({...normalized,hash});
+  const launchVelocities=/** @type {import("./gameplay-scene-model.js").AeroAftermathLaunchVelocities} */(value.aftermathLaunchVelocities??defaultRendererTuning.aftermathLaunchVelocities);
+  return Object.freeze({...normalized,aftermathLaunchVelocities:launchVelocities,hash});
 }
 
 /**

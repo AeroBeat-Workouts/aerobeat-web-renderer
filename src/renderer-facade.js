@@ -299,7 +299,11 @@ export class AeroPlayCanvasRenderer {
     material.blendType=pc.BLEND_NORMAL;material.depthTest=false;material.depthWrite=false;material.cull=pc.CULLFACE_NONE;material.setParameter("u_intensity",0);
     this.ownedMaterials.add(material);this.ownedMaterials.add(quadMesh);
     const quad=new pc.Entity("aero-hazard-glow",this.app);
-    quad.addComponent("render",{mesh:quadMesh,material});
+    // Set the mesh via render.meshInstances (the valid PlayCanvas API). Passing `mesh` as an
+    // addComponent option is a no-op (not a recognized render-component option) that leaves the
+    // quad without a mesh instance (renders nothing, leaks the mesh) and emits a console warning.
+    quad.addComponent("render",{material});
+    quad.render.meshInstances=[new pc.MeshInstance(quadMesh,material)];
     const renderComp=quad.render;
     /** @type {import("playcanvas").RenderComponent[]} */ const renderComps=[renderComp];
     this.entityMaterials.set(quad,material);

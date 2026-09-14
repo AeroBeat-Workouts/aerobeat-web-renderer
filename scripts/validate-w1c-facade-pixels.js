@@ -256,6 +256,8 @@ try {
     renderer.renderGameplayFrame({ ...idleFrame, hazardContacts: [{ eventId: "h-now", atMs: 750 }] });
     const glowIntensity = renderer.lastModel.hazardGlow.intensity,
       glowVignetteEnabled = renderer.hazardGlowEntity?.enabled ?? false,
+      glowVignetteMeshCount = renderer.hazardGlowEntity?.render?.meshInstances?.length ?? -1,
+      glowVignetteType = renderer.hazardGlowEntity?.render?.type ?? null,
       glowPixels = sample();
     let glowShiftedPixels = 0, glowRedExcess = 0;
     for (let index = 0; index < glowPixels.length; index += 4) {
@@ -324,6 +326,8 @@ try {
       glow: {
         intensity: glowIntensity,
         vignetteEnabled: glowVignetteEnabled,
+        vignetteMeshCount: glowVignetteMeshCount,
+        vignetteType: glowVignetteType,
         shiftedPixels: glowShiftedPixels,
         redExcess: glowRedExcess,
         edgeRed: glowEdgeRed,
@@ -384,6 +388,7 @@ try {
   // (d) Glow active: vignette adds a measurable red shift in the screen-edge band over the center
   assert.ok(evidence.glow.intensity > 0.5, `glow intensity must be high near the ramp: ${evidence.glow.intensity}`);
   assert.equal(evidence.glow.vignetteEnabled, true, "vignette quad must be enabled when glow is active");
+  assert.equal(evidence.glow.vignetteMeshCount, 1, `vignette quad must have exactly one mesh instance (set via render.meshInstances, not an addComponent option): ${evidence.glow.vignetteMeshCount}`);
   assert.ok(evidence.glow.shiftedPixels > 3000, `vignette must visibly tint a large edge region: ${evidence.glow.shiftedPixels} px`);
   assert.ok(evidence.glow.redExcess > evidence.glow.shiftedPixels * 4, `tinted pixels must carry real red excess: mean=${(evidence.glow.redExcess / Math.max(1, evidence.glow.shiftedPixels)).toFixed(1)}`);
   assert.ok(evidence.glow.centerRed <= evidence.idle.redCenter + 4, `screen center must stay near baseline red: center=${evidence.glow.centerRed}, idle=${evidence.idle.redCenter}`);

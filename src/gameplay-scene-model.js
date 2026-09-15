@@ -15,14 +15,16 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
 /** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two clip-plane halves with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,evictedAtMs?:number}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
+/** 0.0.54 W1-C: bounded wall-collider contact STATE (nose inside any obstacle collider), presentation-only — no coordinates. `sinceMs` is the absolute ms of first contact of the current episode (present while active); `releasedAtMs` is the absolute ms of the most recent exit (present after release), letting the renderer compute a stateless decay. @typedef {{active:boolean,sinceMs:number|null,releasedAtMs:number|null}} AeroHazardContactActive */
+/** 0.0.54 W1-C: bounded per-frame vignette pulse parameters; absent fields fall back to the tuning defaults (frame values override tuning). @typedef {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}} AeroHazardVignetteParams */
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** Per-family aftermath launch velocity (WU/s); hooks carry the magnitude with hand-derived sign. @typedef {{x:number,y:number,z:number}} AeroAftermathLaunchVelocity */
 /** @typedef {{straight:AeroAftermathLaunchVelocity,hook:AeroAftermathLaunchVelocity,uppercut:AeroAftermathLaunchVelocity,guardBonk:AeroAftermathLaunchVelocity,flowNote:AeroAftermathLaunchVelocity}} AeroAftermathLaunchVelocities */
-/** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,noteScaleFactor:number,obstacleScaleFactor:number,bombScaleFactor:number,markerScaleFactor:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number,aftermathGravityWUPerS2:number,aftermathRestitution:number,aftermathBounceCount:number,aftermathEvictedFadeMs:number,aftermathSettledTumbleRadPerS:number,aftermathSliceSeparationWU:number,aftermathLaunchVelocities:AeroAftermathLaunchVelocities,hazardGlowRampMs:number,hazardGlowDecayMs:number}} AeroRendererTuning */
+/** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,noteScaleFactor:number,obstacleScaleFactor:number,bombScaleFactor:number,markerScaleFactor:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number,aftermathGravityWUPerS2:number,aftermathRestitution:number,aftermathBounceCount:number,aftermathEvictedFadeMs:number,aftermathSettledTumbleRadPerS:number,aftermathSliceSeparationWU:number,aftermathLaunchVelocities:AeroAftermathLaunchVelocities,hazardGlowRampMs:number,hazardGlowDecayMs:number,hazardVignetteIntensity:number,hazardVignettePulseHz:number,hazardVignettePulseDepth:number,hazardVignetteRampMs:number,hazardVignetteDecayMs:number}} AeroRendererTuning */
 /** @typedef {{text:"Great"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
 /** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band"|"aftermath"|"hazard_glow"|"tolerance_cone"|"collider_square",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,tintColor:string|null,appearanceColor:string|null,tintMix:number,whiteCore:boolean,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,aftermath?:AeroAftermathVisual|AeroHazardGlowVisual|AeroToleranceConeVisual|AeroColliderSquareVisual|null}} AeroGameplaySceneObject */
@@ -60,6 +62,12 @@ const TARGET_MARKER_COLOR="#ffffff";
 /** 0.0.53 W2: arc tessellation and radial span for the tolerance-cone sector. */
 const TOLERANCE_CONE_ARC_STEPS=24;
 const TOLERANCE_CONE_RADIUS_WU=1.1;
+/** 0.0.54 W1-C: camera-side presentation offset for the collider overlays. The canonical play camera
+ * (`defaultGameplayCameraPose`) sits at `(0.05, 1, 5)` — on world +Z of the Z=0 hit plane — looking
+ * along −Z, while approaching beats travel from −Z to +Z toward the hit plane. +Z is therefore the
+ * camera side, so the overlays (square, cone, target-point marker) sit a small amount in front of
+ * the beat glyph and remain readable over it (with depth-test off in the facade). */
+export const COLLIDER_OVERLAY_CAM_OFFSET_WU=0.03;
 const AFTERMATH_MAX_ENTRIES=8;
 const AFTERMATH_MAX_HAZARD_EVENTS=32;
 const HAZARD_GLOW_COLOR="#e5484d";
@@ -68,7 +76,7 @@ function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freez
 const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,MISS_LABEL_CLEARANCE_WORLD_UNITS=.85,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
 
 /** @type {AeroRendererTuning} */
-export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"4",hash:"visual-playcanvas-v4",dprCap:2,roleScale:1,noteScaleFactor:1,obstacleScaleFactor:1,bombScaleFactor:1,markerScaleFactor:1,worldUnitsPerMs:CANONICAL_WORLD_UNITS_PER_MS,futureCullMs:10_000,spentCullMs:600,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25,aftermathGravityWUPerS2:9.8,aftermathRestitution:.35,aftermathBounceCount:2,aftermathEvictedFadeMs:150,aftermathSettledTumbleRadPerS:1.6,aftermathSliceSeparationWU:.16,aftermathLaunchVelocities:aftermathLaunchVelocities(),hazardGlowRampMs:150,hazardGlowDecayMs:600 });
+export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"5",hash:"visual-playcanvas-v5",dprCap:2,roleScale:1,noteScaleFactor:1,obstacleScaleFactor:1,bombScaleFactor:1,markerScaleFactor:1,worldUnitsPerMs:CANONICAL_WORLD_UNITS_PER_MS,futureCullMs:10_000,spentCullMs:600,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25,aftermathGravityWUPerS2:9.8,aftermathRestitution:.35,aftermathBounceCount:2,aftermathEvictedFadeMs:150,aftermathSettledTumbleRadPerS:1.6,aftermathSliceSeparationWU:.16,aftermathLaunchVelocities:aftermathLaunchVelocities(),hazardGlowRampMs:150,hazardGlowDecayMs:600,hazardVignetteIntensity:0.6,hazardVignettePulseHz:2,hazardVignettePulseDepth:0.35,hazardVignetteRampMs:150,hazardVignetteDecayMs:400 });
 /** Per-class visual scale tuning bounds: percent/100 factors are clamped to this range (setup percents 10-200). */
 export const rendererVisualScaleBounds = Object.freeze({ min:.1,max:2 });
 /** @type {AeroRendererThemeTokens} */
@@ -95,6 +103,8 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   if(frame.guidanceBandMode!==undefined&&!["off","song_beat_grid","target_arrivals"].includes(frame.guidanceBandMode))throw new TypeError("Frame guidance band mode is invalid");
   if(frame.aftermath!==undefined&&!isValidAftermathList(frame.aftermath))throw new TypeError("Frame aftermath entries are invalid");
   if(frame.hazardContacts!==undefined&&!isValidHazardContactList(frame.hazardContacts))throw new TypeError("Frame hazard contact events are invalid");
+  if(frame.hazardContactActive!==undefined&&!isValidHazardContactActive(frame.hazardContactActive))throw new TypeError("Frame hazard contact active state is invalid");
+  if(frame.hazardVignetteParams!==undefined&&!isValidHazardVignetteParams(frame.hazardVignetteParams))throw new TypeError("Frame hazard vignette params are invalid");
   const reach=normalizeFrameRowReach(frame.rowReach);
   const colliderOverlay=normalizeColliderOverlay(frame);
   const window=timingWindow(frame);
@@ -131,7 +141,12 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const retainedFeedback=feedback.sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id)).slice(-MAX_FEEDBACK).sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id));
   objects.push(...retainedFeedback);
   const aftermathEntries=frame.aftermath??[];
-  const glowState=hazardContactIntensity((frame.hazardContacts??[]).map((entry)=>frame.nowMs-entry.atMs),tuning);
+  const bombGlow=hazardContactIntensity((frame.hazardContacts??[]).map((entry)=>frame.nowMs-entry.atMs),tuning);
+  // 0.0.54 W1-C: state-driven wall vignette (pulse while the nose is inside an obstacle, decay
+  // after release) MAX-blended with the retained one-shot bomb-flash envelope.
+  /** @type {AeroHazardVignetteParams|undefined} */ const vignetteParams=frame.hazardVignetteParams;
+  const stateGlow=frame.hazardContactActive===undefined?0:hazardWallContactIntensity(frame.nowMs,frame.hazardContactActive,hazardVignetteParamsForFrame(vignetteParams,tuning));
+  const glowState=Object.freeze({intensity:Math.max(bombGlow.intensity,stateGlow),activeCount:Math.max(bombGlow.activeCount,stateGlow>0?1:0)});
   const glowObject=hazardGlowObject(glowState);
   if(glowObject)objects.push(glowObject);
   objects.sort((a,b)=>a.renderOrder-b.renderOrder||(a.renderOrder===40?(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0):a.sortDepth-b.sortDepth)||a.id.localeCompare(b.id));
@@ -518,6 +533,99 @@ export function hazardContactIntensity(elapsedPerEvent,tuning=defaultRendererTun
   for(const e of elapsedPerEvent){const v=hazardContactEnvelopeIntensity(e,tuning);if(v>max)max=v;if(v>0)active+=1;}
   return Object.freeze({intensity:max,activeCount:Math.min(AFTERMATH_MAX_HAZARD_EVENTS,active)});
 }
+
+// 0.0.54 W1-C — state-driven wall-contact vignette: pulse while the nose is inside an obstacle
+// collider, decay after release. Pure in (nowMs, state, params); no retained state.
+/**
+ * One hazard-vignette parameter set: tuning defaults with present frame params overriding.
+ * @param {AeroHazardVignetteParams|undefined} frameParams @param {AeroRendererTuning} [tuning]
+ * @returns {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}}
+ */
+export function hazardVignetteParamsForFrame(frameParams,tuning=defaultRendererTuning){
+  /** @type {AeroHazardVignetteParams} */ const frame=frameParams??/** @type {AeroHazardVignetteParams} */({});
+  return Object.freeze({
+    intensity:clamp(frame.intensity??tuning.hazardVignetteIntensity,0,1),
+    pulseHz:clamp(frame.pulseHz??tuning.hazardVignettePulseHz,0,5),
+    pulseDepth:clamp(frame.pulseDepth??tuning.hazardVignettePulseDepth,0,1),
+    rampMs:clamp(frame.rampMs??tuning.hazardVignetteRampMs,0,1000),
+    decayMs:clamp(frame.decayMs??tuning.hazardVignetteDecayMs,0,3000)
+  });
+}
+/**
+ * Active-phase wall-vignette intensity at absolute `nowMs`: linear ramp-in over `rampMs`, then a
+ * cosine pulse between `intensity*(1-depth)` and `intensity` at `pulseHz` that starts at full
+ * `intensity` when the ramp completes (the `(1-cos)/2` form is 0 at phase 0, so the ramp boundary
+ * is continuous). Returns exactly 0 when not active.
+ * @param {number} nowMs @param {AeroHazardContactActive} state @param {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}} [params]
+ */
+export function hazardWallContactActiveIntensity(nowMs,state,params){
+  if(!state?.active||!Number.isFinite(nowMs))return 0;
+  const p=params??hazardVignetteParamsForFrame(undefined);
+  const sinceMs=state.sinceMs;
+  if(typeof sinceMs!=="number"||!Number.isFinite(sinceMs)||sinceMs<0)return 0;
+  const elapsedMs=nowMs-sinceMs;
+  if(elapsedMs<=0)return 0;
+  const ramp=clamp(elapsedMs/p.rampMs,0,1);
+  const phaseMs=Math.max(0,elapsedMs-p.rampMs);
+  // Cosine pulse in the time domain: one full cycle every 1000/pulseHz ms (phase angle 2π·t·Hz/1000).
+  const pulse=1-p.pulseDepth*(1-Math.cos(Math.PI*2*p.pulseHz*phaseMs/1000))/2;
+  return p.intensity*ramp*pulse;
+}
+/**
+ * Released-phase wall-vignette intensity at absolute `nowMs`: the release-moment intensity
+ * (recomputed statelessly with the active formula at `releasedAtMs`) times a linear decay to 0
+ * over `decayMs`; exactly 0 once the decay completes or before the release instant.
+ * @param {number} nowMs @param {AeroHazardContactActive} state @param {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}} [params]
+ */
+export function hazardWallContactReleasedIntensity(nowMs,state,params){
+  if(state?.active||!Number.isFinite(nowMs))return 0;
+  const p=params??hazardVignetteParamsForFrame(undefined);
+  const releasedAtMs=state?.releasedAtMs;
+  if(typeof releasedAtMs!=="number"||!Number.isFinite(releasedAtMs)||releasedAtMs<0)return 0;
+  // Note: no `nowMs < releasedAtMs` early-out — the spec formula is evaluated from the release
+  // instant itself (continuous with the active phase at the exact exit tick).
+  const elapsedMs=nowMs-releasedAtMs;
+  if(elapsedMs<0||elapsedMs>=p.decayMs)return 0;
+  return hazardWallContactActiveIntensity(releasedAtMs,{active:true,sinceMs:state.sinceMs,releasedAtMs},p)*(1-elapsedMs/p.decayMs);
+}
+/**
+ * Pure wall-vignette intensity at absolute `nowMs` for one hazard-contact episode: active-phase
+ * pulse while the nose is inside, released-phase decay after exit, 0 idle. The release-moment
+ * pulse phase is a pure function of (sinceMs, releasedAtMs, params) — no retained state.
+ * @param {number} nowMs @param {AeroHazardContactActive|null|undefined} state @param {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}} [params]
+ */
+export function hazardWallContactIntensity(nowMs,state,params){
+  if(state===null||state===undefined)return 0;
+  if(!Number.isFinite(nowMs))return 0;
+  const p=params??hazardVignetteParamsForFrame(undefined);
+  if(state.active)return hazardWallContactActiveIntensity(nowMs,state,p);
+  return hazardWallContactReleasedIntensity(nowMs,state,p);
+}
+/** Strict plain-data admission for one hazard-contact active state (exact own enumerable data keys; bounded numbers). @param {unknown} value */
+function isValidHazardContactActive(value){
+  if(value===null||typeof value!=="object"||Array.isArray(value)||Object.getPrototypeOf(value)!==Object.prototype)return false;
+  const keys=Reflect.ownKeys(value);
+  if(keys.length!==3||!keys.includes("active")||!keys.includes("sinceMs")||!keys.includes("releasedAtMs"))return false;
+  const active=Object.getOwnPropertyDescriptor(value,"active"),since=Object.getOwnPropertyDescriptor(value,"sinceMs"),released=Object.getOwnPropertyDescriptor(value,"releasedAtMs");
+  if(!active||!("value"in active)||typeof active.value!=="boolean")return false;
+  const checkMs=(descriptor)=>{if(!descriptor||!("value"in descriptor))return false;const v=descriptor.value;return v===null||(typeof v==="number"&&Number.isFinite(v)&&v>=0&&v<=86_400_000);};
+  if(!checkMs(since)||!checkMs(released))return false;
+  // Active: sinceMs required (first contact of the current episode). Released: releasedAtMs
+  // required (most recent exit); sinceMs stays present so the release-moment pulse phase remains
+  // recomputable statelessly from (sinceMs, releasedAtMs, params).
+  if(active.value){if(since.value===null)return false;}
+  else{if(released.value===null)return false;if(typeof released.value==="number"&&since.value!==null&&released.value<since.value)return false;}
+  return true;
+}
+/** Strict plain-data admission for one hazard-vignette params record (exact own enumerable data keys; bounded numbers). @param {unknown} value */
+function isValidHazardVignetteParams(value){
+  if(value===null||typeof value!=="object"||Array.isArray(value)||Object.getPrototypeOf(value)!==Object.prototype)return false;
+  const keys=Reflect.ownKeys(value);
+  const expected=["intensity","pulseHz","pulseDepth","rampMs","decayMs"];
+  if(keys.length!==5||!expected.every((key)=>keys.includes(key)))return false;
+  const check=(key,min,max)=>{const d=Object.getOwnPropertyDescriptor(value,key);return Boolean(d&&"value"in d&&typeof d.value==="number"&&Number.isFinite(d.value)&&d.value>=min&&d.value<=max);};
+  return check("intensity",0,1)&&check("pulseHz",0,5)&&check("pulseDepth",0,1)&&check("rampMs",0,1000)&&check("decayMs",0,3000);
+}
 /** @param {{intensity:number,activeCount:number}} glow */
 function hazardGlowObject(glow){
   if(glow.intensity<=0)return null;
@@ -595,22 +703,23 @@ export function normalizeColliderOverlay(frame){
 /**
  * Closed-form sector geometry for one tolerance cone: a triangle fan from the target center
  * spanning the entry arc (2×`toleranceDegrees` around the authored `direction` unit vector).
- * The fan is a full sector from the center to `radius` in the X-Y plane (Z=0); the target
+ * The fan is a full sector from the center to `radius`; every vertex carries the plane Z given by
+ * the optional `z` argument (default 0), so the sector can ride a moving beat. The target
  * footprint (inflated square, half-extent `innerRadius`) is drawn separately as a small disc.
  * Returns flat position arrays (x,y,z per vertex) and the fan index list.
- * @param {number} cx @param {number} cy @param {{x:number,y:number}} direction @param {number} toleranceDegrees @param {number} radius @param {number} [steps]
+ * @param {number} cx @param {number} cy @param {{x:number,y:number}} direction @param {number} toleranceDegrees @param {number} radius @param {number} [steps] @param {number} [z]
  * @returns {{positions:Float32Array,indices:Uint16Array,vertexCount:number,triangleCount:number}}
  */
-export function toleranceConeGeometry(cx,cy,direction,toleranceDegrees,radius,steps=TOLERANCE_CONE_ARC_STEPS){
+export function toleranceConeGeometry(cx,cy,direction,toleranceDegrees,radius,steps=TOLERANCE_CONE_ARC_STEPS,z=0){
   const base=Math.atan2(direction.y,direction.x),half=toleranceDegrees*Math.PI/180;
   const startAngle=base+half,endAngle=base-half;
   const positions=new Float32Array((steps+2)*3),indices=new Uint16Array(steps*3);
-  positions[0]=cx;positions[1]=cy;positions[2]=0;
+  positions[0]=cx;positions[1]=cy;positions[2]=z;
   for(let i=0;i<=steps;i+=1){
     const angle=startAngle+((endAngle-startAngle)*i)/steps,off=(i+1)*3;
     positions[off]=cx+radius*Math.cos(angle);
     positions[off+1]=cy+radius*Math.sin(angle);
-    positions[off+2]=0;
+    positions[off+2]=z;
   }
   let cursor=0;
   for(let i=0;i<steps;i+=1){indices[cursor++]=0;indices[cursor++]=1+i;indices[cursor++]=2+i;}
@@ -620,6 +729,12 @@ export function toleranceConeGeometry(cx,cy,direction,toleranceDegrees,radius,st
 /**
  * Build the bounded scene objects for the two debug overlays from the sorted, visible targets.
  * Returns an empty array when both overlay flags are off (zero cost).
+ * 0.0.54 W1-C: every overlay (collider square, tolerance-cone fan + target-point marker) is anchored
+ * at the target's CURRENT position including travel depth: `(p.x, p.y, p.z + COLLIDER_OVERLAY_CAM_OFFSET_WU)`,
+ * so the overlays ride the approaching beat instead of sitting as flat plates at the Z=0 hit plane.
+ * The cone fan geometry itself is built at that Z (all vertices carry it), the square's depth plane
+ * and the marker sit at the same camera-side offset, and the facade renders these with depth-test
+ * off so they stay visible on top of the beat glyph.
  * @param {AeroGameplayFrame} frame @param {readonly AeroRenderableTarget[]} sorted @param {AeroColliderOverlaySettings} overlay
  * @returns {AeroGameplaySceneObject[]}
  */
@@ -634,20 +749,33 @@ export function colliderOverlayObjects(frame,sorted,overlay){
     if(positions.length===0)continue;
     for(let i=0;i<positions.length;i+=1){
       const p=positions[i];
+      const z=targetZForOverlay(target,frame);
       if(overlay.visibleColliderRadius){
         const visual=Object.freeze({halfExtent});
-        objects.push(sceneObject(`${target.id}:collider:${i}`,"collider_square","neutral",target.id,{x:p.x,y:p.y,z:0},{x:halfExtent*2,y:halfExtent*2,z:0.012},null,null,0,COLLIDER_SQUARE_ALPHA,null,0,true,null,null,0,45,null,null,null,null,COLLIDER_SQUARE_COLOR,visual));
+        objects.push(sceneObject(`${target.id}:collider:${i}`,"collider_square","neutral",target.id,{x:p.x,y:p.y,z},{x:halfExtent*2,y:halfExtent*2,z:0.012},null,null,0,COLLIDER_SQUARE_ALPHA,null,0,true,null,null,z,45,null,null,null,null,COLLIDER_SQUARE_COLOR,visual));
       }
       if(overlay.visibleToleranceRange&&direction){
-        const geometry=toleranceConeGeometry(p.x,p.y,direction,overlay.directionToleranceDegrees,TOLERANCE_CONE_RADIUS_WU);
+        const geometry=toleranceConeGeometry(p.x,p.y,direction,overlay.directionToleranceDegrees,TOLERANCE_CONE_RADIUS_WU,TOLERANCE_CONE_ARC_STEPS,z);
         const visual=Object.freeze({directionX:direction.x,directionY:direction.y,toleranceDegrees:overlay.directionToleranceDegrees,innerRadius:halfExtent,radius:TOLERANCE_CONE_RADIUS_WU,positions:geometry.positions,indices:geometry.indices,vertexCount:geometry.vertexCount,triangleCount:geometry.triangleCount});
-        objects.push(sceneObject(`${target.id}:tolerance:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z:0.006},{x:1,y:1,z:1},null,null,0,TOLERANCE_CONE_ALPHA,null,0,true,null,null,0,46,null,null,null,null,TOLERANCE_CONE_COLOR,visual));
+        objects.push(sceneObject(`${target.id}:tolerance:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z},{x:1,y:1,z:1},null,null,0,TOLERANCE_CONE_ALPHA,null,0,true,null,null,z,46,null,null,null,null,TOLERANCE_CONE_COLOR,visual));
         // Small target-point marker at the center (distinct, high-alpha disc).
-        objects.push(sceneObject(`${target.id}:target-point:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z:0.009},{x:0.06,y:0.06,z:0.06},null,null,0,TARGET_MARKER_ALPHA,null,0,true,null,null,0,47,null,null,null,null,TARGET_MARKER_COLOR,null));
+        objects.push(sceneObject(`${target.id}:target-point:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z},{x:0.06,y:0.06,z:0.06},null,null,0,TARGET_MARKER_ALPHA,null,0,true,null,null,z,47,null,null,null,null,TARGET_MARKER_COLOR,null));
       }
     }
   }
   return objects;
+}
+
+/** Travel Z for one target's collider overlays: the same timestamp→Z mapping the beat glyph uses
+ * (resolved targets pin at the Z=0 crossing; misses continue along +Z past it), plus the small
+ * camera-side `COLLIDER_OVERLAY_CAM_OFFSET_WU` so the overlays sit in front of the glyph. @param {AeroRenderableTarget} target @param {AeroGameplayFrame} frame */
+function targetZForOverlay(target,frame){
+  const nowMs=frame.nowMs;
+  let z;
+  if(target.judgement==="miss"&&typeof target.missCommitMs==="number"&&Number.isFinite(target.missCommitMs))z=nowMs-target.beatCenterMs>0?(nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:0;
+  else if(target.judgement==="hit")z=0;
+  else z=timestampToWorldZ(target.beatCenterMs,nowMs);
+  return z+COLLIDER_OVERLAY_CAM_OFFSET_WU;
 }
 
 /** @param {AeroColliderOverlaySettings} overlay @param {AeroGameplaySceneObject[]} objects @returns {AeroColliderOverlayVisual} */

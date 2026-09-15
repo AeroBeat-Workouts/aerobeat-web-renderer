@@ -9,6 +9,12 @@ import {
   aftermathSliceOffsetX,
   hazardContactEnvelopeIntensity,
   hazardContactIntensity,
+  hazardWallContactIntensity,
+  hazardWallContactActiveIntensity,
+  hazardWallContactReleasedIntensity,
+  hazardVignetteParamsForFrame,
+  COLLIDER_OVERLAY_CAM_OFFSET_WU,
+  toleranceConeGeometry,
 } from "../src/index.js";
 import { boxingColliderRowY } from "@aerobeat/web-contracts/gameplay-contracts";
 
@@ -203,4 +209,177 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.ok(!model.objects.some((o) => o.kind === "hazard_glow"), "no glow object rendered when idle");
 }
 
-console.log("0.0.52 W1-C unit oracles: boxing reach rows, aftermath closed-form (launch/floor/settle/determinism/handoff/slice/eviction), hazard envelope (timing/MAX/idle/purity) all passed.");
+// --- 0.0.54 W1-C: collider overlays ride the beat (z-anchored + camera-side offset) ---
+
+// Tuning block gained the five vignette params; version/hash bumped to v5.
+assert.equal(T.hazardVignetteIntensity, 0.6, "default hazardVignetteIntensity is 0.6");
+assert.equal(T.hazardVignettePulseHz, 2, "default hazardVignettePulseHz is 2");
+assert.equal(T.hazardVignettePulseDepth, 0.35, "default hazardVignettePulseDepth is 0.35");
+assert.equal(T.hazardVignetteRampMs, 150, "default hazardVignetteRampMs is 150");
+assert.equal(T.hazardVignetteDecayMs, 400, "default hazardVignetteDecayMs is 400");
+assert.equal(T.version, "5", "tuning version bumped to 5");
+assert.equal(T.hash, "visual-playcanvas-v5", "tuning hash bumped to v5");
+assert.equal(COLLIDER_OVERLAY_CAM_OFFSET_WU, 0.03, "camera-side overlay offset is +0.03 WU");
+
+// Overlays anchor at (p.x, p.y, p.z + camOffset) exactly at sampled travel depths.
+// cell 5 → (-0.5, 1); pending target z = -(beatCenterMs-nowMs)*0.006 (future beats ride −Z toward the Z=0 hit plane).
+{
+  const base = { presentation: "flow", nowMs: 1000, visibleToleranceRange: true, visibleColliderRadius: true };
+  const cases = [
+    { beatCenterMs: 2000, z: -6 },
+    { beatCenterMs: 1500, z: -3 },
+    { beatCenterMs: 1166.666667, z: -1 },
+    { beatCenterMs: 1016.666667, z: -0.1 },
+    { beatCenterMs: 1000, z: 0 }
+  ];
+  for (const { beatCenterMs, z } of cases) {
+    const model = buildGameplaySceneModel({ ...base, targets: [{ id: "n", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs, direction: "up" }] });
+    const square = model.objects.find((o) => o.id === "n:collider:0");
+    const cone = model.objects.find((o) => o.id === "n:tolerance:0");
+    const marker = model.objects.find((o) => o.id === "n:target-point:0");
+    assert.ok(square && cone && marker, `sample z=${z}: all three overlays present`);
+    for (const object of [square, cone, marker]) {
+      assert.equal(object.position.x, -0.5, `z=${z}: overlay x = target x`);
+      assert.equal(object.position.y, 1, `z=${z}: overlay y = target y`);
+      assert.ok(Math.abs(object.position.z - (z + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, `z=${z}: overlay anchored at p.z + camOffset (${object.position.z})`);
+    }
+    // The cone fan vertices themselves ride the beat: every vertex z equals p.z + camOffset.
+    for (let i = 2; i < cone.aftermath.positions.length; i += 3) {
+      assert.ok(Math.abs(cone.aftermath.positions[i] - (z + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, `z=${z}: cone vertex z rides the beat`);
+    }
+    // The square still encompasses the arrow glyph (half-extent = TARGET_HALF_EXTENT + colliderRadius).
+    assert.ok(Math.abs(square.aftermath.halfExtent - (0.375 + 0.12)) < 1e-9, "square half-extent unchanged");
+  }
+}
+
+// Render orders 45/46/47, layer assignment, and alphas are unchanged by the z anchoring.
+{
+  const model = buildGameplaySceneModel({ presentation: "flow", nowMs: 1000, visibleToleranceRange: true, visibleColliderRadius: true, targets: [{ id: "n", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 1300, direction: "up" }] });
+  const square = model.objects.find((o) => o.id === "n:collider:0");
+  const cone = model.objects.find((o) => o.id === "n:tolerance:0");
+  const marker = model.objects.find((o) => o.id === "n:target-point:0");
+  assert.equal(square.renderOrder, 45, "square render order 45");
+  assert.equal(cone.renderOrder, 46, "cone render order 46");
+  assert.equal(marker.renderOrder, 47, "marker render order 47");
+  assert.ok(square.transparent && cone.transparent && marker.transparent, "overlays stay transparent");
+  assert.equal(square.appearanceColor, "#9a67ea", "square color unchanged");
+  assert.equal(cone.appearanceColor, "#39c96b", "cone color unchanged");
+  assert.equal(marker.appearanceColor, "#ffffff", "marker color unchanged");
+}
+
+// toleranceConeGeometry honors the explicit z plane for every vertex.
+{
+  const geometry = toleranceConeGeometry(0.5, 1, { x: 0, y: 1 }, 45, 1.1, undefined, 0.77);
+  assert.ok(geometry.positions.length === (24 + 2) * 3, "vertex count unchanged");
+  for (let i = 0; i < geometry.positions.length; i += 3) {
+    assert.ok(Math.abs(geometry.positions[i + 2] - 0.77) < 1e-6, "every cone vertex carries the explicit z plane (float32)");
+  }
+  const defaultGeometry = toleranceConeGeometry(0, 0, { x: 0, y: 1 }, 45, 1.1);
+  assert.ok(defaultGeometry.positions.every((_, i) => i % 3 !== 2 || defaultGeometry.positions[i] === 0), "default z plane stays 0");
+}
+
+// --- 0.0.54 W1-C: state-driven pulsing hazard vignette (pure intensity fn) ---
+
+const wallParams = T; // default params: I0=0.6, Hz=2, depth=0.35, ramp=150, decay=400
+
+// Idle (no state) is exactly 0; absent frame fields stay backward compatible.
+assert.equal(hazardWallContactIntensity(500, undefined), 0, "no state → exactly 0");
+assert.equal(hazardWallContactIntensity(500, null), 0, "null state → exactly 0");
+{
+  const model = buildGameplaySceneModel({ presentation: "flow", nowMs: 1000, targets: [] });
+  assert.equal(model.hazardGlow.intensity, 0, "absent new frame fields keep zero glow");
+  assert.ok(!model.objects.some((o) => o.kind === "hazard_glow"), "absent fields render no glow object");
+}
+
+// Active ramp: linear 0→I0 over rampMs; mid-ramp ≈ I0/2; full at ramp end.
+assert.equal(hazardWallContactIntensity(0, { active: true, sinceMs: 0, releasedAtMs: null }), 0, "zero at contact instant");
+assert.ok(Math.abs(hazardWallContactIntensity(75, { active: true, sinceMs: 0, releasedAtMs: null }) - 0.3) < 1e-9, "mid-ramp is I0/2");
+assert.ok(Math.abs(hazardWallContactIntensity(150, { active: true, sinceMs: 0, releasedAtMs: null }) - 0.6) < 1e-9, "full I0 at ramp end (pulse starts at max)");
+
+// Pulse after the ramp: bounded in [I0*(1-depth), I0] and crosses BOTH bounds over one period.
+{
+  const state = { active: true, sinceMs: 0, releasedAtMs: null };
+  let min = Infinity, max = -Infinity;
+  for (let t = 150; t <= 150 + 500; t += 5) {
+    const v = hazardWallContactIntensity(t, state);
+    min = Math.min(min, v);
+    max = Math.max(max, v);
+  }
+  const floor = 0.6 * (1 - 0.35);
+  assert.ok(max > 0.6 - 1e-9 && max <= 0.6 + 1e-9, `pulse peaks at I0: ${max}`);
+  assert.ok(min < floor + 1e-9 && min >= floor - 1e-9, `pulse troughs at I0*(1-depth): ${min}`);
+  // Continuous at the ramp boundary (≤ epsilon jump from the ramp-in line).
+  const atRamp = hazardWallContactIntensity(150, state);
+  assert.ok(Math.abs(atRamp - 0.6) < 1e-9, "value at ramp boundary equals ramp-in value");
+  assert.ok(Math.abs(hazardWallContactIntensity(149, state) - atRamp) < 0.02, "no jump at the ramp boundary");
+}
+
+// Released decay: starts at I_release (the active-formula value at releasedAtMs), decays linearly
+// to 0 by releasedAtMs+decayMs, then stays 0. Stateless: the release-moment phase is a pure
+// function of (sinceMs, releasedAtMs, params).
+{
+  const state = { active: false, sinceMs: 100, releasedAtMs: 600 };
+  const iRelease = hazardWallContactActiveIntensity(600, { active: true, sinceMs: 100, releasedAtMs: null });
+  const atRelease = hazardWallContactReleasedIntensity(600, state);
+  assert.ok(Math.abs(atRelease - iRelease) < 1e-9, "decay starts at the release-moment intensity");
+  assert.ok(Math.abs(hazardWallContactReleasedIntensity(850, state) - (iRelease * (1 - 250 / 400))) < 1e-9, "mid-decay (350 ms in) is the linear tail");
+  assert.equal(hazardWallContactIntensity(1000, state), 0, "decay reaches exactly 0 at release+decayMs");
+  assert.equal(hazardWallContactIntensity(1500, state), 0, "stays 0 after the decay window");
+  assert.equal(hazardWallContactReleasedIntensity(599, state), 0, "no decay before the release instant");
+  assert.ok(hazardWallContactIntensity(601, state) > hazardWallContactIntensity(900, state), "decay is monotonically decreasing");
+}
+
+// Frame params override tuning; absent frame params fall back to tuning defaults.
+assert.deepEqual(hazardVignetteParamsForFrame(undefined), { intensity: 0.6, pulseHz: 2, pulseDepth: 0.35, rampMs: 150, decayMs: 400 }, "absent params → tuning defaults");
+assert.deepEqual(hazardVignetteParamsForFrame({ intensity: 0.8, pulseHz: 1, pulseDepth: 0.5, rampMs: 100, decayMs: 200 }), { intensity: 0.8, pulseHz: 1, pulseDepth: 0.5, rampMs: 100, decayMs: 200 }, "frame params override");
+{
+  const model = buildGameplaySceneModel({ presentation: "flow", nowMs: 700, targets: [], hazardContactActive: { active: true, sinceMs: 600, releasedAtMs: null }, hazardVignetteParams: { intensity: 1, pulseHz: 0, pulseDepth: 0, rampMs: 0, decayMs: 400 } });
+  assert.ok(Math.abs(model.hazardGlow.intensity - 1) < 1e-9, "frame params override tuning in the model glow");
+}
+
+// Strict-when-present: malformed state/params records are rejected, not silently dropped.
+for (const badState of [
+  { active: "yes", sinceMs: 0, releasedAtMs: null },
+  { active: true, sinceMs: null, releasedAtMs: null },
+  { active: false, sinceMs: null, releasedAtMs: null },
+  { active: false, sinceMs: 10, releasedAtMs: 5 },
+  { active: true, sinceMs: 0 },
+  { active: true, sinceMs: 0, releasedAtMs: null, extra: 1 },
+  { active: true, sinceMs: -1, releasedAtMs: null },
+  { active: true, sinceMs: 9e7, releasedAtMs: null },
+  null,
+  "nope"
+]) {
+  assert.throws(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 0, targets: [], hazardContactActive: badState }), /hazard contact active/u, `rejects malformed active state ${JSON.stringify(badState)}`);
+}
+for (const badParams of [
+  { intensity: 1.5, pulseHz: 0, pulseDepth: 0, rampMs: 0, decayMs: 0 },
+  { intensity: 0, pulseHz: 5.5, pulseDepth: 0, rampMs: 0, decayMs: 0 },
+  { intensity: 0, pulseHz: 0, pulseDepth: 1.5, rampMs: 0, decayMs: 0 },
+  { intensity: 0, pulseHz: 0, pulseDepth: 0, rampMs: 1001, decayMs: 0 },
+  { intensity: 0, pulseHz: 0, pulseDepth: 0, rampMs: 0, decayMs: 3001 },
+  { intensity: 0, pulseHz: 0, pulseDepth: 0, rampMs: 0 },
+  null,
+  "nope"
+]) {
+  assert.throws(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 0, targets: [], hazardVignetteParams: badParams }), /hazard vignette params/u, `rejects malformed params ${JSON.stringify(badParams)}`);
+}
+
+// MAX blend with the retained bomb-flash envelope: wall pulse + bomb event → max of the two.
+{
+  const model = buildGameplaySceneModel({ presentation: "flow", nowMs: 1100, targets: [], hazardContacts: [{ eventId: "bomb", atMs: 1000 }], hazardContactActive: { active: true, sinceMs: 900, releasedAtMs: null } });
+  const bombIntensity = hazardContactEnvelopeIntensity(100);
+  const wallIntensity = hazardWallContactIntensity(1100, { active: true, sinceMs: 900, releasedAtMs: null });
+  assert.ok(Math.abs(model.hazardGlow.intensity - Math.max(bombIntensity, wallIntensity)) < 1e-9, "glow is the MAX of wall state and bomb envelope");
+  assert.equal(model.hazardGlow.activeCount, Math.max(1, wallIntensity > 0 ? 1 : 0), "active count reflects the MAX source");
+}
+
+// Bomb-flash envelope unchanged (regression): event-only frames behave exactly as 0.0.52.
+{
+  const bombOnly = buildGameplaySceneModel({ presentation: "flow", nowMs: 100, targets: [], hazardContacts: [{ eventId: "h1", atMs: 50 }] });
+  const expected = hazardContactEnvelopeIntensity(50);
+  assert.ok(Math.abs(bombOnly.hazardGlow.intensity - expected) < 1e-9, "bomb-only envelope is unchanged");
+  assert.equal(bombOnly.hazardGlow.activeCount, 1, "bomb-only active count unchanged");
+}
+
+console.log("0.0.52/0.0.54 W1-C unit oracles: boxing reach rows, aftermath closed-form, hazard bomb envelope (regression), z-anchored collider overlays, state-driven pulsing vignette (ramp/pulse/decay/idle/strict/MAX) all passed.");

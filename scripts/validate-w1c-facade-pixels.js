@@ -5,6 +5,12 @@
 //   (c) Guard bonk aftermath — the piece settles at floor height with bounded −Z displacement
 //   (d) Hazard glow vignette — an event drives a red edge shift; 800 ms later back to baseline
 //   (e) Idle frame — zero aftermath objects, vignette quad disabled, no red shift
+//   (f) 0.0.54 W1-C RED CUBE ABSENT — while a hazard-glow is active the scene-center region stays at
+//       baseline (the facade loop skips `hazard_glow`; only the fullscreen vignette quad consumes it),
+//       and there is NO obstacle-role primitive at world origin in the model.
+//   (g) 0.0.54 W1-C STATE-DRIVEN PULSING VIGNETTE — `frame.hazardContactActive` drives a pulsing wall
+//       vignette: active ramp-in → full pulse, release → linear decay to baseline, absent → exactly idle.
+//       The bomb-flash envelope (`hazardContacts`) regression is covered by (d).
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -282,6 +288,54 @@ try {
     const glowDecayEdgeRed = redMeanAt(glowDecayPixels),
       glowDecayCenterRed = pixelAt(glowDecayPixels, centerX, centerY)[0];
 
+    // --- (f) 0.0.54 W1-C: RED CUBE ABSENT while a hazard glow is active ---
+    // A bomb contact makes the one-shot envelope fully ramped (elapsed ≥ rampMs): intensity 1,
+    // so the old generic path would have rendered a 1×1×1 opaque red cube at the world origin.
+    renderer.renderGameplayFrame({ ...idleFrame, nowMs: 320, hazardContacts: [{ eventId: "cube-check", atMs: 100 }] });
+    const cubeCheckModel = renderer.lastModel,
+      cubeCheckIntensity = cubeCheckModel.hazardGlow.intensity,
+      cubeCheckVignetteEnabled = renderer.hazardGlowEntity?.enabled ?? false,
+      cubeCheckObjects = cubeCheckModel.objects.map((o) => ({ id: o.id, kind: o.kind, role: o.role, assetId: o.assetId, x: o.position.x, y: o.position.y, z: o.position.z })),
+      cubeCheckPixels = sample();
+    let centerDelta = 0, centerShiftedPx = 0;
+    for (let dy = -6; dy <= 6; dy += 2) for (let dx = -6; dx <= 6; dx += 2) {
+      const index = ((centerY + dy) * canvas.width + (centerX + dx)) * 4;
+      const d = Math.abs(cubeCheckPixels[index] - idleBaseRed[(centerY + dy) * canvas.width + centerX + dx]) + Math.abs(cubeCheckPixels[index + 1] - idleBaseGreen[(centerY + dy) * canvas.width + centerX + dx]) + Math.abs(cubeCheckPixels[index + 2] - idleBaseBlue[(centerY + dy) * canvas.width + centerX + dx]);
+      if (d > 6) centerShiftedPx++;
+      centerDelta = Math.max(centerDelta, d);
+    }
+    const redCubeAbsent = {
+      intensity: cubeCheckIntensity,
+      vignetteEnabled: cubeCheckVignetteEnabled,
+      hasOriginPrimitive: cubeCheckObjects.some((o) => (o.kind === "icon" || o.kind === "obstacle") && o.role === "obstacle" && o.assetId === null && Math.abs(o.x) < 1e-9 && Math.abs(o.y) < 1e-9 && Math.abs(o.z) < 1e-9),
+      hasHazardGlowObject: cubeCheckObjects.some((o) => o.kind === "hazard_glow"),
+      centerMaxChannelDelta: centerDelta,
+      centerShiftedPixels: centerShiftedPx
+    };
+
+    // --- (g) 0.0.54 W1-C: STATE-DRIVEN PULSING VIGNETTE (wall contact) ---
+    const wallPixelAt = (stateField) => {
+      renderer.renderGameplayFrame({ ...idleFrame, ...stateField });
+      const pixels = sample(),
+        intensity = renderer.lastModel.hazardGlow.intensity,
+        vignetteEnabled = renderer.hazardGlowEntity?.enabled ?? false;
+      let shifted = 0, redExcess = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        const i = index / 4;
+        const d = Math.abs(pixels[index] - idleBaseRed[i]) + Math.abs(pixels[index + 1] - idleBaseGreen[i]) + Math.abs(pixels[index + 2] - idleBaseBlue[i]);
+        if (d > 6) {
+          shifted++;
+          redExcess += Math.max(0, pixels[index] - idleBaseRed[i]);
+        }
+      }
+      return { intensity, vignetteEnabled, shifted, redExcess, edgeRed: redMeanAt(pixels) };
+    };
+    // Decay window is 400 ms (tuning default), so the release tail is [700, 1100): sample at 950.
+    const wallRampEnd = wallPixelAt({ nowMs: 600, hazardContactActive: { active: true, sinceMs: 450, releasedAtMs: null } }),
+      wallMidPulse = wallPixelAt({ nowMs: 775, hazardContactActive: { active: true, sinceMs: 450, releasedAtMs: null } }),
+      wallAfterRelease = wallPixelAt({ nowMs: 950, hazardContactActive: { active: false, sinceMs: 450, releasedAtMs: 700 } }),
+      wallDecayDone = wallPixelAt({ nowMs: 1100, hazardContactActive: { active: false, sinceMs: 450, releasedAtMs: 700 } });
+
     // Restore idle state
     renderer.renderGameplayFrame(idleFrame);
 
@@ -340,6 +394,11 @@ try {
         edgeRed: glowDecayEdgeRed,
         centerRed: glowDecayCenterRed
       },
+      redCubeAbsent,
+      wallRampEnd,
+      wallMidPulse,
+      wallAfterRelease,
+      wallDecayDone,
       canvasSize: { width: canvas.width, height: canvas.height }
     };
   });
@@ -398,9 +457,31 @@ try {
   assert.equal(evidence.glowDecay.vignetteEnabled, false, "vignette must be disabled once the envelope decays");
   assert.ok(evidence.glowDecay.shiftedPixels < 200, `decayed glow must return to baseline: ${evidence.glowDecay.shiftedPixels} shifted px`);
 
+  // (f) RED CUBE ABSENT: an active glow decaying from full strength tints the edges but leaves the
+  // scene center flat — no obstacle-colored primitive at world origin; only applyHazardGlow consumes
+  // the hazard_glow object. (Envelope for the sample instant: ramped past 150 ms → in decay.)
+  assert.ok(Math.abs(evidence.redCubeAbsent.intensity - 0.8833333333333333) < 1e-9, `cube check runs with the expected decaying glow intensity: ${evidence.redCubeAbsent.intensity}`);
+  assert.equal(evidence.redCubeAbsent.vignetteEnabled, true, "vignette quad enabled during the cube check");
+  assert.equal(evidence.redCubeAbsent.hasOriginPrimitive, false, "no obstacle primitive at world origin while the glow is active (red cube eliminated)");
+  assert.ok(evidence.redCubeAbsent.centerMaxChannelDelta < 16, `scene-center region stays at baseline: max channel delta ${evidence.redCubeAbsent.centerMaxChannelDelta} ≥ 16`);
+  assert.ok(evidence.redCubeAbsent.centerShiftedPixels === 0, `scene center must show zero shifted pixels: ${evidence.redCubeAbsent.centerShiftedPixels}`);
+
+  // (g) STATE-DRIVEN PULSING VIGNETTE: active state drives a visible pulsing vignette; release decays to baseline.
+  assert.equal(evidence.wallRampEnd.intensity, 0.6, "wall vignette reaches I0 = 0.6 at ramp end");
+  assert.equal(evidence.wallRampEnd.vignetteEnabled, true, "vignette enabled while wall contact is active");
+  assert.ok(evidence.wallRampEnd.shifted > 3000, `active wall pulse must visibly tint the edges: ${evidence.wallRampEnd.shifted}px`);
+  assert.ok(evidence.wallRampEnd.redExcess > evidence.wallRampEnd.shifted * 4, "wall pulse carries real red excess");
+  assert.ok(Math.abs(evidence.wallMidPulse.intensity - 0.6) <= 0.6 * 0.35 + 1e-9 && Math.abs(evidence.wallMidPulse.intensity - 0.6) >= 0, "mid-pulse intensity within [I0*(1-depth), I0]");
+  assert.ok(evidence.wallMidPulse.vignetteEnabled, "vignette still enabled mid-pulse");
+  assert.ok(evidence.wallAfterRelease.intensity > 0 && evidence.wallAfterRelease.intensity < 0.6, `release starts a decaying tail below I0: ${evidence.wallAfterRelease.intensity}`);
+  assert.equal(evidence.wallAfterRelease.vignetteEnabled, true, "vignette stays on through the decay window");
+  assert.equal(evidence.wallDecayDone.intensity, 0, "wall vignette decays to exactly 0 by releasedAtMs+decayMs");
+  assert.equal(evidence.wallDecayDone.vignetteEnabled, false, "vignette disabled after the decay completes");
+  assert.ok(evidence.wallDecayDone.shifted < 200, `post-decay frame returns to baseline: ${evidence.wallDecayDone.shifted}px`);
+
   // Zero console noise beyond pinned ReadPixels grammar
   assert.deepEqual(noise, [], `unexpected console noise: ${JSON.stringify(noise)}`);
-  console.log("W1-C facade pixel oracles (slice cut, punch displacement, bonk floor, glow envelope, idle) all passed.");
+  console.log("W1-C facade pixel oracles (slice cut, punch displacement, bonk floor, glow envelope, idle, red-cube-absent, state-driven pulsing vignette) all passed.");
 } finally {
   await browser.close();
   await new Promise((done) => server.close(done));

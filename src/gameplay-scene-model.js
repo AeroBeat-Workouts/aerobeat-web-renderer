@@ -246,22 +246,22 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   if(target.bounceStartMs!==undefined&&(!Number.isFinite(target.bounceStartMs)||target.bounceStartMs<0||target.bounceStartMs>target.beatCenterMs))throw new TypeError("Gameplay target bounce start is invalid");
   if(target.normalSpawnMs!==undefined&&(!Number.isFinite(target.normalSpawnMs)||target.normalSpawnMs<0||target.normalSpawnMs>target.beatCenterMs))throw new TypeError("Gameplay target normal spawn is invalid");
   if(target.skyPreludeStartMs!==undefined&&(!Number.isFinite(target.skyPreludeStartMs)||target.skyPreludeStartMs<0||target.skyPreludeStartMs>Number(target.normalSpawnMs)))throw new TypeError("Gameplay target sky prelude start is invalid");
-  const isBomb=target.kind==="bomb",bounceEligible=!isBomb&&isBeatBounceSemanticTarget(target),hasTrajectory=target.bounceStartMs!==undefined&&target.normalSpawnMs!==undefined&&target.skyPreludeStartMs!==undefined,normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs),skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
-  const visibilityStartMs=presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
-  const hardGateMs=hasTrajectory?visibilityStartMs:presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
+  // 0.0.55 W3: the icon's rendered position (base + bounce/sky Y offset + state Z) comes from the
+  // shared `iconRenderPosition` helper — the same helper `colliderOverlayObjects` anchors at, so
+  // icon and overlays are guaranteed to agree (behavior-identical to the pre-refactor inline math).
+  const iconAnchor=iconRenderPosition(frame,target,tuning,presentationConfig,reach);
+  const normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs);
+  const skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
+  const hardGateMs=presentationConfig.skyMode==="prelude"?skyStartMs:normalSpawnMs;
   if(state!=="hit"&&state!=="miss"&&frame.nowMs<hardGateMs)return{objects:[],feedback:[]};
-  const effectiveBounceStart=Math.max(normalSpawnMs,target.bounceStartMs??normalSpawnMs);
-  const bounceOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationBounceOffsetY(frame.nowMs,effectiveBounceStart,target.beatCenterMs,presentationConfig):0;
-  const skyOffset=(bounceEligible&&hasTrajectory||isBomb)&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
-  const totalOffset=bounceOffset+skyOffset,iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
-  const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
+  const totalOffset=iconAnchor.y-(positions[0]?.y??0),iconPositions=totalOffset===0?positions:positions.map((position)=>({x:position.x,y:position.y+totalOffset}));
   const resolved=state==="hit"||state==="miss",missCommit=ownEnumerableDataAdmission(target,"missCommitMs"),missCommitMs=missCommit.admitted?missCommit.value:undefined,feedbackProgress=ownEnumerableDataAdmission(target,"feedbackProgress"),feedbackProgressValue=feedbackProgress.admitted?feedbackProgress.value:undefined;
   if(state==="hit"&&(!feedbackProgress.admitted||!Number.isFinite(feedbackProgressValue)||Number(feedbackProgressValue)<0||Number(feedbackProgressValue)>1))throw new TypeError("Hit target feedback progress is required as one exact own enumerable finite data value");
   if(state==="miss"&&(!missCommit.admitted||!Number.isFinite(missCommitMs)||Number(missCommitMs)<0||Number(missCommitMs)>frame.nowMs||feedbackProgress.present))throw new TypeError("Miss target requires an exact committed timestamp as one own enumerable data property and no feedback progress");
   if(state!=="miss"&&missCommit.present)throw new TypeError("Miss committed timestamp is forbidden on non-miss targets");
   if(state!=="hit"&&state!=="miss"&&feedbackProgress.present)throw new TypeError("Feedback progress is forbidden on non-hit targets");
   const elapsedMs=state==="miss"?frame.nowMs-Number(missCommitMs):state==="hit"?Number(feedbackProgressValue)*tuning.feedbackDurationMs:0;
-  const z=state==="miss"?(frame.nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
+  const z=iconAnchor.z;
   const removal=state==="hit"?Object.freeze({elapsedMs,durationMs:REMOVAL_MS,progress:clamp(elapsedMs/REMOVAL_MS,0,1)}):null;
   const targetVisible=state==="hit"?elapsedMs<REMOVAL_MS:state==="miss"?elapsedMs<MISS_EXPIRY_MS:true;
   const removalScale=removal?0.92*(1-removal.progress):1;
@@ -326,6 +326,34 @@ function buildGuidanceBands(frame,targets,window,mode,config,tuning){
 function isGuidanceEligible(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
 /** One reduced-alpha or full-extent band. Continuation alpha is exactly half the arrival alpha (.32 → .16). @param {AeroGameplayFrame} frame @param {number} index @param {number} z @param {number} alpha */
 function guidanceBand(frame,index,z,alpha){const lanes=frame.presentation==="boxing_lanes"?boxingLanes(defaultTestPresentationConfig):[{x:0,width:4}],left=Math.min(...lanes.map((lane)=>lane.x-lane.width/2)),right=Math.max(...lanes.map((lane)=>lane.x+lane.width/2));return sceneObject(`guidance-band-${index}`,"guidance_band","neutral",null,{x:(left+right)/2,y:TRACK_SURFACE_Y+.018,z},{x:right-left,y:.018,z:.055},null,null,0,alpha,null,0,true,null,null,z,19,null,null,null,null,"#d9f5ff");}
+/**
+ * 0.0.55 W3: the note icon's ACTUAL rendered world position — base grid position (X/Y) plus the
+ * vertical bounce + sky-prelude offset, and the state-dependent Z (miss: continues +Z at
+ * `CANONICAL_WORLD_UNITS_PER_MS` from the beat-center crossing; hit: pinned at the Z=0 crossing;
+ * pending/active: timestamp→Z travel). This is the single source of truth for icon placement
+ * (`targetObjects`) so the debug collider overlays (`colliderOverlayObjects`) can anchor at the
+ * EXACT position the glyph renders — guaranteeing the tolerance cone, target point, and collider
+ * square ride the note through bounce, sky prelude, hit, and miss instead of lagging at the base.
+ * @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {AeroRendererTuning} tuning @param {typeof defaultTestPresentationConfig} presentationConfig @param {AeroFrameRowReach} reach
+ * @returns {AeroWorldPosition}
+ */
+export function iconRenderPosition(frame,target,tuning,presentationConfig,reach){
+  const positions=targetPositions(frame,target,presentationConfig,reach);
+  const base=positions[0]??Object.freeze({x:0,y:0});
+  const isBomb=target.kind==="bomb",bounceEligible=!isBomb&&isBeatBounceSemanticTarget(target),hasTrajectory=target.bounceStartMs!==undefined&&target.normalSpawnMs!==undefined&&target.skyPreludeStartMs!==undefined;
+  const normalSpawnMs=target.normalSpawnMs??Math.max(0,target.beatCenterMs-presentationConfig.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs);
+  const skyStartMs=target.skyPreludeStartMs??Math.max(0,normalSpawnMs-presentationConfig.skyPreludeDurationMs);
+  const interval=target.kind==="obstacle"?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
+  const window=timingWindow(frame);
+  const state=targetState(target,frame.nowMs,interval,window);
+  const effectiveBounceStart=Math.max(normalSpawnMs,target.bounceStartMs??normalSpawnMs);
+  const bounceOffset=bounceEligible&&hasTrajectory&&state!=="hit"&&state!=="miss"?testPresentationBounceOffsetY(frame.nowMs,effectiveBounceStart,target.beatCenterMs,presentationConfig):0;
+  const skyOffset=(bounceEligible&&hasTrajectory||isBomb)&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,skyStartMs,normalSpawnMs,presentationConfig):0;
+  const totalOffset=bounceOffset+skyOffset;
+  const movingZ=timestampToWorldZ(target.beatCenterMs,frame.nowMs,tuning.worldUnitsPerMs);
+  const z=state==="miss"?(frame.nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
+  return Object.freeze({x:base.x,y:base.y+totalOffset,z});
+}
 /** Deterministic caller-time feedback motion; no engine delta or random state participates. @param {"bounce"|"shake"} animation @param {number} elapsedMs @param {number} durationMs */
 function feedbackMotion(animation,elapsedMs,durationMs){
   const progress=clamp(elapsedMs/Math.max(1,durationMs),0,1);
@@ -733,12 +761,13 @@ export function toleranceConeGeometry(cx,cy,direction,toleranceDegrees,radius,st
 /**
  * Build the bounded scene objects for the two debug overlays from the sorted, visible targets.
  * Returns an empty array when both overlay flags are off (zero cost).
- * 0.0.54 W1-C: every overlay (collider square, tolerance-cone fan + target-point marker) is anchored
- * at the target's CURRENT position including travel depth: `(p.x, p.y, p.z + COLLIDER_OVERLAY_CAM_OFFSET_WU)`,
- * so the overlays ride the approaching beat instead of sitting as flat plates at the Z=0 hit plane.
- * The cone fan geometry itself is built at that Z (all vertices carry it), the square's depth plane
- * and the marker sit at the same camera-side offset, and the facade renders these with depth-test
- * off so they stay visible on top of the beat glyph.
+ * 0.0.54 W1-C: every overlay (collider square, tolerance-cone fan + target-point marker) rides the
+ * approaching beat's travel depth. 0.0.55 W3: the anchor is the note icon's ACTUAL rendered position
+ * (`iconRenderPosition` — base X/Y + bounce/sky Y offset + state Z), so the triangle, point, and
+ * square stay locked to the glyph through the bounce, sky prelude, and miss instead of lagging at
+ * the base position. The small camera-side `COLLIDER_OVERLAY_CAM_OFFSET_WU` is added to the icon's
+ * rendered Z (as before); the cone fan geometry is built at that same Z (all vertices carry it),
+ * and the facade renders these with depth-test off so they stay visible on top of the beat glyph.
  * @param {AeroGameplayFrame} frame @param {readonly AeroRenderableTarget[]} sorted @param {AeroColliderOverlaySettings} overlay
  * @returns {AeroGameplaySceneObject[]}
  */
@@ -746,40 +775,25 @@ export function colliderOverlayObjects(frame,sorted,overlay){
   if(!overlay.visibleToleranceRange&&!overlay.visibleColliderRadius)return[];
   /** @type {AeroGameplaySceneObject[]} */ const objects=[];
   const halfExtent=TARGET_HALF_EXTENT+overlay.colliderRadius;
+  const reach=normalizeFrameRowReach(frame.rowReach);
   for(const target of sorted){
     // Only directional notes carry a tolerance cone; collider squares draw for every visible target.
     const direction=target.direction?directionUnitVector(target.direction):null;
-    const positions=targetPositions(frame,target,defaultTestPresentationConfig,normalizeFrameRowReach(frame.rowReach));
-    if(positions.length===0)continue;
-    for(let i=0;i<positions.length;i+=1){
-      const p=positions[i];
-      const z=targetZForOverlay(target,frame);
-      if(overlay.visibleColliderRadius){
-        const visual=Object.freeze({halfExtent});
-        objects.push(sceneObject(`${target.id}:collider:${i}`,"collider_square","neutral",target.id,{x:p.x,y:p.y,z},{x:halfExtent*2,y:halfExtent*2,z:0.012},null,null,0,COLLIDER_SQUARE_ALPHA,null,0,true,null,null,z,45,null,null,null,null,COLLIDER_SQUARE_COLOR,visual));
-      }
-      if(overlay.visibleToleranceRange&&direction){
-        const geometry=toleranceConeGeometry(p.x,p.y,direction,overlay.directionToleranceDegrees,TOLERANCE_CONE_RADIUS_WU,TOLERANCE_CONE_ARC_STEPS,z);
-        const visual=Object.freeze({directionX:direction.x,directionY:direction.y,toleranceDegrees:overlay.directionToleranceDegrees,innerRadius:halfExtent,radius:TOLERANCE_CONE_RADIUS_WU,positions:geometry.positions,indices:geometry.indices,vertexCount:geometry.vertexCount,triangleCount:geometry.triangleCount});
-        objects.push(sceneObject(`${target.id}:tolerance:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z},{x:1,y:1,z:1},null,null,0,TOLERANCE_CONE_ALPHA,null,0,true,null,null,z,46,null,null,null,null,TOLERANCE_CONE_COLOR,visual));
-        // Small target-point marker at the center (distinct, high-alpha disc).
-        objects.push(sceneObject(`${target.id}:target-point:${i}`,"tolerance_cone","neutral",target.id,{x:p.x,y:p.y,z},{x:0.06,y:0.06,z:0.06},null,null,0,TARGET_MARKER_ALPHA,null,0,true,null,null,z,47,null,null,null,null,TARGET_MARKER_COLOR,null));
-      }
+    const anchor=iconRenderPosition(frame,target,defaultRendererTuning,defaultTestPresentationConfig,reach);
+    const z=anchor.z+COLLIDER_OVERLAY_CAM_OFFSET_WU;
+    if(overlay.visibleColliderRadius){
+      const visual=Object.freeze({halfExtent});
+      objects.push(sceneObject(`${target.id}:collider:0`,"collider_square","neutral",target.id,{x:anchor.x,y:anchor.y,z},{x:halfExtent*2,y:halfExtent*2,z:0.012},null,null,0,COLLIDER_SQUARE_ALPHA,null,0,true,null,null,z,45,null,null,null,null,COLLIDER_SQUARE_COLOR,visual));
+    }
+    if(overlay.visibleToleranceRange&&direction){
+      const geometry=toleranceConeGeometry(anchor.x,anchor.y,direction,overlay.directionToleranceDegrees,TOLERANCE_CONE_RADIUS_WU,TOLERANCE_CONE_ARC_STEPS,z);
+      const visual=Object.freeze({directionX:direction.x,directionY:direction.y,toleranceDegrees:overlay.directionToleranceDegrees,innerRadius:halfExtent,radius:TOLERANCE_CONE_RADIUS_WU,positions:geometry.positions,indices:geometry.indices,vertexCount:geometry.vertexCount,triangleCount:geometry.triangleCount});
+      objects.push(sceneObject(`${target.id}:tolerance:0`,"tolerance_cone","neutral",target.id,{x:anchor.x,y:anchor.y,z},{x:1,y:1,z:1},null,null,0,TOLERANCE_CONE_ALPHA,null,0,true,null,null,z,46,null,null,null,null,TOLERANCE_CONE_COLOR,visual));
+      // Small target-point marker at the center (distinct, high-alpha disc).
+      objects.push(sceneObject(`${target.id}:target-point:0`,"tolerance_cone","neutral",target.id,{x:anchor.x,y:anchor.y,z},{x:0.06,y:0.06,z:0.06},null,null,0,TARGET_MARKER_ALPHA,null,0,true,null,null,z,47,null,null,null,null,TARGET_MARKER_COLOR,null));
     }
   }
   return objects;
-}
-
-/** Travel Z for one target's collider overlays: the same timestamp→Z mapping the beat glyph uses
- * (resolved targets pin at the Z=0 crossing; misses continue along +Z past it), plus the small
- * camera-side `COLLIDER_OVERLAY_CAM_OFFSET_WU` so the overlays sit in front of the glyph. @param {AeroRenderableTarget} target @param {AeroGameplayFrame} frame */
-function targetZForOverlay(target,frame){
-  const nowMs=frame.nowMs;
-  let z;
-  if(target.judgement==="miss"&&typeof target.missCommitMs==="number"&&Number.isFinite(target.missCommitMs))z=nowMs-target.beatCenterMs>0?(nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:0;
-  else if(target.judgement==="hit")z=0;
-  else z=timestampToWorldZ(target.beatCenterMs,nowMs);
-  return z+COLLIDER_OVERLAY_CAM_OFFSET_WU;
 }
 
 /** @param {AeroColliderOverlaySettings} overlay @param {AeroGameplaySceneObject[]} objects @returns {AeroColliderOverlayVisual} */

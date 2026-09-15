@@ -13,10 +13,20 @@ import {
   hazardWallContactActiveIntensity,
   hazardWallContactReleasedIntensity,
   hazardVignetteParamsForFrame,
+  iconRenderPosition,
   COLLIDER_OVERLAY_CAM_OFFSET_WU,
+  defaultTestPresentationConfig,
+  createTestPresentationConfig,
+  testPresentationBounceOffsetY,
   toleranceConeGeometry,
 } from "../src/index.js";
 import { boxingColliderRowY } from "@aerobeat/web-contracts/gameplay-contracts";
+
+// 0.0.55 W3: bounce-test config — skyMode off (isolate the bounce offset from the 50 WU sky
+// prelude) AND a 12 WU normal spawn distance (2000 ms lead) so the future-cull gate (10000 ms)
+// lets the full bounce window render: with the default 50 WU distance the spawn lead is 8333 ms
+// and a sub-8333 ms bounce window would be culled before it ever becomes visible.
+const BOUNCE_TEST = createTestPresentationConfig(2, 0.4, 0.4, "out_quad", "in_quad", 12, "off", 0, 1000, "in_out_sine", 1.8);
 
 const T = defaultRendererTuning;
 
@@ -405,4 +415,188 @@ for (const badParams of [
   assert.equal(bombOnly.hazardGlow.activeCount, 1, "bomb-only active count unchanged");
 }
 
+// --- 0.0.55 W3: overlays anchor at the note icon's ACTUAL rendered position ---
+// Derrick's playtest bugs 1-4: the tolerance triangle + target point + collider square did not
+// follow the note — (a) triangle disconnected from the point, (b) no follow during the bounce
+// up/down, (c) the triangle "shot forward / re-aligned" on a miss, (d) no follow during the sky
+// prelude until the note snapped into position. Root cause: the overlays anchored at the base
+// targetPositions (no bounce/sky Y offset) while the icon rendered at base + totalOffset. Fix:
+// both now share `iconRenderPosition` as the single source of truth.
+
+const BOUNCES = {
+  // Bouncing note (BOUNCE_TEST config: 12 WU spawn = 2000 ms lead): beat center 3000,
+  // normal spawn 1000, bounce window [1000, 3000) with apex at 1800 (q=0.4). The 10000 ms
+  // future-cull gate un-culls the note at nowMs = -5333, so every sampled moment is visible.
+  apexNowMs: 1800,
+  midNowMs: 1600,
+  landingNowMs: 3000,
+  // Trajectory fields (same on all bouncing notes below).
+  beatCenterMs: 3000,
+  bounceStartMs: 1000,
+  normalSpawnMs: 1000,
+  skyPreludeStartMs: 1000,
+};
+const bouncingNote = (id) => ({ id, kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: BOUNCES.beatCenterMs, direction: "up", bounceStartMs: BOUNCES.bounceStartMs, normalSpawnMs: BOUNCES.normalSpawnMs, skyPreludeStartMs: BOUNCES.skyPreludeStartMs });
+// Bounce-isolated oracles pass BOUNCE_TEST to buildGameplaySceneModel as the presentationConfig
+// argument; the sky-prelude oracle (5) keeps the default config (skyMode "prelude").
+const overlayFrame = (target, nowMs) => ({ presentation: "flow", nowMs, targets: [target], visibleToleranceRange: true, visibleColliderRadius: true });
+const overlayTriple = (model) => ({
+  square: model.objects.find((o) => o.id === "n3:collider:0"),
+  cone: model.objects.find((o) => o.id === "n3:tolerance:0"),
+  marker: model.objects.find((o) => o.id === "n3:target-point:0"),
+});
+
+// (1) Bounce apex: offset > 0 → icon Y = base + offset, ALL three overlays share it (triangle
+// connected to the point AND to the square), and all differ from the base Y (they ride the bounce).
+{
+  const target = bouncingNote("n3");
+  const nowMs = BOUNCES.apexNowMs;
+  const model = buildGameplaySceneModel(overlayFrame(target, nowMs), undefined, undefined, BOUNCE_TEST);
+  const icon = model.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  assert(icon, "bouncing note icon rendered at apex");
+  const baseY = 1.0; // cell 5 → column 1, row 1
+  const expectedOffset = testPresentationBounceOffsetY(nowMs, BOUNCES.bounceStartMs, BOUNCES.beatCenterMs, defaultTestPresentationConfig);
+  const expectedY = baseY + expectedOffset;
+  assert.ok(expectedOffset > 0.1, `bounce offset must be nonzero at apex (got ${expectedOffset})`);
+  const iconY = icon.position.y;
+  assert.ok(Math.abs(iconY - expectedY) < 1e-9, `icon Y at apex = base + offset (${iconY} vs ${expectedY})`);
+  assert.ok(Math.abs(iconY - baseY) > 1e-6, `icon Y at apex differs from base Y (${iconY} vs ${baseY})`);
+  const { square, cone, marker } = overlayTriple(model);
+  assert(square && cone && marker, "all three overlays present at apex");
+  for (const [label, o] of [["square", square], ["cone", cone], ["marker", marker]]) {
+    assert.ok(Math.abs(o.position.y - expectedY) < 1e-6, `${label} Y at apex == icon Y == base + offset (${o.position.y})`);
+    assert.ok(Math.abs(o.position.y - baseY) > 1e-6, `${label} Y at apex differs from base Y (overlay follows the bounce)`);
+    assert.ok(Math.abs(o.position.x - icon.position.x) < 1e-9, `${label} X at apex == icon X`);
+  }
+}
+
+// (2) Mid-bounce (nonzero, non-apex offset): overlays still track the icon exactly.
+{
+  const target = bouncingNote("n3");
+  const nowMs = BOUNCES.midNowMs;
+  const model = buildGameplaySceneModel(overlayFrame(target, nowMs), undefined, undefined, BOUNCE_TEST);
+  const icon = model.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  const offset = testPresentationBounceOffsetY(nowMs, BOUNCES.bounceStartMs, BOUNCES.beatCenterMs, defaultTestPresentationConfig);
+  assert.ok(offset > 0 && Math.abs(offset - 0.4) > 1e-3, `mid-bounce offset nonzero and not apex (got ${offset})`);
+  const { square, cone, marker } = overlayTriple(model);
+  for (const [label, o] of [["square", square], ["cone", cone], ["marker", marker]]) {
+    assert.ok(Math.abs(o.position.y - icon.position.y) < 1e-6, `${label} Y mid-bounce == icon Y`);
+  }
+  // Icon Z at this moment: pending travel z = -(beat-now)*0.006 (future beats are farther toward −Z).
+  const expectedZ = (BOUNCES.beatCenterMs - nowMs) * -0.006; // (3000-1600)*-0.006 = -8.4
+  assert.ok(Math.abs(expectedZ - (-8.4)) < 1e-9, "mid-bounce pending Z is -8.4 (sanity)");
+  assert.ok(Math.abs(icon.position.z - expectedZ) < 1e-9, "icon Z is pending travel Z");
+  for (const o of [square, cone, marker]) {
+    assert.ok(Math.abs(o.position.z - (expectedZ + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, "overlay Z mid-bounce == icon Z + camOffset");
+  }
+  // Cone fan vertices ride the same plane.
+  for (let i = 2; i < cone.aftermath.positions.length; i += 3) {
+    assert.ok(Math.abs(cone.aftermath.positions[i] - (expectedZ + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, "cone vertex z mid-bounce rides the icon");
+  }
+}
+
+// (3) At the hit plane (beat center, z=0, no offset): overlay Y == icon Y == base Y, overlay Z == icon Z (0) + camOffset.
+{
+  const target = bouncingNote("n3");
+  const nowMs = BOUNCES.landingNowMs;
+  const model = buildGameplaySceneModel(overlayFrame(target, nowMs), undefined, undefined, BOUNCE_TEST);
+  const icon = model.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  const { square, cone, marker } = overlayTriple(model);
+  assert.ok(Math.abs(icon.position.y - 1.0) < 1e-9, "icon Y at landing == base Y (offset 0)");
+  assert.ok(Math.abs(icon.position.z) < 1e-9, "icon Z at landing == 0 (hit plane)");
+  for (const [label, o] of [["square", square], ["cone", cone], ["marker", marker]]) {
+    assert.ok(Math.abs(o.position.y - 1.0) < 1e-6, `${label} Y at landing == icon Y == base Y`);
+    assert.ok(Math.abs(o.position.z - COLLIDER_OVERLAY_CAM_OFFSET_WU) < 1e-6, `${label} Z at landing == icon Z (0) + camOffset`);
+  }
+}
+
+// (4) Overlay Z == icon Z (state Z) at pending, hit, and miss moments.
+{
+  // Pending: icon Z is the timestamp→Z travel; overlays add only the camOffset.
+  const pending = bouncingNote("n3");
+  const pendingNow = 2800; // beat 3000 → z = -(3000-2800)*0.006 = -1.2
+  const pm = buildGameplaySceneModel(overlayFrame(pending, pendingNow), undefined, undefined, BOUNCE_TEST);
+  const pIcon = pm.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  const pT = overlayTriple(pm);
+  assert.ok(Math.abs(pIcon.position.z - (-1.2)) < 1e-9, "pending icon Z = -1.2");
+  for (const o of [pT.square, pT.cone, pT.marker]) {
+    assert.ok(Math.abs(o.position.z - (pIcon.position.z + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, "pending overlay Z == icon Z + camOffset");
+  }
+  // Hit: icon Z pinned at 0; overlay Z = camOffset.
+  const hit = { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 2000, direction: "up", judgement: "hit", feedbackProgress: 0 };
+  const hm = buildGameplaySceneModel(overlayFrame(hit, 2000), undefined, undefined, BOUNCE_TEST);
+  const hIcon = hm.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  const hT = overlayTriple(hm);
+  assert.ok(hIcon && Math.abs(hIcon.position.z) < 1e-9, "hit icon Z pinned at 0");
+  for (const o of [hT.square, hT.cone, hT.marker]) {
+    assert.ok(Math.abs(o.position.z - COLLIDER_OVERLAY_CAM_OFFSET_WU) < 1e-6, "hit overlay Z == icon Z (0) + camOffset");
+    assert.ok(Math.abs(o.position.y - hIcon.position.y) < 1e-6, "hit overlay Y == icon Y (no offset on hit)");
+  }
+  // Miss: icon Z continues along +Z at 0.006 WU/ms from the beat crossing (no "re-alignment" snap);
+  // overlays ride the same +Z so the triangle no longer shoots forward.
+  const miss = { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 2000, direction: "up", judgement: "miss", missCommitMs: 2000 };
+  const missNow = 2050;
+  const mm = buildGameplaySceneModel(overlayFrame(miss, missNow), undefined, undefined, BOUNCE_TEST);
+  const mIcon = mm.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  const mT = overlayTriple(mm);
+  const expectedMissZ = (missNow - 2000) * 0.006; // 0.3
+  assert.ok(mIcon && Math.abs(mIcon.position.z - expectedMissZ) < 1e-9, `miss icon Z continues +Z (got ${mIcon?.position.z}, want ${expectedMissZ})`);
+  for (const o of [mT.square, mT.cone, mT.marker]) {
+    assert.ok(Math.abs(o.position.z - (expectedMissZ + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, "miss overlay Z == icon +Z continuation (no re-alignment snap)");
+  }
+}
+
+// (5) Sky prelude: the overlay tracks the elevated icon through the prelude (bug d — previously
+// the overlay stayed at base Y until the note "snapped" into position at the lane join).
+{
+  // Pure sky-prelude note (no bounce at the sampled moment — bounce window [4000, 6000) starts
+  // after nowMs): sky window 1000→4000 (skyPreludeStartMs=1000, lane join = normalSpawnMs=4000),
+  // beat 6000 (hit plane). All three trajectory fields set so hasTrajectory activates the sky
+  // offset. At nowMs 2000 (q=0.5, in_out_sine → half height): the icon is 25 WU above the base
+  // and still 24 WU in front of the hit plane.
+  const preludeNote = (id) => ({ id, kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 6000, direction: "up", bounceStartMs: 4000, normalSpawnMs: 4000, skyPreludeStartMs: 1000 });
+  const target = preludeNote("n3");
+  const nowMs = 2000;
+  const model = buildGameplaySceneModel(overlayFrame(target, nowMs));
+  const icon = model.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  assert(icon, "sky-prelude note icon rendered");
+  assert.ok(icon.position.y > 1.0 + 1, `sky-prelude icon is elevated above base (got ${icon.position.y})`);
+  const { square, cone, marker } = overlayTriple(model);
+  for (const [label, o] of [["square", square], ["cone", cone], ["marker", marker]]) {
+    assert.ok(Math.abs(o.position.y - icon.position.y) < 1e-6, `${label} Y tracks the elevated sky-prelude icon (${o.position.y})`);
+    assert.ok(Math.abs(o.position.z - (icon.position.z + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, `${label} Z == icon Z + camOffset in the prelude`);
+  }
+}
+
+// (6) `iconRenderPosition` is the shared source of truth: it equals the rendered icon position for
+// every state sampled above (behavior-preserving refactor guard).
+{
+  const reach = { topRowReachWU: 1, bottomRowReachWU: 1 };
+  const states = [
+    { target: bouncingNote("n3"), nowMs: BOUNCES.midNowMs, config: BOUNCE_TEST },
+    { target: bouncingNote("n3"), nowMs: BOUNCES.apexNowMs, config: BOUNCE_TEST },
+    { target: bouncingNote("n3"), nowMs: BOUNCES.landingNowMs, config: BOUNCE_TEST },
+    { target: { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 6000, direction: "up", bounceStartMs: 4000, normalSpawnMs: 4000, skyPreludeStartMs: 1000 }, nowMs: 2000, config: defaultTestPresentationConfig }, // sky prelude (default config)
+    { target: { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 2000, direction: "up", judgement: "hit", feedbackProgress: 0 }, nowMs: 2000, config: BOUNCE_TEST },
+    { target: { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 2000, direction: "up", judgement: "miss", missCommitMs: 2000 }, nowMs: 2050, config: BOUNCE_TEST },
+  ];
+  for (const { target, nowMs, config } of states) {
+    const model = buildGameplaySceneModel(overlayFrame(target, nowMs), undefined, undefined, config);
+    const icon = model.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+    assert(icon, "icon present for iconRenderPosition guard");
+    const anchor = iconRenderPosition({ presentation: "flow", nowMs, targets: [target] }, target, defaultRendererTuning, config, reach);
+    assert.ok(Math.abs(anchor.x - icon.position.x) < 1e-9, "helper X == icon X");
+    assert.ok(Math.abs(anchor.y - icon.position.y) < 1e-9, "helper Y == icon Y");
+    assert.ok(Math.abs(anchor.z - icon.position.z) < 1e-9, "helper Z == icon Z");
+  }
+  // Boxing collider reach row: helper honors the presentation row-reach base Y (first/base position).
+  const punch = { id: "n3", kind: "punch", hand: "left", family: "straight", cell: 5, cells: [], lane: "left", beatCenterMs: 1500, direction: null };
+  const bModel = buildGameplaySceneModel({ presentation: "boxing_collider", nowMs: 1000, targets: [punch], rowReach: { topRowReachWU: 0.25, bottomRowReachWU: 0.25 }, visibleToleranceRange: false, visibleColliderRadius: true });
+  const bIcon = bModel.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
+  const bAnchor = iconRenderPosition({ presentation: "boxing_collider", nowMs: 1000, targets: [punch], rowReach: { topRowReachWU: 0.25, bottomRowReachWU: 0.25 } }, punch, defaultRendererTuning, defaultTestPresentationConfig, { topRowReachWU: 0.25, bottomRowReachWU: 0.25 });
+  assert.ok(Math.abs(bAnchor.y - bIcon.position.y) < 1e-9, "helper honors the boxing_collider reach-row base Y");
+  assert.ok(Math.abs(bAnchor.y - 1.0) < 1e-9, "reach-row base Y is 1.0 at 0.25/0.25");
+}
+
 console.log("0.0.52/0.0.54 W1-C unit oracles: boxing reach rows, aftermath closed-form, hazard bomb envelope (regression), z-anchored collider overlays, state-driven pulsing vignette (ramp/pulse/decay/idle/strict/MAX) all passed.");
+console.log("0.0.55 W3 unit oracles: overlays anchor at the note icon's rendered position (bounce apex/mid/landing Y, pending/hit/miss state Z, sky-prelude tracking, shared iconRenderPosition source of truth) all passed.");

@@ -344,10 +344,14 @@ function targetPositions(frame,target,config,reach){
   if(frame.presentation==="boxing_lanes"||frame.presentation==="boxing_collider"){
     const lanes=boxingLanes(config);
     if(target.kind==="guard"||target.family==="squat")return lanes.map(lane=>({x:lane.x,y:lane.y}));
-    // Boxing collider: cell-anchored flow notes render at their reach-row Y; lane-anchored punch/guard targets use lanes.
+    // Boxing collider: cell-anchored targets render at their reach-row Y; lane-anchored targets use lanes.
+    // 0.0.54 P2 fix: real assembly punch targets carry `cell` set + `cells: []` (session-render-
+    // projection line 204), so the effective cell list must fall back to `cell` — mapping
+    // `target.cells` alone yielded zero positions (no punch icon) for the real punch shape.
     if(frame.presentation==="boxing_collider"&&(target.cells.length>0||target.cell!==null)){
+      const effectiveCells=target.cells.length>0?target.cells:[target.cell];
       const applyReach=(position)=>({x:position.x,y:presentationRowY(reach,gridRowFromWorldY(position.y))});
-      return target.cells.map(worldPositionForCell).filter(Boolean).map(applyReach);
+      return effectiveCells.map(worldPositionForCell).filter(Boolean).map(applyReach);
     }
     const lane=lanes.find(entry=>entry.lane===(target.lane??target.hand));return lane?[{x:lane.x,y:lane.y}]:[];
   }

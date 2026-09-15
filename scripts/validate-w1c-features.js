@@ -66,6 +66,29 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.equal(icon0.position.y, 2.0, "cell 0 (row 0) icon Y must be 2.0 at {1,1}");
 }
 
+// 0.0.54 P2 (Derrick playtest item 7 follow-up): the REAL assembly punch target shape
+// (session-render-projection: kind "punch", `cell` set, `cells: []`, lane = hand) must emit
+// an icon at its reach-row position. The pre-fix cell branch mapped `target.cells` only,
+// yielding zero positions — punches rendered as empty grid positions in boxing_collider.
+{
+  const punch = { id: "pp", kind: "punch", hand: "left", family: "straight", cell: 5, cells: [], lane: "left", beatCenterMs: 1500, direction: null };
+  const model = buildGameplaySceneModel({ presentation: "boxing_collider", nowMs: 1000, targets: [punch], rowReach: { topRowReachWU: 0.25, bottomRowReachWU: 0.25 } });
+  const icon = model.objects.find((o) => o.targetId === "pp" && o.kind === "icon");
+  assert(icon, "real-shape boxing_collider punch (cell set, cells []) must emit an icon object");
+  assert.equal(icon.position.y, 1.0, "cell 5 (row 1 = shoulder anchor) icon Y must be 1.0 at 0.25/0.25 reach");
+  assert.equal(icon.position.x, -0.5, "cell 5 (column 1) icon X must be -0.5");
+  assert.equal(icon.assetId, "any-note/outlined-circle-v1", "directionless straight punch renders the any-note glyph");
+  // Directional punch (hook with entry direction) keeps the directional arrow glyph.
+  const hook = { ...punch, id: "ph", family: "hook", direction: "up" };
+  const modelHook = buildGameplaySceneModel({ presentation: "boxing_collider", nowMs: 1000, targets: [hook], rowReach: { topRowReachWU: 0.25, bottomRowReachWU: 0.25 } });
+  const iconHook = modelHook.objects.find((o) => o.targetId === "ph" && o.kind === "icon");
+  assert(iconHook && iconHook.assetId === "directional-arrow/rounded-outline-v1", "directional boxing punch keeps the arrow glyph");
+  // Legacy cells-populated shape still works (regression guard for the {1,1} identity targets above).
+  const legacyShape = { id: "pl", kind: "punch", hand: "right", family: "hook", cell: 6, cells: [6], lane: "right", beatCenterMs: 1500, direction: "up" };
+  const modelLegacy = buildGameplaySceneModel({ presentation: "boxing_collider", nowMs: 1000, targets: [legacyShape], rowReach: { topRowReachWU: 0.25, bottomRowReachWU: 0.25 } });
+  assert.equal(modelLegacy.objects.filter((o) => o.targetId === "pl" && o.kind === "icon").length, 1, "cells-populated punch shape still emits exactly one icon");
+}
+
 // --- p5pr: hit-success aftermath engine ---
 
 // Per-family launch direction (incl. hook sign per hand).

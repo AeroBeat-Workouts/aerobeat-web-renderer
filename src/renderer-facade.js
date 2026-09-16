@@ -320,7 +320,7 @@ export class AeroPlayCanvasRenderer {
     }
     material.update();
   }
-  /** 0.0.52 W1-C follow-up: aftermath slice halves render through two persistent clip-plane variant materials (top/bottom local-Y cut), one per pool entity, cloned on first use from the record's pooled material (same clone-on-use discipline as the pooled cursor markers). Both halves share the pool's mesh asset. Non-slice aftermath and all other objects keep the shared pooled appearance. */
+  /** 0.0.52 W1-C follow-up: aftermath slice halves render through two persistent clip-plane variant materials (vertical local-X cut — left/right halves, 0.0.56 B10), one per pool entity, cloned on first use from the record's pooled material (same clone-on-use discipline as the pooled cursor markers). Both halves share the pool's mesh asset. Non-slice aftermath and all other objects keep the shared pooled appearance. */
   applyAftermathAppearance(object,entity){
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     const sliceSign=object.aftermath?.sliceSign??null;if(sliceSign===null)return;

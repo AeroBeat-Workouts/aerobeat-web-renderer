@@ -237,7 +237,7 @@ export class AeroPlayCanvasRenderer {
     const loader=this.gameplayAssetLoader.describe(),mode=loader.state;if(mode==="ready"&&this.assetPoolGeneration!==loader.generation){this.destroyInstantiatedPools();this.assetPoolGeneration=loader.generation;}
     for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;for(const entity of this.colliderOverlayPrimitivePool??[])entity.enabled=false;for(const entity of this.colliderOverlayConePool??[])entity.enabled=false;
     const assetCounts=new Map(),aftermathCounts=new Map(),renderedCounts=new Map();let primitiveIndex=0,feedbackIndex=0,fallbackCount=0,drawIndex=0;
-    for(const object of objects){let entity=null;if(object.kind==="hazard_glow")continue;if(object.kind==="feedback"){entity=this.acquireFeedbackEntity(feedbackIndex++,object);if(entity)this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(entity)renderedCounts.set("world-feedback",(renderedCounts.get("world-feedback")??0)+1);continue;}if(object.kind==="aftermath"){const aftermathAsset=object.assetId??"any-note/outlined-circle-v1",index=aftermathCounts.get(aftermathAsset)??0;aftermathCounts.set(aftermathAsset,index+1);entity=mode==="ready"?this.acquireAftermathAssetEntity(aftermathAsset,index):this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.useGameplayLayer(entity,"target");this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(mode==="ready"&&object.aftermath?.sliceSign!=null)this.applyAftermathAppearance(object,entity);else if(mode==="ready"){const wholeFill=object.appearanceColor??this.roleColor(object.role);const wholeRgba=colorTokenToRgba(wholeFill,[1,1,1,1]);const wholeGray=0.2126*wholeRgba[0]+0.7152*wholeRgba[1]+0.0722*wholeRgba[2];const wholeDesaturated=[wholeRgba[0]+(wholeGray-wholeRgba[0])*AFTERMATH_CORPSE_DESATURATION,wholeRgba[1]+(wholeGray-wholeRgba[1])*AFTERMATH_CORPSE_DESATURATION,wholeRgba[2]+(wholeGray-wholeRgba[2])*AFTERMATH_CORPSE_DESATURATION,1];for(const record of this.assetMaterials.get(entity)??[]){const m=record.meshInstance.material;const wholeRole=gameplayAssetMaterialRole(object.assetId??"",record.name);const wholeBase=wholeRole==="note_fill"?wholeDesaturated:[record.diffuse.r,record.diffuse.g,record.diffuse.b,1];m.diffuse.set(wholeBase[0],wholeBase[1],wholeBase[2]);m.emissive.set(wholeBase[0]*.32,wholeBase[1]*.32,wholeBase[2]*.32);m.opacity=wholeBase[3]*object.alpha;m.blendType=wholeBase[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType;m.depthWrite=wholeBase[3]*object.alpha<1?false:record.depthWrite;m.depthTest=true;m.useLighting=false;m.cull=record.cull;m.update();}}else this.updateMaterial(entity,object.appearanceColor??this.roleColor(object.role),object.alpha,null,false,false);renderedCounts.set(aftermathAsset,(renderedCounts.get(aftermathAsset)??0)+1);continue;}if(object.kind==="collider_square"||object.kind==="tolerance_cone"){entity=this.acquireColliderOverlayEntity(object,primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;this.applyColliderOverlayAppearance(object,entity);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);renderedCounts.set(object.kind==="collider_square"?"collider_square":"tolerance_cone",(renderedCounts.get(object.kind==="collider_square"?"collider_square":"tolerance_cone")??0)+1);continue;}if(object.assetId){if(mode==="ready"){const index=assetCounts.get(object.assetId)??0;entity=this.acquireAssetEntity(object.assetId,index);assetCounts.set(object.assetId,index+1);}else if(mode==="fallback"){entity=this.acquirePrimitiveEntity(primitiveIndex++);fallbackCount+=1;}}else entity=this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;this.useGameplayLayer(entity,object.kind==="cell"||object.kind==="lane"||object.kind==="timing"?"grid":object.kind==="guidance_band"?"guidance":object.kind==="icon"?"target":"world");entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);const appearance=object.appearanceColor??this.roleColor(object.role);if(object.assetId&&mode==="ready"){const color=mixColorTokens(appearance,"#ffffff",object.tintMix);this.applyAssetAppearance(entity,object.assetId,color,object.alpha,object.kind==="obstacle"&&object.tintMix>0);renderedCounts.set(object.assetId,(renderedCounts.get(object.assetId)??0)+1);}else this.updateMaterial(entity,appearance,object.alpha,null,object.state==="spent",false);}
+    for(const object of objects){let entity=null;if(object.kind==="hazard_glow")continue;if(object.kind==="feedback"){entity=this.acquireFeedbackEntity(feedbackIndex++,object);if(entity)this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(entity)renderedCounts.set("world-feedback",(renderedCounts.get("world-feedback")??0)+1);continue;}if(object.kind==="aftermath"){const aftermathAsset=object.assetId??"any-note/outlined-circle-v1",index=aftermathCounts.get(aftermathAsset)??0;aftermathCounts.set(aftermathAsset,index+1);entity=mode==="ready"?this.acquireAftermathAssetEntity(aftermathAsset,index):this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.useGameplayLayer(entity,"target");this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(mode==="ready"&&object.aftermath?.sliceSign!=null)this.applyAftermathAppearance(object,entity);else if(mode==="ready"){for(const record of this.assetMaterials.get(entity)??[]){const m=record.meshInstance.material;const part=gameplayAssetMaterialRole(object.assetId??"",record.name);const base=this.aftermathCorpsePartColor(part,object,record);m.diffuse.set(base[0],base[1],base[2]);m.emissive.set(base[0]*.32,base[1]*.32,base[2]*.32);m.opacity=base[3]*object.alpha;m.blendType=base[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType;m.depthWrite=base[3]*object.alpha<1?false:record.depthWrite;m.depthTest=true;m.useLighting=false;m.cull=record.cull;m.update();}}else this.updateMaterial(entity,object.appearanceColor??this.roleColor(object.role),object.alpha,null,false,false);renderedCounts.set(aftermathAsset,(renderedCounts.get(aftermathAsset)??0)+1);continue;}if(object.kind==="collider_square"||object.kind==="tolerance_cone"){entity=this.acquireColliderOverlayEntity(object,primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;this.applyColliderOverlayAppearance(object,entity);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);renderedCounts.set(object.kind==="collider_square"?"collider_square":"tolerance_cone",(renderedCounts.get(object.kind==="collider_square"?"collider_square":"tolerance_cone")??0)+1);continue;}if(object.assetId){if(mode==="ready"){const index=assetCounts.get(object.assetId)??0;entity=this.acquireAssetEntity(object.assetId,index);assetCounts.set(object.assetId,index+1);}else if(mode==="fallback"){entity=this.acquirePrimitiveEntity(primitiveIndex++);fallbackCount+=1;}}else entity=this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;this.useGameplayLayer(entity,object.kind==="cell"||object.kind==="lane"||object.kind==="timing"?"grid":object.kind==="guidance_band"?"guidance":object.kind==="icon"?"target":"world");entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);const appearance=object.appearanceColor??this.roleColor(object.role);if(object.assetId&&mode==="ready"){const color=mixColorTokens(appearance,"#ffffff",object.tintMix);this.applyAssetAppearance(entity,object.assetId,color,object.alpha,object.kind==="obstacle"&&object.tintMix>0);renderedCounts.set(object.assetId,(renderedCounts.get(object.assetId)??0)+1);}else this.updateMaterial(entity,appearance,object.alpha,null,object.state==="spent",false);}
     this.applyHazardGlow(objects.find((entry)=>entry.kind==="hazard_glow")??null);
     this.activeCount=[...renderedCounts.values()].reduce((sum,value)=>sum+value,0)+primitiveIndex;this.sceneDiagnostics=buildSceneDiagnostics(objects,guidance,mode,loader,renderedCounts,fallbackCount);
   }
@@ -326,31 +326,62 @@ export class AeroPlayCanvasRenderer {
   applyAftermathAppearance(object,entity){
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     const sliceSign=object.aftermath?.sliceSign??null;if(sliceSign===null)return;
-    // 0.0.58 B11b: the corpse keeps the note's ACTUAL glyph but desaturated. The fill tint
-    // (the note's real `appearanceColor`) is lerped toward full luminance grayscale by
-    // AFTERMATH_CORPSE_DESATURATION — strong desaturation, but NOT collapsed to one uniform
-    // gray value. The authored structural white/charcoal outline parts keep their authored
-    // source appearance (white stays ~white), so the hit arrow/orb still reads as an
-    // arrow/orb with the color gone. B10: this path applies ONLY to aftermath objects —
-    // live icons keep full color through applyAssetAppearance.
-    const fillAppearance=object.appearanceColor??this.roleColor(object.role);
-    const fillRgba=colorTokenToRgba(fillAppearance,[1,1,1,1]);
-    const grayscale=0.2126*fillRgba[0]+0.7152*fillRgba[1]+0.0722*fillRgba[2];
-    const desaturated=[fillRgba[0]+(grayscale-fillRgba[0])*AFTERMATH_CORPSE_DESATURATION,fillRgba[1]+(grayscale-fillRgba[1])*AFTERMATH_CORPSE_DESATURATION,fillRgba[2]+(grayscale-fillRgba[2])*AFTERMATH_CORPSE_DESATURATION,1];
-    const fillStateColor=rgbaToHex(desaturated);
+    // 0.0.58 B11b: the corpse keeps the note's ACTUAL glyph (white outline + silhouette)
+    // but DESATURATED — it must read as the same arrow/orb with the color gone, NOT a flat
+    // uniform gray blob (the 0.0.57 AFTERMATH_HIT_CORPSE_GRAY override force-set EVERY
+    // part — outline AND fill — to one color, collapsing the glyph's contrast). The GLB
+    // carries three parts per cue: mat/white (structural outline, ~0.97), mat/charcoal
+    // (~0.04), mat/tint_base (the colored fill, tinted at runtime from the note's real
+    // appearanceColor). We restore the contrast:
+    //   - mat/white  → bright neutral (keeps the "white outline" light; lifted slightly
+    //                  above the mid-gray fill so the outline is clearly readable),
+    //   - mat/charcoal → kept dark,
+    //   - mat/tint_base (fill) → the note's REAL fill strongly lerped toward luminance
+    //                  grayscale by AFTERMATH_CORPSE_DESATURATION (color gone, not flat),
+    // so outline (light) / charcoal (dark) / fill (mid gray) are clearly distinct.
+    // B10: this path applies ONLY to aftermath objects — live icons keep full color
+    // through applyAssetAppearance. Shared with the whole (non-slice) aftermath branch.
     for(const record of records){
       const role=gameplayAssetMaterialRole(object.assetId??"",record.name);
-      const isFill=role==="note_fill";
-      const baseRgba=isFill?desaturated:[record.diffuse.r,record.diffuse.g,record.diffuse.b,1];
+      const baseRgba=this.aftermathCorpsePartColor(role,object,record);
       const variant=this.sliceVariantMaterial(record,sliceSign);
       record.meshInstance.material=variant;
-      const state={kind:"aftermath-slice",sliceSign,diffuse:isFill?fillStateColor:undefined,opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
+      const state={kind:"aftermath-slice",sliceSign,part:role,baseR:[baseRgba[0],baseRgba[1],baseRgba[2]],opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
       if(materialStateIsUnchanged(variant,this.materialStates.get(variant),state))continue;
       variant.diffuse.set(baseRgba[0],baseRgba[1],baseRgba[2]);variant.emissive.set(baseRgba[0]*.32,baseRgba[1]*.32,baseRgba[2]*.32);
       variant.opacity=baseRgba[3]*object.alpha;variant.blendType=state.blendType;variant.depthWrite=state.depthWrite;variant.depthTest=true;variant.useLighting=false;variant.cull=record.cull;
       variant.diffuseMap=record.diffuseMap;variant.emissiveMap=record.emissiveMap;variant.opacityMap=record.opacityMap;variant.diffuseMapChannel=record.diffuseMapChannel;variant.emissiveMapChannel=record.emissiveMapChannel;variant.opacityMapChannel=record.opacityMapChannel;variant.update();
       this.materialStates.set(variant,state);
     }
+  }
+  /** 0.0.58 B11b: resolve the DESATURATED corpse color for ONE part of a note cue. Keeps the
+   * glyph's contrast (the bug was collapsing all parts to one flat gray): mat/white → bright
+   * neutral (the "white outline" stays light), mat/charcoal → kept dark, mat/tint_base (the
+   * colored fill) → the note's REAL `appearanceColor` strongly lerped toward luminance
+   * grayscale by AFTERMATH_CORPSE_DESATURATION (color gone, not uniform). Unrecognized parts
+   * keep their authored source appearance. Returns [r,g,b,a] in linear-ish facade space.
+   * @param {string|null} role Material role from gameplayAssetMaterialRole.
+   * @param {{appearanceColor:string|undefined,role:string}} object The aftermath scene object.
+   * @param {{diffuse:{r:number,g:number,b:number}}} record Cloned pooled material record.
+   * @returns {[number,number,number,number]}
+   */
+  aftermathCorpsePartColor(role,object,record){
+    if(role==="note_fill"){
+      const rgba=colorTokenToRgba(object.appearanceColor??this.roleColor(object.role),[1,1,1,1]);
+      const g=0.2126*rgba[0]+0.7152*rgba[1]+0.0722*rgba[2];
+      return [rgba[0]+(g-rgba[0])*AFTERMATH_CORPSE_DESATURATION,rgba[1]+(g-rgba[1])*AFTERMATH_CORPSE_DESATURATION,rgba[2]+(g-rgba[2])*AFTERMATH_CORPSE_DESATURATION,1];
+    }
+    if(role==="outline_white"){
+      // Brighten the authored white outline slightly so it clearly reads as the light
+      // structural edge (the GLB mat/white is ~0.97; lift a touch above the mid-gray fill).
+      return [Math.min(1,0.94+0.06),Math.min(1,0.97+0.03),1,1];
+    }
+    if(role==="outline_charcoal"){
+      // Keep the authored charcoal structural part dark (it is already near-black).
+      return [record.diffuse.r,record.diffuse.g,record.diffuse.b,1];
+    }
+    // Any other / unrecognized part: keep the authored source appearance unchanged.
+    return [record.diffuse.r,record.diffuse.g,record.diffuse.b,1];
   }
   /** Lazily clone one clip-plane variant per (pool entity, sliceSign) from the record's pooled material and install the local-X discard blocks (vertical cut — left/right halves, 0.0.56 B10). Both variants are owned and destroyed in the pool/detach teardown. */
   sliceVariantMaterial(record,sliceSign){

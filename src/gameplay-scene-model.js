@@ -510,7 +510,15 @@ export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
     if(Math.abs(cursorVy)<.2)break;
   }
   const settleMs=segments.reduce((max,s)=>Math.max(max,s.endMs),0);
-  const fadeStartMs=entry.evictedAtMs===undefined?settleMs:Math.min(settleMs,Math.max(0,entry.evictedAtMs-entry.hitCommitMs));
+  // 0.0.58 B11 follow-up: an UNevicted settled piece PERSISTS on the floor (the
+  // assembly's live-7 cap is the ONLY cleanup — "settled pieces persist until
+  // evicted by the 8th hit; no time-based retention drop"). The 0.0.52 original
+  // also started the fade tail at `settleMs` for unevicted entries, which made
+  // every corpse vanish ~150 ms after landing regardless of eviction — a short
+  // flash instead of the intended lingering grayed halves. Only an EVICTED entry
+  // (`evictedAtMs`, stamped when the 8th-newest commit pushes it out) fades,
+  // starting from its eviction moment.
+  const fadeStartMs=entry.evictedAtMs===undefined?Infinity:Math.min(settleMs,Math.max(0,entry.evictedAtMs-entry.hitCommitMs));
   const fadeMs=tuning.aftermathEvictedFadeMs;
   let alpha=1;
   if(elapsedMs>fadeStartMs){alpha=Math.max(0,1-(elapsedMs-fadeStartMs)/fadeMs);if(alpha<=0)return null;}

@@ -792,6 +792,9 @@ export function toleranceConeGeometry(cx,cy,direction,toleranceDegrees,radius,st
  * the base position. The small camera-side `COLLIDER_OVERLAY_CAM_OFFSET_WU` is added to the icon's
  * rendered Z (as before); the cone fan geometry is built at that same Z (all vertices carry it),
  * and the facade renders these with depth-test off so they stay visible on top of the beat glyph.
+ * 0.0.56 W1 (B2): the overlay is gated on the target's live state (`targetState`) — it draws only
+ * while the beat is still active (pending/approaching) and DISAPPEARS the instant it resolves
+ * (hit or miss, or spent past the window), mirroring the icon's own resolution gate.
  * @param {AeroGameplayFrame} frame @param {readonly AeroRenderableTarget[]} sorted @param {AeroColliderOverlaySettings} overlay
  * @returns {AeroGameplaySceneObject[]}
  */
@@ -800,7 +803,17 @@ export function colliderOverlayObjects(frame,sorted,overlay){
   /** @type {AeroGameplaySceneObject[]} */ const objects=[];
   const halfExtent=TARGET_HALF_EXTENT+overlay.colliderRadius;
   const reach=normalizeFrameRowReach(frame.rowReach);
+  const window=timingWindow(frame);
   for(const target of sorted){
+    // 0.0.56 W1 (B2): the collider/tolerance overlay is a LIVE targeting aid — it must
+    // DISAPPEAR the moment the beat resolves (hit or miss). Mirror the icon's own
+    // resolution gate (`targetState`): skip any target whose state is `hit` or `miss`
+    // (judgement-set, or past the timing window → `spent`). The overlay only draws for
+    // targets still "active" (pending/approaching, not yet resolved), so it no longer
+    // lingers over the aftermath slice after the beat is judged.
+    const targetInterval=target.kind==="obstacle"?obstacleInterval(target):Object.freeze({startMs:target.beatCenterMs,endMs:target.beatCenterMs});
+    const state=targetState(target,frame.nowMs,targetInterval,window);
+    if(state==="hit"||state==="miss"||state==="spent")continue;
     // Only directional notes carry a tolerance cone; collider squares draw for every visible target.
     const direction=target.direction?directionUnitVector(target.direction):null;
     const anchor=iconRenderPosition(frame,target,defaultRendererTuning,defaultTestPresentationConfig,reach);

@@ -522,28 +522,37 @@ const overlayTriple = (model) => ({
   for (const o of [pT.square, pT.cone, pT.marker]) {
     assert.ok(Math.abs(o.position.z - (pIcon.position.z + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, "pending overlay Z == icon Z + camOffset");
   }
-  // Hit: icon Z pinned at 0; overlay Z = camOffset.
+  // 0.0.56 W1 (B2): the overlay DISAPPEARS the moment the beat resolves. A `hit` target has
+  // state `hit` → `colliderOverlayObjects` skips it, so NO overlay objects (square/cone/marker)
+  // are emitted for it — the live-targeting aid deactivates on resolve. The icon itself is still
+  // rendered (within its 80 ms removal window), proving the gate is on the overlay, not the icon.
   const hit = { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 2000, direction: "up", judgement: "hit", feedbackProgress: 0 };
   const hm = buildGameplaySceneModel(overlayFrame(hit, 2000), undefined, undefined, BOUNCE_TEST);
   const hIcon = hm.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
-  const hT = overlayTriple(hm);
-  assert.ok(hIcon && Math.abs(hIcon.position.z) < 1e-9, "hit icon Z pinned at 0");
-  for (const o of [hT.square, hT.cone, hT.marker]) {
-    assert.ok(Math.abs(o.position.z - COLLIDER_OVERLAY_CAM_OFFSET_WU) < 1e-6, "hit overlay Z == icon Z (0) + camOffset");
-    assert.ok(Math.abs(o.position.y - hIcon.position.y) < 1e-6, "hit overlay Y == icon Y (no offset on hit)");
-  }
-  // Miss: icon Z continues along +Z at 0.006 WU/ms from the beat crossing (no "re-alignment" snap);
-  // overlays ride the same +Z so the triangle no longer shoots forward.
+  assert.ok(hIcon && Math.abs(hIcon.position.z) < 1e-9, "hit icon Z pinned at 0 (icon still renders during removal)");
+  assert.equal(overlayTriple(hm).square, undefined, "B2: hit target has NO collider_square (overlay deactivated on resolve)");
+  assert.equal(overlayTriple(hm).cone, undefined, "B2: hit target has NO tolerance_cone fan (overlay deactivated on resolve)");
+  assert.equal(overlayTriple(hm).marker, undefined, "B2: hit target has NO target-point marker (overlay deactivated on resolve)");
+  // Miss: state `miss` → also skipped. The icon still renders (within its 350 ms expiry) but the
+  // overlay is gone — the tolerance range no longer lingers over the missed beat.
   const miss = { id: "n3", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [5], lane: null, beatCenterMs: 2000, direction: "up", judgement: "miss", missCommitMs: 2000 };
   const missNow = 2050;
   const mm = buildGameplaySceneModel(overlayFrame(miss, missNow), undefined, undefined, BOUNCE_TEST);
   const mIcon = mm.objects.find((o) => o.targetId === "n3" && o.kind === "icon");
-  const mT = overlayTriple(mm);
   const expectedMissZ = (missNow - 2000) * 0.006; // 0.3
   assert.ok(mIcon && Math.abs(mIcon.position.z - expectedMissZ) < 1e-9, `miss icon Z continues +Z (got ${mIcon?.position.z}, want ${expectedMissZ})`);
-  for (const o of [mT.square, mT.cone, mT.marker]) {
-    assert.ok(Math.abs(o.position.z - (expectedMissZ + COLLIDER_OVERLAY_CAM_OFFSET_WU)) < 1e-6, "miss overlay Z == icon +Z continuation (no re-alignment snap)");
-  }
+  assert.equal(overlayTriple(mm).square, undefined, "B2: miss target has NO collider_square (overlay deactivated on resolve)");
+  assert.equal(overlayTriple(mm).cone, undefined, "B2: miss target has NO tolerance_cone fan (overlay deactivated on resolve)");
+  assert.equal(overlayTriple(mm).marker, undefined, "B2: miss target has NO target-point marker (overlay deactivated on resolve)");
+  // Spent (past the timing window, no judgement) is also deactivated: a beat well past its center
+  // with no judgement is state `spent` → no overlay (the live-targeting aid is gone once resolved).
+  const spent = bouncingNote("n3");
+  const spentNow = 3000 + 180 + 600; // center 3000 + afterMs 180 + spentCull 600 → past the window
+  const sm = buildGameplaySceneModel(overlayFrame(spent, spentNow), undefined, undefined, BOUNCE_TEST);
+  const sT = overlayTriple(sm);
+  assert.equal(sT.square, undefined, "B2: spent target has NO collider_square");
+  assert.equal(sT.cone, undefined, "B2: spent target has NO tolerance_cone fan");
+  assert.equal(sT.marker, undefined, "B2: spent target has NO target-point marker");
 }
 
 // (5) Sky prelude: the overlay tracks the elevated icon through the prelude (bug d — previously

@@ -338,7 +338,7 @@ export class AeroPlayCanvasRenderer {
       this.materialStates.set(variant,state);
     }
   }
-  /** Lazily clone one clip-plane variant per (pool entity, sliceSign) from the record's pooled material and install the local-Y discard blocks. Both variants are owned and destroyed in the pool/detach teardown. */
+  /** Lazily clone one clip-plane variant per (pool entity, sliceSign) from the record's pooled material and install the local-X discard blocks (vertical cut — left/right halves, 0.0.56 B10). Both variants are owned and destroyed in the pool/detach teardown. */
   sliceVariantMaterial(record,sliceSign){
     const key=`${sliceSign}:${this.assetPoolGeneration}:${record.meshInstance}`;
     let variant=this.sliceVariantMaterials.get(key);
@@ -350,13 +350,13 @@ export class AeroPlayCanvasRenderer {
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     for(const record of records){const mat=record.meshInstance.material;if(mat===record.material)continue;let isSliceVariant=false;for(const v of this.sliceVariantMaterials.values())if(v===mat){isSliceVariant=true;break;}if(isSliceVariant){record.meshInstance.material=record.material;this.materialStates.delete(record.meshInstance.material);}}
   }
-  /** PlayCanvas 2.21.4 has no ShaderBlock class; the paired shader blocks are injected into the material's `shaderChunks` GLSL map — the engine's own user-block injection points: the vertex pair (declaration + `litUserMainStartVS`) feeds object-space Y as a `vLocalY_aeroSlice` varying, the fragment pair (declaration + `litUserMainStartPS`) discards the far half of LOCAL Y (`vLocalY_aeroSlice * SIGN < 0.0`). SIGN is baked per variant (1 keeps the top half, -1 keeps the bottom half). `material.update()` flags the chunk map dirty, so the next render clears the variant cache and every variant — including the shared opaque "standard" program — is regenerated with the blocks installed. */
+  /** PlayCanvas 2.21.4 has no ShaderBlock class; the paired shader blocks are injected into the material's `shaderChunks` GLSL map — the engine's own user-block injection points. 0.0.56 B10 follow-up: the cut is a VERTICAL slice down the note's local X axis (left/right halves), not the original top/bottom local-Y cut — Derrick's spec: for a hit DOWN arrow the cut runs from the horizontal middle down to the bottom, and the two SIDES fall while separating left/right. The vertex pair (declaration + `litUserMainStartVS`) feeds object-space X as a `vLocalX_aeroSlice` varying; the fragment pair (declaration + `litUserMainStartPS`) discards the far half of LOCAL X (`vLocalX_aeroSlice * SIGN < 0.0`). SIGN is baked per variant (1 keeps the right half where local X ≥ 0, -1 keeps the left half). `material.update()` flags the chunk map dirty so the variant cache serves a distinct clipped program for this variant only. */
   installSliceClipBlocks(material,sliceSign){
     const sign=sliceSign===1?"1.0":"-1.0";
-    material.shaderChunks.glsl.set("litUserDeclarationVS","varying float vLocalY_aeroSlice;\n");
-    material.shaderChunks.glsl.set("litUserMainStartVS","vLocalY_aeroSlice = vertex_position.y;\n");
-    material.shaderChunks.glsl.set("litUserDeclarationPS","varying float vLocalY_aeroSlice;\n");
-    material.shaderChunks.glsl.set("litUserMainStartPS",`if (vLocalY_aeroSlice * ${sign} < 0.0) discard;\n`);
+    material.shaderChunks.glsl.set("litUserDeclarationVS","varying float vLocalX_aeroSlice;\n");
+    material.shaderChunks.glsl.set("litUserMainStartVS","vLocalX_aeroSlice = vertex_position.x;\n");
+    material.shaderChunks.glsl.set("litUserDeclarationPS","varying float vLocalX_aeroSlice;\n");
+    material.shaderChunks.glsl.set("litUserMainStartPS",`if (vLocalX_aeroSlice * ${sign} < 0.0) discard;\n`);
     material.update();
   }
   /** 0.0.52 W1-C follow-up: fullscreen hazard-contact red vignette. One persistent unlit fullscreen quad on the topmost transparent gameplay layer (above Targets, below product-UI layers); driven per frame by the model's hazard_glow scene object; disabled (zero cost) at zero intensity. Uses a ShaderMaterial with screen-space UV vignette; depth-test OFF so it always composites on top of the gameplay scene. */

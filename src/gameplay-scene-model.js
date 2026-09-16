@@ -17,7 +17,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
-/** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two clip-plane halves with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",evictedAtMs?:number}} AeroAftermathEntry */
+/** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two clip-plane halves with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,evictedAtMs?:number}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
 /** 0.0.54 W1-C: bounded wall-collider contact STATE (nose inside any obstacle collider), presentation-only — no coordinates. `sinceMs` is the absolute ms of first contact of the current episode (present while active); `releasedAtMs` is the absolute ms of the most recent exit (present after release), letting the renderer compute a stateless decay. @typedef {{active:boolean,sinceMs:number|null,releasedAtMs:number|null}} AeroHazardContactActive */
 /** 0.0.54 W1-C: bounded per-frame vignette pulse parameters; absent fields fall back to the tuning defaults (frame values override tuning). @typedef {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}} AeroHazardVignetteParams */
@@ -73,7 +73,14 @@ const AFTERMATH_MAX_HAZARD_EVENTS=32;
 const HAZARD_GLOW_COLOR="#e5484d";
 /** 0.0.56 W2: aftermath "hit corpse" gray tint — a desaturated neutral (the miss color) applied to
  * every aftermath icon so the fallen piece reads as hit, not as a live note (B3/B9). */
-const AFTERMATH_HIT_CORPSE_GRAY="#7c828c";
+/**
+ * 0.0.58 B11b: the hit-corpse desaturation weight. The note's REAL fill tint is
+ * lerped toward full luminance grayscale by this amount — strong enough that the
+ * color is clearly gone, but the fill is NOT collapsed to one uniform gray value
+ * (the 0.0.57 `AFTERMATH_HIT_CORPSE_GRAY` override flattened the whole glyph).
+ * The authored structural white outline is never touched (it stays ~white).
+ */
+export const AFTERMATH_CORPSE_DESATURATION=0.92;
 /** 0.0.52 W1-C: closed-form hit-success aftermath launch velocities (WU/s, gravity −9.8). Hooks are stored without the X sign; the hand signs it toward center (left hand +X, right hand −X). */
 function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freeze({x:0,y:.5,z:-4}),hook:Object.freeze({x:1.2,y:.3,z:-3}),uppercut:Object.freeze({x:0,y:2.2,z:-2.5}),guardBonk:Object.freeze({x:0,y:.2,z:-.5}),flowNote:Object.freeze({x:0,y:.4,z:-2})});}
 const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,MISS_LABEL_CLEARANCE_WORLD_UNITS=.85,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
@@ -564,10 +571,11 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning){
 /** @param {string} id @param {AeroAftermathEntry} entry @param {AeroVisualRole} role @param {number} x @param {number} y @param {number} z @param {number} rotationZRad @param {number} alpha @param {string|null} assetId @param {number} elapsedMs @param {number} settleMs @param {number|null} sliceSign @param {number} offsetXWU */
 function aftermathSceneObject(id,entry,role,x,y,z,rotationZRad,alpha,assetId,elapsedMs,settleMs,sliceSign,offsetXWU){
   const visual=Object.freeze({targetId:entry.targetId,family:entry.family,elapsedMs,settleMs,phase:elapsedMs>=settleMs?"settled":"flight",sliceSign,offsetXWU});
-  // 0.0.56 W2: every aftermath "hit corpse" is GRAYED (AFTERMATH_HIT_CORPSE_GRAY) — neither the live
-  // note's color nor white (B3/B9). `appearanceColor` drives both the slice-halves and whole
-  // aftermath materials in the facade.
-  return sceneObject(id,"aftermath",role,entry.targetId,{x,y,z},{x:1,y:1,z:1},null,assetId,rotationZRad,alpha,null,0,false,true,null,null,z,28,null,null,null,AFTERMATH_HIT_CORPSE_GRAY,visual);
+  // 0.0.58 B11b: every aftermath "hit corpse" keeps the note's ACTUAL glyph (authored
+  // white outline + the note's real fill tint) but DESATURATED: `appearanceColor` carries
+  // the note's fill so the facade lerps the fill toward near-full grayscale (B10: live
+  // notes keep full color; this applies to BOTH the slice halves and the whole aftermath).
+  return sceneObject(id,"aftermath",role,entry.targetId,{x,y,z},{x:1,y:1,z:1},null,assetId,rotationZRad,alpha,null,0,false,true,null,null,z,28,null,null,null,entry.appearanceColor??null,visual);
 }
 
 // 0.0.52 W1-C — hazard-contact red vignette (dntq): one unlit fullscreen overlay, pure envelope.
@@ -694,7 +702,7 @@ function isValidAftermathList(value){
   return value.every((entry)=>{
     if(entry===null||typeof entry!=="object"||Array.isArray(entry)||Object.getPrototypeOf(entry)!==Object.prototype)return false;
     const keys=Reflect.ownKeys(entry).filter((k)=>typeof k==="string");
-    if(!["targetId","hitCommitMs","family","hand","mode","spawn","seed"].every((key)=>keys.includes(key))||keys.some((key)=>!["targetId","hitCommitMs","family","hand","mode","spawn","seed","shape","evictedAtMs"].includes(key)))return false;
+    if(!["targetId","hitCommitMs","family","hand","mode","spawn","seed"].every((key)=>keys.includes(key))||keys.some((key)=>!["targetId","hitCommitMs","family","hand","mode","spawn","seed","shape","appearanceColor","evictedAtMs"].includes(key)))return false;
     const own=(key)=>{const descriptor=Object.getOwnPropertyDescriptor(entry,key);return descriptor&&"value" in descriptor?descriptor.value:undefined;};
     if(typeof own("targetId")!=="string"||String(own("targetId")).length<1||String(own("targetId")).length>128)return false;
     if(typeof own("hitCommitMs")!=="number"||!Number.isFinite(own("hitCommitMs"))||own("hitCommitMs")<0)return false;
@@ -709,6 +717,10 @@ function isValidAftermathList(value){
     // 0.0.56 W2: optional `shape` — the hit note's actual glyph ("arrow" | "orb"). Absent = legacy
     // (renderer falls back to the per-family default).
     if(Object.hasOwn(entry,"shape")){const shape=own("shape");if(shape!=="arrow"&&shape!=="orb")return false;}
+    // 0.0.58 B11b: optional `appearanceColor` — the note's REAL validated fill
+    // token (canonical uppercase `#RRGGBB`) so the corpse can be rendered as a
+    // DESATURATED version of the actual glyph instead of a flat uniform gray.
+    if(Object.hasOwn(entry,"appearanceColor")){const color=own("appearanceColor");if(typeof color!=="string"||!/^#[0-9A-F]{6}$/u.test(color))return false;}
     if(Object.hasOwn(entry,"evictedAtMs")){const ev=own("evictedAtMs");if(typeof ev!=="number"||!Number.isFinite(ev)||ev<own("hitCommitMs"))return false;}
     if(family==="punch"){if(own("hand")!=="left"&&own("hand")!=="right")return false;if(own("mode")!=="straight"&&own("mode")!=="hook"&&own("mode")!=="uppercut")return false;}
     if(family==="guard"&&own("mode")!=="bonk")return false;

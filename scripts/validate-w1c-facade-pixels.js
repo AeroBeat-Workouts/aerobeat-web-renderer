@@ -154,9 +154,11 @@ try {
       sliceOffsets = sliceHalves.map((h) => h.aftermath.offsetXWU),
       sliceSigns = sliceHalves.map((h) => h.aftermath.sliceSign);
     // Per-half pixel attribution: toggle each pooled half slot off/on against the same-frame rest and diff.
-    const circlePool = renderer.assetPools.get("any-note/outlined-circle-v1") ?? [];
-    const minusSlot = circlePool.find((e) => String(e.name).includes("half-")),
-      plusSlot = circlePool.find((e) => String(e.name).includes("half+"));
+    // 0.0.58 B11c: aftermath halves live in the DEDICATED aftermath pool (isolated from the
+    // live-icon assetPools slots), so look up the half slots there.
+    const circleAftermathPool = renderer.aftermathAssetPools.get("any-note/outlined-circle-v1") ?? [];
+    const minusSlot = circleAftermathPool.find((e) => String(e.name).includes("half-")),
+      plusSlot = circleAftermathPool.find((e) => String(e.name).includes("half+"));
     const attributeMask = (slot) => {
       const wasEnabled = slot.enabled;
       slot.enabled = false;

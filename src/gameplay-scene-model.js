@@ -271,7 +271,12 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const rotation=target.direction?directionRotation(target.direction):0;
   const pairKey=target.kind==="guard"?target.id:null;
   const iconAppearanceColor=state==="miss"?MISS_COLOR:appearanceColor;
-  const aftermathHandoff=aftermathTargetIds.has(target.id)&&(state==="hit"||state==="miss");
+  // 0.0.55 W2 follow-up: `frame.aftermath` now contains the hit target from commit time
+  // (the W2 aftermath-persistence fix), so gating the handoff on mere membership would hide
+  // the icon at commit instead of after the 80 ms removal window. Gate the hit-state handoff
+  // on removal completion so the icon stays visible through its removal fade, then hands off
+  // to the aftermath pieces. Miss has no removal — hand off immediately on membership.
+  const aftermathHandoff=aftermathTargetIds.has(target.id)&&(state==="miss"||(state==="hit"&&removal!==null&&removal.progress>=1));
   const icons=aftermathHandoff?[]:targetVisible?iconPositions.map((p,index)=>{const kindScale=(target.kind==="bomb"||target.family==="bomb"?tuning.bombScaleFactor:tuning.noteScaleFactor)*removalScale;return sceneObject(`${target.id}:${index}`,"icon",role,target.id,{x:p.x,y:p.y,z},{x:kindScale,y:kindScale,z:kindScale},null,assetId,rotation,state==="hit"?Math.max(0,1-(removal?.progress??1)):1,state,tintMix,Boolean(removal),null,null,z,10,pairKey,pairKey===null?null:index,removal,null,iconAppearanceColor);}):[];
   const shadowScale=tuning.noteScaleFactor;
   const shadows=targetVisible?positions.map((p,index)=>sceneObject(`${target.id}:shadow:${index}`,"shadow","neutral",target.id,{x:p.x,y:gameplayWorldGrid.floorY+.018,z},{x:.68*shadowScale,y:.012,z:.34*shadowScale},null,null,0,state==="hit"?Math.max(0,SHADOW_ALPHA*(1-(removal?.progress??1))):SHADOW_ALPHA,state,false,true,null,null,z,35,null,null,removal,null,SHADOW_COLOR)):[];

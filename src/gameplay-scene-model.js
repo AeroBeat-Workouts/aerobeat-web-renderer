@@ -85,8 +85,20 @@ const HAZARD_GLOW_COLOR="#e5484d";
  * color is clearly gone, but the fill is NOT collapsed to one uniform gray value
  * (the 0.0.57 `AFTERMATH_HIT_CORPSE_GRAY` override flattened the whole glyph).
  * The authored structural white outline is never touched (it stays ~white).
+ * 0.0.60 W1 (F1): lowered 0.92 → 0.55 (UNCALIBRATED starting value for the
+ * color-sweep loop) so a surviving tint reads as clear blue/green instead of
+ * a gray wash. Will be locked after Derrick signs off the contact sheet.
  */
-export const AFTERMATH_CORPSE_DESATURATION=0.92;
+export const AFTERMATH_CORPSE_DESATURATION=0.55;
+/**
+ * 0.0.60 W1 (F1): minimum channel spread (max−min of the sRGB 0-1 channels)
+ * for a note's real fill to be trusted as the desaturation source. Fills below
+ * this spread (pale / near-white song-palette colors, e.g. #A8C8E8, #CDE3F5,
+ * #D9F5FF) are indistinguishable from gray after any desaturation, so the
+ * corpse desaturates from the note's HAND color (roleColor) instead.
+ * UNCALIBRATED starting value for the color-sweep loop.
+ */
+export const AFTERMATH_CORPSE_MIN_CHROMA=0.18;
 /** 0.0.52 W1-C: closed-form hit-success aftermath launch velocities (WU/s, gravity −9.8). Hooks are stored without the X sign; the hand signs it toward center (left hand +X, right hand −X). */
 function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freeze({x:0,y:.5,z:-4}),hook:Object.freeze({x:1.2,y:.3,z:-3}),uppercut:Object.freeze({x:0,y:2.2,z:-2.5}),guardBonk:Object.freeze({x:0,y:.2,z:-.5}),flowNote:Object.freeze({x:0,y:.4,z:-2})});}
 const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#7c828c",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,MISS_LABEL_CLEARANCE_WORLD_UNITS=.85,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;

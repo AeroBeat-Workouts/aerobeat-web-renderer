@@ -10,7 +10,7 @@ import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 import { gameplayAssetMaterialRole } from "./gameplay-assets.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { AFTERMATH_CORPSE_DESATURATION, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
+import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
@@ -357,8 +357,11 @@ export class AeroPlayCanvasRenderer {
   /** 0.0.58 B11b: resolve the DESATURATED corpse color for ONE part of a note cue. Keeps the
    * glyph's contrast (the bug was collapsing all parts to one flat gray): mat/white → bright
    * neutral (the "white outline" stays light), mat/charcoal → kept dark, mat/tint_base (the
-   * colored fill) → the note's REAL `appearanceColor` strongly lerped toward luminance
-   * grayscale by AFTERMATH_CORPSE_DESATURATION (color gone, not uniform). Unrecognized parts
+   * colored fill) → the note's REAL `appearanceColor` lerped toward luminance
+   * grayscale by AFTERMATH_CORPSE_DESATURATION (color muted, not uniform). 0.0.60 W1
+   * (F1): a near-achromatic real fill (sRGB channel spread < AFTERMATH_CORPSE_MIN_CHROMA)
+   * is substituted with the note's HAND color (roleColor) before the lerp, so pale
+   * song-palette corpses read clearly hand-colored. Unrecognized parts
    * keep their authored source appearance. Returns [r,g,b,a] in linear-ish facade space.
    * @param {string|null} role Material role from gameplayAssetMaterialRole.
    * @param {{appearanceColor:string|undefined,role:string}} object The aftermath scene object.
@@ -367,7 +370,18 @@ export class AeroPlayCanvasRenderer {
    */
   aftermathCorpsePartColor(role,object,record){
     if(role==="note_fill"){
-      const rgba=colorTokenToRgba(object.appearanceColor??this.roleColor(object.role),[1,1,1,1]);
+      let source=object.appearanceColor;
+      if(source){
+        // 0.0.60 W1 (F1): spread is computed on the sRGB 0-1 channels (as
+        // colorTokenToRgba returns them), before the lerp. A near-achromatic
+        // fill desaturates to the same flat gray wash regardless, so it
+        // carries no visible information — fall back to the saturated hand
+        // color (roleColor) as the desaturation source instead.
+        const probe=colorTokenToRgba(source,[0,0,0,1]);
+        const spread=Math.max(probe[0],probe[1],probe[2])-Math.min(probe[0],probe[1],probe[2]);
+        if(spread<AFTERMATH_CORPSE_MIN_CHROMA)source=undefined;
+      }
+      const rgba=colorTokenToRgba(source??this.roleColor(object.role),[1,1,1,1]);
       const g=0.2126*rgba[0]+0.7152*rgba[1]+0.0722*rgba[2];
       return [rgba[0]+(g-rgba[0])*AFTERMATH_CORPSE_DESATURATION,rgba[1]+(g-rgba[1])*AFTERMATH_CORPSE_DESATURATION,rgba[2]+(g-rgba[2])*AFTERMATH_CORPSE_DESATURATION,1];
     }

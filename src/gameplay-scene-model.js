@@ -531,7 +531,12 @@ export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
 export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning){
   const elapsedMs=nowMs-entry.hitCommitMs;
   if(elapsedMs<0||!Number.isFinite(elapsedMs))return[];
-  const role=AFTERMATH_FAMILY_ROLE[entry.family]??"neutral";
+  // 0.0.59 B13: for flow + punch corpses the color fallback must come from the NOTE'S
+  // HAND (left/right → leftHandColor/rightHandColor), the same song-palette system boxing
+  // already uses. The old per-family mapping sent flow to "neutral" → near-white
+  // receptorColor, so a corpse without an appearanceColor (the Test-mode case) desaturated
+  // to flat gray. Guard/obstacle/bomb/safe keep their per-family role (unchanged).
+  const role=entry.family==="flow"||entry.family==="punch"?((entry.hand==="left"?"left":entry.hand==="right"?"right":"neutral")):(AFTERMATH_FAMILY_ROLE[entry.family]??"neutral");
   // 0.0.56 W2: the corpse is a cut-in-half of the NOTE'S ACTUAL ASSET (the entry's `shape`),
   // not a generic per-family default — directional notes keep the arrow glyph, directionless /
   // orb "any" notes keep the orb (B3/B9). Guard/obstacle/bomb/safe never carry a shape.

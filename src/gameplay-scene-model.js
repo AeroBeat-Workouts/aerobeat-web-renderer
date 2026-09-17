@@ -28,7 +28,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{text:"Great"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
 /** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band"|"aftermath"|"hazard_glow"|"tolerance_cone"|"collider_square",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,tintColor:string|null,appearanceColor:string|null,tintMix:number,whiteCore:boolean,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,aftermath?:AeroAftermathVisual|AeroHazardGlowVisual|AeroToleranceConeVisual|AeroColliderSquareVisual|null}} AeroGameplaySceneObject */
-/** Closed-form aftermath pose for one settled/launching icon entity. @typedef {{targetId:string,family:AeroAftermathFamily,elapsedMs:number,settleMs:number,phase:"flight"|"settled",sliceSign:1|-1|null,offsetXWU:number}} AeroAftermathVisual */
+/** Closed-form aftermath pose for one icon entity. 0.0.59 B14: the corpse has ONE phase — an uninterrupted fall off-screen — so `settleMs` is the off-screen crossing time and `phase` is always "flight". @typedef {{targetId:string,family:AeroAftermathFamily,elapsedMs:number,settleMs:number,phase:"flight",sliceSign:1|-1|null,offsetXWU:number}} AeroAftermathVisual */
 /** Presentation-only full-viewport hazard glow; no coordinates or event internals. @typedef {{present:boolean,activeCount:number,intensity:number,rampMs:number,decayMs:number}} AeroHazardGlowVisual */
 /** 0.0.53 W2: presentation-only summary of the two debug-visibility overlays (tolerance cones + collider squares). @typedef {{visibleToleranceRange:boolean,visibleColliderRadius:boolean,colliderRadius:number,directionToleranceDegrees:number,coneCount:number,squareCount:number}} AeroColliderOverlayVisual */
 /** Geometry for one tolerance-cone debug scene object (kind `tolerance_cone`): authored direction unit vector, half-angle, inner (footprint) radius, outer radius, and the closed-form fan geometry (positions/indices) for the facade to build a mesh. @typedef {{directionX:number,directionY:number,toleranceDegrees:number,innerRadius:number,radius:number,positions:Float32Array,indices:Uint16Array,vertexCount:number,triangleCount:number}} AeroToleranceConeVisual */
@@ -45,8 +45,14 @@ export const gameplayWorldGrid = Object.freeze({ columns:/** @type {4} */(4),row
 export const defaultGameplayTimingWindow = Object.freeze({ beforeMs:180,afterMs:180 });
 export const gameplaySceneRenderOrder = Object.freeze(["world_opaque","grid_timing_tiles","guidance_bands","targets","world_transparent_shadows_track_walls_feedback"]);
 const ASSET=Object.freeze({arrow:"directional-arrow/rounded-outline-v1",circle:"any-note/outlined-circle-v1",guard:"guard/outlined-shield-v1",bomb:"bomb/urchin-v1",wall:"wall/red-glass-v1",track:"track/blue-glass-v1"});
-/** Aftermath presentation constant: icon half-height used to seat settled pieces on the floor. */
-const AFTERMATH_ICON_HALF_HEIGHT_WU=0.45;
+/**
+ * 0.0.59 B14: the world Y below which a hit corpse is fully OFF-SCREEN (beneath the track
+ * surface at y = −0.80) and begins its fade-out. The canonical camera (pos (0.05, 1, 5),
+ * pitch 0, vertical FOV 48° at 844×390) renders world Y ≈ −1.30 at the bottom of the viewport
+ * at the hit plane (z = 0); −1.50 leaves a half-height margin so a 0.9-unit corpse is no
+ * longer visible when its center crosses this line.
+ */
+const AFTERMATH_OFFSCREEN_Y=-1.5;
 /** 0.0.53 W2: logical target footprint half-extent in athlete-grid units (mirrors `aerobeat-web-gameplay` `TARGET_HALF_EXTENT`). The collider hit region is this square inflated by `colliderRadius`. */
 const TARGET_HALF_EXTENT=0.375;
 /** 0.0.53 W2: default per-frame collider settings (used when the optional frame fields are absent). */
@@ -473,10 +479,10 @@ export function aftermathLaunchVelocity(entry,tuning=defaultRendererTuning){
   throw new TypeError(`Aftermath family/mode combination is invalid: ${String(entry.family)}/${String(entry.mode)}`);
 }
 
-/** Time-to-floor (ms) for a vertical segment from y0 with vy under gravity g toward the floor plane (floorY ≤ y0). Solves y0 + vy·t − ½g·t² = floorY for the positive root; zero when already on the floor. */
-/** @param {number} y0 @param {number} vy @param {number} g @param {number} floorY */
-function descentTimeMs(y0,vy,g,floorY){
-  const c=y0-floorY;
+/** 0.0.59 B14: time (ms) for a vertical trajectory from y0 with vy under gravity g to CROSS below `offY` (offY < y0). Solves y0 + vy·t − ½g·t² = offY for the positive root. */
+/** @param {number} y0 @param {number} vy @param {number} g @param {number} offY */
+function offscreenCrossingMs(y0,vy,g,offY){
+  const c=y0-offY;
   if(c<=1e-9)return 0;
   return(vy+Math.sqrt(Math.max(0,vy*vy+2*g*c)))/g*1000;
 }
@@ -487,64 +493,35 @@ export function aftermathSliceOffsetX(entry,sign,tuning=defaultRendererTuning){
 }
 /**
  * Pure closed-form aftermath pose: position, tumble rotation, and alpha for one entry at elapsed ms.
- * Flight is piecewise parabolic between floor contacts with damped restitution; after the last
- * contact the piece settles onto the floor plane with a damped seeded tumble. A short linear fade
- * tail runs after the earliest of (settle, assembly-marked eviction). Returns null once faded out.
+ * 0.0.59 B14 — "fall off-screen": the corpse is launched with its per-family knock velocity and
+ * then follows ONE uninterrupted parabola (launch + gravity) for its whole life. There is no
+ * floor plane, no bounce segment, and no settle: the piece keeps falling (and keeps its single
+ * continuous in-flight tumble — no rotation discontinuity) until its center drops below
+ * `AFTERMATH_OFFSCREEN_Y` (off the visible area under the track). The fade window starts at the
+ * earliest of (that off-screen crossing, the assembly-marked eviction) and runs for
+ * `aftermathEvictedFadeMs`, after which the pose returns null (stops rendering). The assembly's
+ * FIFO eviction contract is unchanged — only the trajectory changed from "settle on a below-track
+ * floor" to "fall off-screen and fade".
  * @param {AeroAftermathEntry} entry @param {number} elapsedMs @param {AeroRendererTuning} [tuning]
  */
 export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
   const g=tuning.aftermathGravityWUPerS2;
-  const floorY=gameplayWorldGrid.floorY-AFTERMATH_ICON_HALF_HEIGHT_WU;
   const launch=aftermathLaunchVelocity(entry,tuning);
   const {spawn}=entry;
-  /** @type {Readonly<{startMs:number,endMs:number,y0:number,vy:number}>[]} */
-  const segments=[];
-  let cursorY=spawn.y,cursorVy=launch.y,cursorMs=0;
-  for(let bounce=0;bounce<tuning.aftermathBounceCount;bounce+=1){
-    const tHit=descentTimeMs(cursorY,cursorVy,g,floorY);
-    if(!Number.isFinite(tHit)||tHit<=0)break;
-    segments.push(Object.freeze({startMs:cursorMs,endMs:cursorMs+tHit,y0:cursorY,vy:cursorVy}));
-    cursorMs+=tHit;
-    cursorVy=-Math.abs(cursorVy-g*tHit/1000)*tuning.aftermathRestitution;
-    cursorY=floorY;
-    if(Math.abs(cursorVy)<.2)break;
-  }
-  const settleMs=segments.reduce((max,s)=>Math.max(max,s.endMs),0);
-  // 0.0.58 B11 follow-up: an UNevicted settled piece PERSISTS on the floor (the
-  // assembly's live-7 cap is the ONLY cleanup — "settled pieces persist until
-  // evicted by the 8th hit; no time-based retention drop"). The 0.0.52 original
-  // also started the fade tail at `settleMs` for unevicted entries, which made
-  // every corpse vanish ~150 ms after landing regardless of eviction — a short
-  // flash instead of the intended lingering grayed halves. Only an EVICTED entry
-  // (`evictedAtMs`, stamped when the 8th-newest commit pushes it out) fades,
-  // starting from its eviction moment.
-  const fadeStartMs=entry.evictedAtMs===undefined?Infinity:Math.min(settleMs,Math.max(0,entry.evictedAtMs-entry.hitCommitMs));
+  // 0.0.59 B14: `settleMs` is redefined as the off-screen crossing time — the moment the corpse's
+  // center drops below AFTERMATH_OFFSCREEN_Y. It is the single timeline boundary for the pose:
+  // before it the piece is a single parabola in flight; from it the fade tail may begin.
+  const settleMs=offscreenCrossingMs(spawn.y,launch.y,g,AFTERMATH_OFFSCREEN_Y);
+  const fadeStartMs=entry.evictedAtMs===undefined?settleMs:Math.min(settleMs,Math.max(0,entry.evictedAtMs-entry.hitCommitMs));
   const fadeMs=tuning.aftermathEvictedFadeMs;
   let alpha=1;
   if(elapsedMs>fadeStartMs){alpha=Math.max(0,1-(elapsedMs-fadeStartMs)/fadeMs);if(alpha<=0)return null;}
-  const findSegment=(ms)=>segments.find((segment)=>ms>=segment.startMs&&ms<segment.endMs);
-  const active=findSegment(elapsedMs);
-  const settled=elapsedMs>=settleMs;
-  let x=spawn.x,y=floorY,z=spawn.z;
-  if(active){
-    const dt=(elapsedMs-active.startMs)/1000;
-    x=spawn.x+launch.x*dt;
-    y=active.y0+active.vy*dt-.5*g*dt*dt;
-    z=spawn.z+launch.z*dt;
-  }else if(settled){
-    // At rest on the floor: horizontal drift from launch, damped tumble.
-    const dtSec=elapsedMs/1000;
-    const settledTumbleRate=tuning.aftermathSettledTumbleRadPerS*0.25;
-    const phase=seedPhase(entry.seed,11)*Math.PI*2;
-    x=spawn.x+launch.x*dtSec;
-    y=floorY;
-    z=spawn.z+launch.z*dtSec;
-    // Damped rotation: seeded phase + decaying rate
-    const dampedRate=settledTumbleRate*Math.exp(-dtSec/tuning.aftermathEvictedFadeMs);
-    const rotationZRad=phase+dampedRate*dtSec;
-    return Object.freeze({x,y,z,rotationZRad,alpha,settleMs,settled:true});
-  }
   const tSec=elapsedMs/1000;
+  const x=spawn.x+launch.x*tSec;
+  const y=spawn.y+launch.y*tSec-.5*g*tSec*tSec;
+  const z=spawn.z+launch.z*tSec;
+  // ONE continuous seeded tumble (the in-flight formula) for the whole fall — no settle branch,
+  // hence no rotation snap at the old floor-contact moment.
   const phase=seedPhase(entry.seed,11)*Math.PI*2;
   const tumbleRate=tuning.aftermathSettledTumbleRadPerS*2.5;
   const rotationZRad=phase+tumbleRate*tSec;
@@ -578,7 +555,8 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning){
 }
 /** @param {string} id @param {AeroAftermathEntry} entry @param {AeroVisualRole} role @param {number} x @param {number} y @param {number} z @param {number} rotationZRad @param {number} alpha @param {string|null} assetId @param {number} elapsedMs @param {number} settleMs @param {number|null} sliceSign @param {number} offsetXWU */
 function aftermathSceneObject(id,entry,role,x,y,z,rotationZRad,alpha,assetId,elapsedMs,settleMs,sliceSign,offsetXWU){
-  const visual=Object.freeze({targetId:entry.targetId,family:entry.family,elapsedMs,settleMs,phase:elapsedMs>=settleMs?"settled":"flight",sliceSign,offsetXWU});
+  // 0.0.59 B14: single "flight" phase for the whole off-screen fall (no settled phase).
+  const visual=Object.freeze({targetId:entry.targetId,family:entry.family,elapsedMs,settleMs,phase:"flight",sliceSign,offsetXWU});
   // 0.0.58 B11b: every aftermath "hit corpse" keeps the note's ACTUAL glyph (authored
   // white outline + the note's real fill tint) but DESATURATED: `appearanceColor` carries
   // the note's fill so the facade lerps the fill toward near-full grayscale (B10: live

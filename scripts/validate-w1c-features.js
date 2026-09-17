@@ -112,26 +112,47 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.deepEqual(aftermathLaunchVelocity(mk("flow", "neutral", "slice")), { x: 0, y: 0.4, z: -2 }, "flow note neutral");
 }
 
-// Y never below floor (floorY − halfHeight).
+// 0.0.59 B14: no below-track floor — every family's y is ONE parabola (brief launch arc, then a
+// monotonic fall) that crosses BELOW the track surface (y = −0.80) and keeps going off-screen.
 {
-  const floorY = gameplayWorldGrid.floorY - 0.45;
+  const trackY = -0.80;
   for (const [family, hand, mode] of [["punch", "left", "straight"], ["punch", "right", "hook"], ["punch", "left", "uppercut"], ["guard", "both", "bonk"], ["flow", "neutral", "slice"]]) {
     const entry = { targetId: "t", hitCommitMs: 0, family, hand, mode, spawn: { x: 0, y: 1, z: 0 }, seed: 42 };
+    let sawBelowTrack = false, descending = false, prevY = 0;
     for (let t = 0; t <= 3000; t += 5) {
       const p = aftermathPose(entry, t);
-      if (!p) continue;
-      assert.ok(p.y >= floorY - 1e-9, `${family}/${mode} y=${p.y.toFixed(6)} below floor ${floorY} at t=${t}`);
+      if (!p) { // faded after going off-screen — must only happen once already below the track
+        assert.ok(sawBelowTrack, `${family}/${mode} faded before ever crossing the track surface`);
+        break;
+      }
+      if (!descending) {
+        if (p.y < prevY) descending = true;
+        assert.ok(p.y >= trackY, `${family}/${mode} rose above the track? t=${t}`);
+      } else {
+        assert.ok(p.y <= prevY + 1e-9, `${family}/${mode} y rose after starting to fall (no bounce): t=${t}, ${prevY} → ${p.y}`);
+        if (p.y < trackY) sawBelowTrack = true;
+      }
+      prevY = p.y;
     }
+    assert.ok(sawBelowTrack, `${family}/${mode} must fall below the track surface (y < ${trackY}) during its fall`);
   }
 }
 
-// Finite settle time.
+// 0.0.59 B14: finite off-screen crossing time ("settleMs" is now that crossing), and the pose
+// keeps falling (no rest) right after it — the "settled" flag is gone: one flight phase.
 {
   const entry = { targetId: "t", hitCommitMs: 0, family: "punch", hand: "left", mode: "straight", spawn: { x: 0, y: 1, z: 0 }, seed: 42 };
   const pose = aftermathPose(entry, 0);
-  assert.ok(Number.isFinite(pose.settleMs) && pose.settleMs > 0, "settle time finite and positive");
-  const settledPose = aftermathPose(entry, pose.settleMs + 1);
-  assert.equal(settledPose?.settled, true, "settled flag set after settle time");
+  assert.ok(Number.isFinite(pose.settleMs) && pose.settleMs > 0, "off-screen crossing time finite and positive");
+  assert.equal(pose.settled, false, "B14: no settled phase — the whole fall is one flight phase");
+  const atCrossing = aftermathPose(entry, pose.settleMs + 1);
+  assert.ok(atCrossing, "pose still exists just after the off-screen crossing (fade tail in progress)");
+  assert.equal(atCrossing.settled, false, "B14: no settled flag at/after the crossing");
+  assert.ok(atCrossing.y < -1.5, `B14: y is below the off-screen line at the crossing (got ${atCrossing.y.toFixed(4)})`);
+  assert.ok(atCrossing.alpha < 1, `B14: fade tail has begun after the crossing (alpha=${atCrossing.alpha.toFixed(3)})`);
+  // The pose fades to null shortly after the crossing (within aftermathEvictedFadeMs).
+  const gone = aftermathPose(entry, pose.settleMs + T.aftermathEvictedFadeMs + 1);
+  assert.equal(gone, null, "B14: pose is null once the off-screen fade completes");
 }
 
 // Determinism at sampled times (same input → identical poses).

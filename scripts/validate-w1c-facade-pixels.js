@@ -2,7 +2,8 @@
 // 0.0.52 W1-C follow-up browser pixel oracles for the PlayCanvas facade:
 //   (a) Flow slice aftermath — two clip-plane half icons (hard local-Y cut, distinct horizontal offsets)
 //   (b) Boxing straight punch aftermath — projected position/size shifts toward the background over 0→500 ms
-//   (c) Guard bonk aftermath — the piece settles at floor height with bounded −Z displacement
+//   (c) Guard bonk aftermath — 0.0.59 B14: the piece keeps a single off-screen fall (no floor
+//       rest): below the track surface and still descending at the sample, with bounded −Z drift
 //   (d) Hazard glow vignette — an event drives a red edge shift; 800 ms later back to baseline
 //   (e) Idle frame — zero aftermath objects, vignette quad disabled, no red shift
 //   (f) 0.0.54 W1-C RED CUBE ABSENT — while a hazard-glow is active the scene-center region stays at
@@ -242,7 +243,8 @@ try {
     const punchStartScreen = punchAt0 ? projectPos(punchAt0.position.x, punchAt0.position.y, punchAt0.position.z) : null,
       punchEndScreen = punchAt500 ? projectPos(punchAt500.position.x, punchAt500.position.y, punchAt500.position.z) : null;
 
-    // --- (c) Guard bonk aftermath: piece settles on the floor plane with bounded drift ---
+    // --- (c) Guard bonk aftermath: 0.0.59 B14 — the piece is still in its single off-screen
+    // fall (no floor rest): below the track surface, still descending, bounded drift ---
     const bonkEntry = {
       targetId: "bonk-c",
       hitCommitMs: 1000,
@@ -253,9 +255,12 @@ try {
       seed: 99
     };
     renderer.renderGameplayFrame({ ...idleFrame, nowMs: 1800, aftermath: [bonkEntry] });
-    const bonkObject = renderer.lastModel.objects.find((o) => o.targetId === "bonk-c" && o.kind === "aftermath"),
-      bonkFloorY = renderer.lastModel.grid.floorY - 0.45,
+    const bonkObject = renderer.lastModel.objects.find((o) => o.targetId === "bonk-c" && o.kind === "aftermath");
+    renderer.renderGameplayFrame({ ...idleFrame, nowMs: 1880, aftermath: [bonkEntry] });
+    const bonkLaterObject = renderer.lastModel.objects.find((o) => o.targetId === "bonk-c" && o.kind === "aftermath"),
+      bonkTrackY = renderer.lastModel.grid.floorY - 0.08,
       bonkPosition = bonkObject?.position ?? { x: 0, y: 0, z: 0 },
+      bonkLaterPosition = bonkLaterObject?.position ?? null,
       bonkScreen = bonkObject ? projectPos(bonkPosition.x, bonkPosition.y, bonkPosition.z) : null;
 
     // --- (d) Hazard glow: edge region measurably redder than the center ---
@@ -373,11 +378,13 @@ try {
       },
       bonk: {
         present: Boolean(bonkObject),
+        laterPresent: Boolean(bonkLaterObject),
         position: bonkPosition,
-        floorY: bonkFloorY,
+        laterPosition: bonkLaterPosition,
+        trackY: bonkTrackY,
         phase: bonkObject?.aftermath?.phase ?? null,
         elapsedMs: bonkObject?.aftermath?.elapsedMs ?? null,
-        settledScreen: bonkScreen
+        fallingScreen: bonkScreen
       },
       glow: {
         intensity: glowIntensity,
@@ -439,11 +446,14 @@ try {
   assert.ok(evidence.punch.pixelT0.count > 500 && evidence.punch.pixelT500.count > 200, `punch aftermath must render visibly at both times: t0=${evidence.punch.pixelT0.count}, t500=${evidence.punch.pixelT500.count}`);
   assert.ok(evidence.punch.pixelT500.count < evidence.punch.pixelT0.count * 0.85, `punch glyph must shrink toward the background: ${evidence.punch.pixelT0.count} → ${evidence.punch.pixelT500.count}`);
 
-  // (c) Bonk: piece settles on the floor plane (floorY − icon half-height) with bounded drift
+  // (c) 0.0.59 B14: Bonk: NO floor rest — the piece is still in its single off-screen fall at the
+  // sample: below the track surface, still descending (later y strictly lower), bounded drift.
   assert.equal(evidence.bonk.present, true, "bonk aftermath object must be present");
-  assert.equal(evidence.bonk.phase, "settled", "bonk must be in the settled phase");
-  assert.ok(evidence.bonk.elapsedMs >= 600, `bonk sample must post-date the flight: elapsed=${evidence.bonk.elapsedMs} ms`);
-  assert.ok(Math.abs(evidence.bonk.position.y - evidence.bonk.floorY) < 0.05, `bonk must rest at floor height: y=${evidence.bonk.position.y}, floorY=${evidence.bonk.floorY}`);
+  assert.equal(evidence.bonk.laterPresent, true, "bonk aftermath still present 150 ms later (off-screen fade tail)");
+  assert.equal(evidence.bonk.phase, "flight", "B14: bonk stays in the single flight phase (no settled phase)");
+  assert.ok(evidence.bonk.elapsedMs >= 600, `bonk sample must post-date the launch arc: elapsed=${evidence.bonk.elapsedMs} ms`);
+  assert.ok(evidence.bonk.position.y < evidence.bonk.trackY, `B14: bonk must be BELOW the track surface, not resting on a floor: y=${evidence.bonk.position.y}, trackY=${evidence.bonk.trackY}`);
+  assert.ok(evidence.bonk.laterPosition.y < evidence.bonk.position.y - 1e-3, `B14: bonk must STILL be descending 80 ms later (no rest): ${evidence.bonk.position.y} → ${evidence.bonk.laterPosition.y}`);
   assert.ok(Math.abs(evidence.bonk.position.z) < 1.0, `bonk Z drift must be bounded: |z|=${Math.abs(evidence.bonk.position.z).toFixed(3)}`);
 
   // (d) Glow active: vignette adds a measurable red shift in the screen-edge band over the center

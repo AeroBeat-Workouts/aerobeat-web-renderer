@@ -253,7 +253,13 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
     const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
     const wallLiftY=obstacleNormalSpawnMs!==null&&presentationConfig.skyMode==="prelude"&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,obstacleSkyStartMs,obstacleNormalSpawnMs,presentationConfig):0;
     if(frame.presentation==="boxing_lanes"||frame.presentation==="boxing_collider"){
-      const configuredLanes=boxingLanes(presentationConfig),lanes=target.family==="squat"?configuredLanes:configuredLanes.filter((entry)=>entry.lane===(target.lane??target.hand));
+      // 0.0.61 L-F8 (2dh7/htc8): a weave wall must render at the PRESENTATION X of its
+      // AUTHORED grid column (columnX space: column 0 → -1.5 … column 3 → +1.5) — the same
+      // space as the punch icons and the presentation-independent collision. The previous
+      // mapping placed the wall on the weave-DIRECTION lane (weave_left → lane "left"), which
+      // names the dodge side, drawing the wall on the SAFE side of its own blocked column.
+      // Squats keep the per-lane full-height duplication (both semantic lanes).
+      const configuredLanes=boxingLanes(presentationConfig),weaveLane=Object.freeze({x:geometry.x+(geometry.width-1)/2-1.5,y:BOXING_LANE_CENTER_Y,width:geometry.width-.06*obstacleScale}),lanes=target.family==="squat"?configuredLanes:[weaveLane];
       if(lanes.length!==(target.family==="squat"?2:1))throw new TypeError("Boxing lane obstacle placement is invalid");
       const objects=[];
       for(const [index,lane] of lanes.entries()){

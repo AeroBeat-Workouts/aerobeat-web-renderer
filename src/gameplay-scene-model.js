@@ -89,7 +89,7 @@ const HAZARD_GLOW_COLOR="#e5484d";
  * color-sweep loop) so a surviving tint reads as clear blue/green instead of
  * a gray wash. Will be locked after Derrick signs off the contact sheet.
  */
-export const AFTERMATH_CORPSE_DESATURATION=0.55;
+export const AFTERMATH_CORPSE_DESATURATION=0.92;
 /**
  * 0.0.60 W1 (F1): minimum channel spread (max−min of the sRGB 0-1 channels)
  * for a note's real fill to be trusted as the desaturation source. Fills below

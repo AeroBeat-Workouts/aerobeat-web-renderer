@@ -151,27 +151,43 @@ export class AeroPlayCanvasRenderer {
    * dimmed?:boolean, direction?:{x,y}}` with x/y normalized 0..1 against
    * `options.grid` (same mapping as cursors) and `direction` in JUDGE space
    * (flow sabers only; see @aerobeat/web-contracts/equipment-contracts).
-   * One entity per accepted role; flow → saber beam (capsule primitives,
-   * emissive per-hand tint + brighter core), boxing → glove box (per-hand
-   * tinted body + white structural accent, offset +0.05 WU toward the grid,
-   * i.e. toward the athlete camera). Geometry comes from the frozen contract
-   * constants so visible equipment matches the detection volumes
-   * ("what you see is what hits"). Dimmed records render at
-   * CURSOR_LOST_DIM_ALPHA; colors resolve from the same effective
-   * song-palette seam as cursors. Empty/absent records stage nothing —
-   * marker hiding (equipmentMarkerVisibility) stays the assembly's job.
+   * 0.0.61 L-F6: each role owns a dedicated pool (key "<assetId>:<role>"),
+   * so a two-handed frame in the SAME mode stages two independent entity
+   * pairs instead of the second role renaming and repositioning the first
+   * role's entities (the shared-pool clobber bug). Pool count implication:
+   * at most 2 roles × 2 assets × 2 entries = 8 pooled equipment entities;
+   * the ≤4-records input cap still applies.
+   * flow → saber beam (capsule primitives, emissive per-hand tint +
+   * brighter core), boxing → glove box (per-hand tinted body + white
+   * structural accent, offset +0.05 WU toward the grid, i.e. toward the
+   * athlete camera). Geometry comes from the frozen contract constants so
+   * visible equipment matches the detection volumes ("what you see is
+   * what hits"). Dimmed records render at CURSOR_LOST_DIM_ALPHA; colors
+   * resolve from the same effective song-palette seam as cursors.
+   * Empty/absent records stage nothing — marker hiding
+   * (equipmentMarkerVisibility) stays the assembly's job.
+   * Diagnostics (this.equipmentDiagnostics / status.equipment) are derived
+   * from the entities actually ENABLED in the pools after the staging
+   * pass, never from the accepted record count, so a record that failed
+   * to stage is not reported as staged.
    * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>}>>} equipment
    * @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} options
    * @param {boolean} clear
    */
   stageGameplayEquipment(equipment,options,clear){normalizeCursorGrid(options?.grid);if(!Array.isArray(equipment)||equipment.length>4)throw new TypeError("Gameplay equipment cannot exceed 4 records");const accepted=new Map();for(const record of equipment){if(!plainData(record)||!(Object.keys(record).length===4||(Object.keys(record).length===5&&typeof record.dimmed==="boolean")||(Object.keys(record).length===5&&record.direction!==undefined&&plainData(record.direction))||(Object.keys(record).length===6&&typeof record.dimmed==="boolean"&&plainData(record.direction)))||!equipmentRoles.includes(record.role)||!equipmentModes.includes(record.mode)||accepted.has(record.role)||![record.x,record.y].every(Number.isFinite)||record.x<0||record.x>1||record.y<0||record.y>1)continue;if(record.mode==="flow"&&record.direction!==undefined){if(!(Object.keys(record.direction).length===2&&[record.direction.x,record.direction.y].every(Number.isFinite)))continue;}else if(record.direction!==undefined)continue;accepted.set(record.role,record);}
     if(!this.app||this.destroyed||this.contextLost)return Object.freeze({equipmentCount:0,roles:Object.freeze([])});
-    if(clear)this.clearOverlayEntities();for(const entries of this.equipmentPools.values())for(const entity of entries)entity.enabled=false;const roles=[],modes=[];const effectivePalette=effectiveMarkerPalettes.get(this);
-    for(const role of equipmentRoles){const record=accepted.get(role);if(!record)continue;const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor),alpha=record.dimmed===true?CURSOR_LOST_DIM_ALPHA:1,position=gridPositionForNormalized(record.x,record.y,0.45);if(record.mode==="flow")this.stageSaber(role,position,record.direction,color,alpha);else this.stageGlove(role,position,color,alpha);roles.push(role);modes.push(record.mode);}
+    if(clear)this.clearOverlayEntities();for(const entries of this.equipmentPools.values())for(const entity of entries)entity.enabled=false;const effectivePalette=effectiveMarkerPalettes.get(this);
+    for(const role of equipmentRoles){const record=accepted.get(role);if(!record)continue;const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor),alpha=record.dimmed===true?CURSOR_LOST_DIM_ALPHA:1,position=gridPositionForNormalized(record.x,record.y,0.45);if(record.mode==="flow")this.stageSaber(role,position,record.direction,color,alpha);else this.stageGlove(role,position,color,alpha);}
+    // 0.0.61 L-F6: truthful diagnostics — derive instanceCount/roles/modes from the
+    // entities actually ENABLED in the per-role pools after this staging pass, not from
+    // the accepted records (the pre-fix code counted records, which a clobbered/failed
+    // role still "accepted" while only one hand was visible).
+    const staged=new Map();for(const role of equipmentRoles){const lead=this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0]??null;if(lead?.enabled){staged.set(role,"flow");continue;}const body=this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)?.[0]??null;if(body?.enabled)staged.set(role,"boxing");}
+    const roles=equipmentRoles.filter((role)=>staged.has(role)),modes=roles.map((role)=>staged.get(role));
     this.equipmentDiagnostics=Object.freeze({instanceCount:roles.length,roles:Object.freeze([...roles]),modes:Object.freeze(modes.map((mode,index)=>`${roles[index]}:${mode}`)),depthTest:true,depthWrite:false});return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});}
   /** 0.0.61 L-F3: flow saber = two stacked capsule primitives (outer emissive beam + smaller brighter core) from the wrist along the judge-space direction. The direction delta is a JUDGE-space unit vector; because presentation = judge - 1.5 in X only, the direction delta translates 1:1 to presentation space (a constant shift cancels on a delta). The presentation-space endpoint is the wrist position plus the direction delta scaled by the saber length. */
   stageSaber(role,position,direction,color,alpha){
-    const entries=this.acquireEquipmentEntries("equipment/flow-saber-v1",2);const outer=entries[0],core=entries[1];if(!outer||!core)return;
+    const entries=this.acquireEquipmentEntries("equipment/flow-saber-v1:"+role,2);const outer=entries[0],core=entries[1];if(!outer||!core)return;
     const dx=direction?.x??0,dy=direction?.y??0,length=Math.hypot(dx,dy),unitX=length>0?dx/length:0,unitY=length>0?dy/length:-1;
     const endX=position.x+unitX*saberGeometry.length,endY=position.y+unitY*saberGeometry.length;
     const mid={x:(position.x+endX)/2,y:(position.y+endY)/2},z=0.45;
@@ -182,15 +198,23 @@ export class AeroPlayCanvasRenderer {
   }
   /** 0.0.61 L-F3: boxing glove = tinted body box + white structural accent box centered at wrist + 0.05 WU toward the grid (toward the athlete camera, +z at the athlete plane). */
   stageGlove(role,position,color,alpha){
-    const entries=this.acquireEquipmentEntries("equipment/boxing-glove-v1",2);const body=entries[0],accent=entries[1];if(!body||!accent)return;
+    const entries=this.acquireEquipmentEntries("equipment/boxing-glove-v1:"+role,2);const body=entries[0],accent=entries[1];if(!body||!accent)return;
     const z=0.45+gloveGeometry.offsetZ;
     body.enabled=true;body.name=`equipment-${role}`;this.applyEquipmentTransform(body,position.x,position.y,z,"box",[gloveGeometry.x,gloveGeometry.y,gloveGeometry.z]);
     accent.enabled=true;accent.name=`equipment-${role}-accent`;this.applyEquipmentTransform(accent,position.x,position.y,z,"box",[gloveGeometry.x*0.55,gloveGeometry.y*0.45,gloveGeometry.z*0.55]);
     this.updateEquipmentMaterial(body,color,alpha,1,"equipment/boxing-glove-v1");
     this.updateEquipmentMaterial(accent,"#F2F5FB",alpha,1,"equipment/boxing-glove-v1-accent");
   }
-  /** 0.0.61 L-F3: pool equipment primitive entities per logical asset id. Saber entities are unit cylinders rotated into their beam direction; glove entities are boxes scaled to the contract half-extents. */
-  acquireEquipmentEntries(assetId,count){let entries=this.equipmentPools.get(assetId);if(!entries){entries=[];this.equipmentPools.set(assetId,entries);while(entries.length<count)entries.push(this.makeEntity(`equipment-${entries.length}`,assetId==="equipment/flow-saber-v1"?"cylinder":"box"));}return entries;}
+  /** 0.0.61 L-F6: pool equipment primitive entities per logical asset id AND role (pool key
+   * format: `"<assetId>:<role>"`, e.g. "equipment/flow-saber-v1:left_wrist"). 0.0.61 L-F3
+   * pooled per asset only, so both hands in the same mode indexed the same two entities and
+   * the second role clobbered the first. Each role now owns distinct entities: left beam +
+   * core, right beam + core, left glove body + accent, right glove body + accent. Cap: the
+   * staging pass accepts ≤4 records but equipmentRoles is 2 entries, so at most
+   * 2 roles × 2 assets × 2 entries = 8 pooled equipment entities can ever exist. Saber
+   * entities are unit cylinders rotated into their beam direction; glove entities are boxes
+   * scaled to the contract half-extents. */
+  acquireEquipmentEntries(assetId,count){let entries=this.equipmentPools.get(assetId);if(!entries){entries=[];this.equipmentPools.set(assetId,entries);while(entries.length<count)entries.push(this.makeEntity(`equipment-${entries.length}`,assetId.startsWith("equipment/flow-saber-v1")?"cylinder":"box"));}return entries;}
   applyEquipmentTransform(entity,x,y,z,kind,values){
     if(kind==="capsule"){const [length,radius,unitX,unitY]=values;entity.setPosition(x,y,z);entity.setLocalScale(length,2*radius,2*radius);const radians=Math.atan2(unitY,unitX);entity.setEulerAngles(0,0,(90-radians*180/Math.PI));return;}
     const [halfX,halfY,halfZ]=values;entity.setPosition(x,y,z);entity.setLocalScale(2*halfX,2*halfY,2*halfZ);entity.setEulerAngles(0,0,0);
@@ -564,7 +588,7 @@ export class AeroPlayCanvasRenderer {
   clearSceneObjects(){for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();}
   destroyPrimitiveEntity(entity){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
   destroyMarkerPool(){for(const entity of this.markerPool){const records=this.assetMaterials.get(entity)??[];for(const record of records)if(record.materialOwned)record.material.destroy();if(records.length)entity.destroy();else this.destroyPrimitiveEntity(entity);}this.markerPool=[];this.markerPoolMode="none";}
-  destroyInstantiatedPools(){for(const entries of this.assetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.assetPools.clear();for(const entries of this.aftermathAssetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.aftermathAssetPools.clear();this.destroyMarkerPool();for(const entry of this.feedbackPool){this.destroyPrimitiveEntity(entry.quad);entry.root.destroy();}this.feedbackPool=[];for(const texture of this.feedbackTextures.values())texture.destroy();this.feedbackTextures.clear();this.assetPoolGeneration=-1;for(const variant of this.sliceVariantMaterials.values())if(this.ownedMaterials.delete(variant))variant.destroy();this.sliceVariantMaterials.clear();this.materialStates=new WeakMap();this.destroyColliderOverlayPools();}
+  destroyInstantiatedPools(){for(const entries of this.assetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.assetPools.clear();for(const entries of this.aftermathAssetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.aftermathAssetPools.clear();for(const entries of this.equipmentPools.values())for(const entity of entries)this.destroyPrimitiveEntity(entity);this.equipmentPools.clear();this.destroyMarkerPool();for(const entry of this.feedbackPool){this.destroyPrimitiveEntity(entry.quad);entry.root.destroy();}this.feedbackPool=[];for(const texture of this.feedbackTextures.values())texture.destroy();this.feedbackTextures.clear();this.assetPoolGeneration=-1;for(const variant of this.sliceVariantMaterials.values())if(this.ownedMaterials.delete(variant))variant.destroy();this.sliceVariantMaterials.clear();this.materialStates=new WeakMap();this.destroyColliderOverlayPools();}
   /** 0.0.53 W2: destroy the collider-overlay entity pools (primitives + cone meshes). Cone meshes are owned and destroyed alongside their materials. */
   destroyColliderOverlayPools(){
     for(const entity of this.colliderOverlayPrimitivePool??[]){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}

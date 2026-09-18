@@ -1,0 +1,62 @@
+{
+  "mode": "assert-after",
+  "runTag": "assert-after-2026-09-18-18-27-16",
+  "beatCenterMs": 1000,
+  "missCommitMs": 1181,
+  "sampleMs": 1201,
+  "iconScreen": {
+    "x": 358.50831489121214,
+    "y": 195
+  },
+  "feedbackScreen": {
+    "x": 358.50831489121214,
+    "y": 96.87649069865502
+  },
+  "labelBox": {
+    "x0": 298,
+    "x1": 419,
+    "y0": 56,
+    "y1": 150
+  },
+  "noteBox": {
+    "x0": 298,
+    "x1": 419,
+    "y0": 135,
+    "y1": 255
+  },
+  "noteBox900": {
+    "x0": 318,
+    "x1": 439,
+    "y0": 135,
+    "y1": 255
+  },
+  "view": {
+    "x0": 286,
+    "x1": 451,
+    "y0": 44,
+    "y1": 267
+  },
+  "stats": {
+    "whiteFlashPx": 0,
+    "whiteInNotePx": 1483,
+    "grayPx": 2459,
+    "redPx": 1001
+  },
+  "whiteControlPx": 1580,
+  "grayCommitPx": 2338,
+  "glyphGuard": {
+    "grayPx": 2459,
+    "redPx": 1001,
+    "modelIconState": "miss",
+    "modelIconAppearance": "#7c828c",
+    "modelIconWhiteCore": false,
+    "modelFeedbackText": "Miss",
+    "commitIconState": "miss",
+    "commitIconAppearance": "#7c828c",
+    "commitIconWhiteCore": false
+  },
+  "canvasSize": {
+    "width": 844,
+    "height": 390
+  }
+}

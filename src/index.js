@@ -1,6 +1,6 @@
 // @ts-check
 
-export { AeroPlayCanvasRenderer, aeroPlayCanvasRendererServiceId, createAeroPlayCanvasRenderer } from "./renderer-facade.js";
+export { AeroPlayCanvasRenderer, aeroPlayCanvasRendererServiceId, createAeroPlayCanvasRenderer, CURSOR_LOST_DIM_ALPHA } from "./renderer-facade.js";
 export { createTestPresentationConfig, defaultTestPresentationConfig, maximumTestPresentationConfigBytes, normalizeTestPresentationConfig, parseTestPresentationConfig, serializeTestPresentationConfig, testPresentationBounceOffsetY, testPresentationConfigArtifactFilename, testPresentationConfigArtifactMimeType, testPresentationConfigBounds, testPresentationConfigSchema, testPresentationConfigVersion, testPresentationEasings, testPresentationSkyModes, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 export { createGameplayVisualExperimentConfig, defaultGameplayVisualExperimentConfig, gameplayGuidanceBandModes, gameplayVisualExperimentConfigBounds, gameplayVisualExperimentConfigSchema, gameplayVisualExperimentConfigVersion, normalizeGameplayVisualExperimentConfig, parseGameplayVisualExperimentConfig, serializeGameplayVisualExperimentConfig } from "./gameplay-visual-experiment-config.js";
 export { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";

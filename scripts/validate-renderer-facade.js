@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import * as pc from "playcanvas";
 import { defaultGameplayCameraPose } from "../src/gameplay-camera-pose.js";
 import {
-  aeroPlayCanvasRendererServiceId,buildGameplaySceneModel,compactRendererVisualProfile,createAeroPlayCanvasRenderer,defaultRendererTuning,gameplayIconIds,
+  aeroPlayCanvasRendererServiceId,buildGameplaySceneModel,compactRendererVisualProfile,createAeroPlayCanvasRenderer,CURSOR_LOST_DIM_ALPHA,defaultRendererTuning,gameplayIconIds,
   gameplayWorldGrid,normalizeBrandingIconManifest,normalizeIconAtlasData,rasterizeBrandingIconAtlas,timestampToWorldZ,worldPositionForCell
 } from "../src/index.js";
 
@@ -96,4 +96,26 @@ const missModel=resolvedAt(100,"miss"),missIcon=missModel.objects.find((entry)=>
 const manifest=normalizeBrandingIconManifest({schemaId:"aerobeat.branding.web-gameplay-icons.v1",schemaVersion:1,colorContract:"currentColor",webglContract:"alpha-mask-atlas-input",assets:gameplayIconIds.map((id)=>({id,file:`${id.replaceAll(".","-")}.svg`,viewBox:id==="feedback.great"?"0 0 128 32":id.includes("guard")?"0 0 48 24":"0 0 64 64"}))});assert.equal(manifest.assets.length,16);
 const entries=gameplayIconIds.map((id)=>({id,u0:0,v0:0,u1:1,v1:1}));assert.equal(normalizeIconAtlasData({width:1,height:1,pixels:new Uint8Array([255,255,255,255]),entries}).entries.length,16);
 let canvasSize={width:0,height:0};const atlas=await rasterizeBrandingIconAtlas(manifest,{resolveUrl:()=>"https://assets.invalid/a.svg",fetch:async()=>new Response(new Blob(["<svg/>"])),createCanvas:(width,height)=>{canvasSize={width,height};return /** @type {HTMLCanvasElement} */(/** @type {unknown} */({getContext:()=>({clearRect(){},drawImage(){},getImageData(){return{data:new Uint8ClampedArray(width*height*4)};}})}));},createBitmap:async()=>({close(){}})});assert.deepEqual(canvasSize,{width:1024,height:1024});assert.equal(atlas.width,1024);
+// 0.0.60 W4-C2b (F4): per-anchor cursor dim. The material-setting path must pass
+// CURSOR_LOST_DIM_ALPHA for a dimmed cursor and keep alpha 1 for undimmed ones,
+// and the record shape gate must accept an optional boolean `dimmed` only.
+{
+  assert.equal(CURSOR_LOST_DIM_ALPHA,0.45,"CURSOR_LOST_DIM_ALPHA must stay the agreed 0.45");
+  const dimRenderer=createAeroPlayCanvasRenderer();
+  const materialCalls=[];
+  dimRenderer.updateMaterial=(entity,colorToken,alpha,iconId,spent,depthWrite)=>{materialCalls.push({colorToken,alpha,depthWrite});};
+  dimRenderer.acquireFallbackMarker=()=>({enabled:false,name:"",setPosition(){},setLocalScale(){},setEulerAngles(){}});
+  dimRenderer.app={root:{addChild(){}}};
+  dimRenderer.gameplayAssetLoader.activateFallback("unit_test");
+  const grid={x:0,y:0,width:1,height:1};
+  const mixed=dimRenderer.stageGameplayCursors([{role:"nose",x:.3,y:.4,confidence:.9},{role:"left_wrist",x:.5,y:.5,confidence:.95,dimmed:false},{role:"right_wrist",x:.7,y:.6,confidence:.9,dimmed:true}],{grid,sizeCssPx:32},true);
+  assert.equal(mixed.cursorCount,3,"absent-dimmed, dimmed:false, and dimmed:true cursors must all stage");
+  assert.deepEqual(mixed.roles,["nose","left_wrist","right_wrist"]);
+  assert.deepEqual(materialCalls.map((call)=>call.alpha),[1,1,CURSOR_LOST_DIM_ALPHA],"undimmed cursors must keep alpha 1, dimmed cursors must take CURSOR_LOST_DIM_ALPHA");
+  assert.ok(materialCalls.every((call)=>call.depthWrite===true),"fallback marker depth-write flag must stay authored true");
+  materialCalls.length=0;
+  const rejected=dimRenderer.stageGameplayCursors([{role:"nose",x:.5,y:.5,confidence:1,extra:true},{role:"left_wrist",x:.5,y:.5,confidence:1,dimmed:"yes"}],{grid,sizeCssPx:32},true);
+  assert.equal(rejected.cursorCount,0,"an unknown 5th key or a non-boolean dimmed must be rejected");
+  assert.deepEqual(materialCalls,[]);
+}
 console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cull, and bounded-target validation passed.");

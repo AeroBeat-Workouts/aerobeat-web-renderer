@@ -1,0 +1,102 @@
+{
+  "mode": "assert-after",
+  "runTag": "assert-after-2026-09-19-14-28-45",
+  "approachMs": 860,
+  "successZoneMs": 910,
+  "beatCenterMs": 1000,
+  "lateMs": 1090,
+  "missCommitMs": 1181,
+  "sampleMs": 1201,
+  "expiryMs": 1531,
+  "iconScreen": {
+    "x": 358.50831489121214,
+    "y": 195
+  },
+  "feedbackScreen": {
+    "x": 358.50831489121214,
+    "y": 96.87649069865502
+  },
+  "labelBox": {
+    "x0": 298,
+    "x1": 390,
+    "y0": 56,
+    "y1": 150
+  },
+  "noteBox": {
+    "x0": 298,
+    "x1": 419,
+    "y0": 135,
+    "y1": 255
+  },
+  "fillBox": {
+    "x0": 353,
+    "x1": 364,
+    "y0": 190,
+    "y1": 200
+  },
+  "view": {
+    "x0": 286,
+    "x1": 431,
+    "y0": 44,
+    "y1": 267
+  },
+  "fillStats": {
+    "approach": {
+      "maxLuma": 204.79139999999998,
+      "meanLuma": 90.5093777777777,
+      "count": 90,
+      "whitePx": 20,
+      "darkPx": 10
+    },
+    "success": {
+      "maxLuma": 86.0894,
+      "meanLuma": 85.12554909090908,
+      "count": 110,
+      "whitePx": 0,
+      "darkPx": 0
+    },
+    "crossing": {
+      "maxLuma": 86.0894,
+      "meanLuma": 86.08940000000001,
+      "count": 110,
+      "whitePx": 0,
+      "darkPx": 0
+    },
+    "late": {
+      "maxLuma": 86.0894,
+      "meanLuma": 86.08940000000001,
+      "count": 110,
+      "whitePx": 0,
+      "darkPx": 0
+    },
+    "commit": {
+      "maxLuma": 43.2338,
+      "meanLuma": 43.23379999999998,
+      "count": 110,
+      "whitePx": 0,
+      "darkPx": 110
+    },
+    "commit+20": {
+      "maxLuma": 43.2338,
+      "meanLuma": 43.23379999999998,
+      "count": 110,
+      "whitePx": 0,
+      "darkPx": 110
+    }
+  },
+  "maxLumaWindow": 204.79139999999998,
+  "commitDeltaLuma": 42.85560000000003,
+  "labelWhitePx": 0,
+  "cullIconPresent": false,
+  "glyphGuard": {
+    "darkPx": 110,
+    "redPx": 779,
+    "whiteOutlinePx": 1483,
+    "modelIconState": "miss",
+    "modelIconAppearance": "#2a3038"
+  },
+  "canvasSize": {
+    "width": 844,
+    "height": 390
+  }
+}

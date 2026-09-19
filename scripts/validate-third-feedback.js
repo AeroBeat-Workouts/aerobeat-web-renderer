@@ -7,7 +7,7 @@ const LATE_MS=180;
 const COMMIT_MS=CENTER_MS+LATE_MS+1;
 const SPEED=.006;
 const APPEARANCE="#2468AC";
-const MISS="#7c828c";
+const MISS="#2a3038";
 const presentations=/** @type {const} */(["flow","boxing_spatial_grid","boxing_lanes"]);
 const approximate=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<=1e-12,`${message}: ${actual} != ${expected}`);
 
@@ -33,7 +33,7 @@ for(const presentation of presentations){
     assert.equal(sample.icon?.targetId,"same-id",`${presentation} preserves pending ID at ${nowMs}`);
     approximate(sample.icon?.position.z??NaN,(nowMs-CENTER_MS)*SPEED,`${presentation} pending target continues through the inclusive late window`);
     assert.equal(sample.icon?.appearanceColor,APPEARANCE,`${presentation} pending target retains authored appearance`);
-    assert.equal(sample.icon?.tintMix,0,`${presentation} pending target uses authored appearance rather than white after crossing`);
+    assert.equal(sample.icon?.whiteCore,undefined,`${presentation} pending target carries no white success-core after crossing (0.0.62 Option A)`);
     approximate(sample.shadow?.position.z??NaN,(nowMs-CENTER_MS)*SPEED,`${presentation} pending shadow tracks the moving target`);
   }
   const zSamples=[];

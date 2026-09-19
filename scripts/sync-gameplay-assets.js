@@ -76,8 +76,12 @@ for(const relative of ["directional-arrow/rounded-outline-v1.glb","any-note/outl
   const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,`release/raw/${predecessorRelease}`,relative));
   if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from ${predecessorRelease}: ${relative}`);
 }
-const expectedFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
-if(expectedFiles.length!==17||new Set(expectedFiles).size!==17)throw new Error("source exact inventory mismatch");
+// 0.0.62 L-C (r2lb): the flow-saber GLB is a renderer-authored asset (built
+// by scripts/blender/build-flow-saber-v1.py), NOT part of the asset-source
+// inventory. It ships under assets/gameplay/0.0.11/flow-saber/ and is
+// included in the npm package but NOT in the asset-source inventory payload.
+const expectedFiles=[...inventory.payload.map(({path:relative})=>relative),"flow-saber/flow-saber-v1.glb","inventory.v1.json","proof.v1.json"].sort();
+if(expectedFiles.length!==18||new Set(expectedFiles).size!==18)throw new Error("source exact inventory mismatch");
 
 async function makeDirectoriesWritable(root){
   let entries;
@@ -95,10 +99,20 @@ async function filesUnder(root,current=""){
 }
 async function verifyTree(root,label){
   const actual=await filesUnder(root);
-  if(JSON.stringify(actual)!==JSON.stringify(expectedFiles))throw new Error(`${label} exact inventory mismatch\nexpected ${expectedFiles.join("\n")}\nactual ${actual.join("\n")}`);
+  // The source tree is pinned to the asset-source commit (a157d93) and does NOT
+  // contain the renderer-authored flow-saber GLB. The renderer target tree
+  // (assets/gameplay/0.0.11/) ships with the flow-saber.
+  const sourceFiles=expectedFiles.filter((file)=>!file.startsWith("flow-saber/"));
+  const targetFiles=expectedFiles;
+  const expected=label==="source"?sourceFiles:targetFiles;
+  if(JSON.stringify(actual)!==JSON.stringify(expected))throw new Error(`${label} exact inventory mismatch\nexpected ${expected.join("\n")}\nactual ${actual.join("\n")}`);
   for(const item of inventory.payload){
     const bytes=await readFile(path.join(root,item.path));
     if(bytes.byteLength!==item.bytes||sha256(bytes)!==item.sha256)throw new Error(`${label} payload mismatch: ${item.path}`);
+  }
+  if(label==="target"){
+    const saberBytes=await readFile(path.join(root,"flow-saber/flow-saber-v1.glb"));
+    if(saberBytes.byteLength!==6996||sha256(saberBytes)!=="a9a2faee28bc4ff370ad9613d408295d10ebc2a34131c5909ddf136bd221e851")throw new Error(`${label} flow-saber GLB drift (renderer-authored)`);
   }
   const inv=await readFile(path.join(root,"inventory.v1.json")),proofFile=await readFile(path.join(root,"proof.v1.json"));
   if(sha256(inv)!==expectedInventoryHash||sha256(proofFile)!==expectedProofHash)throw new Error(`${label} release metadata mismatch`);
@@ -111,7 +125,7 @@ if(mode==="sync"){
   await cp(sourceRelease,target,{recursive:true,preserveTimestamps:false});
 }
 await stat(target);
-await verifyTree(target,"renderer");
+await verifyTree(target,"target");
 const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();
 if(JSON.stringify(packagedReleases)!==JSON.stringify([release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
 console.log(`${mode} gameplay ${release}: ${expectedFiles.length} exact files, inventory ${expectedInventoryHash}, proof ${expectedProofHash}, source ${commit}`);

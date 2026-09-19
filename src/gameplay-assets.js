@@ -14,6 +14,7 @@ const definitions=[
   ["athlete-marker/sphere-v1","athlete-marker","sphere-v1",90520,"f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc"],
   ["bomb/urchin-v1","bomb","urchin-v1",8364,"63d61feff050c284f2e3a228d345ea794c25bab48ab56cd4801d554c923def85"],
   ["directional-arrow/rounded-outline-v1","directional-arrow","rounded-outline-v1",152916,"75435bc79c0278da5488ab05d1a97ac409cdab390e10483748c30a5aa67ad7e4"],
+  ["flow-saber/flow-saber-v1","flow-saber","flow-saber-v1",6996,"a9a2faee28bc4ff370ad9613d408295d10ebc2a34131c5909ddf136bd221e851"],
   ["guard/outlined-shield-v1","guard","outlined-shield-v1",93944,"5c456ed0d6db8fbc500b7d9815ac72a2f5e40ae86ee582f01b80b40e4c03e09e"],
   ["track/blue-glass-v1","track","blue-glass-v1",2480,"46cb72ed47a235e9bf40305bac2355b02ca47aa6b39278503cd6fc1b32cef987"],
   ["wall/red-glass-v1","wall","red-glass-v1",2316,"6a336116709c2f3c1d92453fe1b3a2821e03d31128dae72d0fc700627fa94cd7"]
@@ -32,7 +33,12 @@ const cueMaterialRoles=new Map([
   ["directional-arrow/rounded-outline-v1",new Map([["mat/charcoal","outline_charcoal"],["mat/white","outline_white"],["mat/tint_base","note_fill"]])],
   ["any-note/outlined-circle-v1",new Map([["mat/charcoal","outline_charcoal"],["mat/white","outline_white"],["mat/tint_base","note_fill"]])],
   ["guard/outlined-shield-v1",new Map([["mat/charcoal","outline_charcoal"],["mat/white","outline_white"],["mat/green","guard_fill"]])],
-  ["athlete-marker/sphere-v1",new Map([["mat/charcoal","marker_structure_charcoal"],["mat/white","marker_structure_white"],["mat/tint_base","marker_fill"]])]
+  ["athlete-marker/sphere-v1",new Map([["mat/charcoal","marker_structure_charcoal"],["mat/white","marker_structure_white"],["mat/tint_base","marker_fill"]])],
+  // 0.0.62 L-C (r2lb): flow-saber-v1 energy blade. mat/saber_core is the
+  // runtime-TINTABLE inner blade (carries the song-palette color via the
+  // equipment per-hand tint); mat/saber_shell is the dark outer body with a
+  // subtle low-gain emissive edge tint (authored in the GLB, NOT tinted).
+  ["flow-saber/flow-saber-v1",new Map([["mat/saber_core","saber_core_tint"],["mat/saber_shell","saber_shell_dark"]])]
 ]);
 
 export const gameplayAssetSet=Object.freeze({

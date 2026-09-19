@@ -9,7 +9,7 @@ import { chromium } from "playwright";
 import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root = process.cwd();
-const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "directional-arrow/rounded-outline-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
+const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "directional-arrow/rounded-outline-v1", "flow-saber/flow-saber-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
 const gameplayInventorySha256 = "e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
 const gameplayProofSha256 = "0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
 const environmentRoot = resolve(root, "../aerobeat-environment-community");
@@ -97,7 +97,7 @@ try {
     await page.waitForFunction(() => globalThis.__AERO_RENDERER_TEST__?.ready === true);
     await page.waitForFunction(() => globalThis.__AERO_RENDERER_TEST__.renderers.every((renderer) => renderer.describe().gameplayAssets.state === "ready"));
     const gameplay = await page.evaluate(() => globalThis.__AERO_RENDERER_TEST__.renderers.map((renderer) => renderer.describe().gameplayAssets));
-    assert.ok(gameplay.every((status) => status.ready && !status.fallback && status.assetCount === 7 && status.loadedAssetIds.length === 7));
+    assert.ok(gameplay.every((status) => status.ready && !status.fallback && status.assetCount === 8 && status.loadedAssetIds.length === 8));
     for (const status of gameplay) {
       assert.deepEqual(status.loadedAssetIds, gameplayAssetIds);
       assert.equal(status.inventorySha256, gameplayInventorySha256);
@@ -167,7 +167,7 @@ try {
     assert.equal(lifecycle.lost.gameplayAssets.state, "fallback");
     assert.equal(lifecycle.lost.environment.state, "idle");
     assert.equal(lifecycle.restored.gameplayAssets.state, "ready");
-    assert.equal(lifecycle.restored.gameplayAssets.loadedAssetIds.length, 7);
+    assert.equal(lifecycle.restored.gameplayAssets.loadedAssetIds.length, 8);
     assert.equal(lifecycle.restored.environment.state, "ready");
     assert.equal(lifecycle.restored.environment.count, 1);
     assert.ok(lifecycle.generationRestored > lifecycle.generationBefore);

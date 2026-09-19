@@ -123,87 +123,92 @@ let canvasSize={width:0,height:0};const atlas=await rasterizeBrandingIconAtlas(m
   assert.deepEqual(materialCalls,[]);
 }
 console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cull, and bounded-target validation passed.");
- // 0.0.61 L-F3 (chgy/hk5q/vths): equipment visuals — flow saber beam + boxing glove primitives,
- // per-hand song color, freeze-dim, staging pass. Geometry constants come from the frozen
- // @aerobeat/web-contracts/equipment-contracts source.
- {
-   assert.deepEqual(saberGeometry, { length: 0.75, radius: 0.18 }, "contract saber geometry must stay GATE-1 locked");
-   assert.deepEqual(gloveGeometry, { x: 0.34, y: 0.28, z: 0.34, offsetZ: 0.05 }, "contract glove geometry must stay GATE-1 locked");
-   assert.deepEqual(judgeToPresentationPoint({ x: 0, y: 1.25 }), { x: -1.5, y: 1.25 }, "judge → presentation shift must be -1.5 X");
-   const equipmentRenderer = createAeroPlayCanvasRenderer();
-   equipmentRenderer.app = { root: { addChild() {} } };
-   const equipmentCalls = [];
-   const makeStub = (name, type) => ({ name, type, enabled: false, setPosition(x, y, z) { this.pos = [x, y, z]; }, setLocalScale(x, y, z) { this.scale = [x, y, z]; }, setEulerAngles(x, y, z) { this.euler = [x, y, z]; } });
-   equipmentRenderer.makeEntity = (name, type) => makeStub(name, type);
-   equipmentRenderer.updateEquipmentMaterial = (entity, colorToken, alpha, gain, kind) => { equipmentCalls.push({ name: entity.name, colorToken, alpha, gain, kind }); };
-   equipmentRenderer.gameplayAssetLoader.activateFallback("unit_test");
-   const equipmentGrid = { x: 0, y: 0, width: 1, height: 1 };
-   const result = equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }, { role: "right_wrist", x: 0.25, y: 0.5, mode: "boxing", dimmed: true }], { grid: equipmentGrid }, true);
-   assert.equal(result.equipmentCount, 2, "both accepted equipment roles must stage");
-   assert.deepEqual(result.roles, ["left_wrist", "right_wrist"]);
-   const saberOuter = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
-   const saberCore = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[1];
-   assert.equal(saberOuter.type, "cylinder", "flow saber outer must be a cylinder primitive");
-   assert.equal(saberCore.type, "cylinder", "flow saber core must be a cylinder primitive");
+  // 0.0.62 L-C (r2lb): equipment visuals — flow saber GLB (custom Blender energy blade)
+  // + boxing glove primitives, per-hand song color, freeze-dim, staging pass.
+  // Geometry constants come from the frozen @aerobeat/web-contracts/equipment-contracts source.
+  {
+    assert.deepEqual(saberGeometry, { length: 0.75, radius: 0.18 }, "contract saber geometry must stay GATE-1 locked");
+    assert.deepEqual(gloveGeometry, { x: 0.34, y: 0.28, z: 0.34, offsetZ: 0.05 }, "contract glove geometry must stay GATE-1 locked");
+    assert.deepEqual(judgeToPresentationPoint({ x: 0, y: 1.25 }), { x: -1.5, y: 1.25 }, "judge → presentation shift must be -1.5 X");
+    const equipmentRenderer = createAeroPlayCanvasRenderer();
+    equipmentRenderer.app = { root: { addChild() {} } };
+    const equipmentCalls = [];
+    const makeStub = (name, type) => ({ name, type, enabled: false, setPosition(x, y, z) { this.pos = [x, y, z]; }, setLocalScale(x, y, z) { this.scale = [x, y, z]; }, setEulerAngles(x, y, z) { this.euler = [x, y, z]; } });
+    equipmentRenderer.makeEntity = (name, type) => makeStub(name, type);
+    equipmentRenderer.updateEquipmentMaterial = (entity, colorToken, alpha, gain, kind) => { equipmentCalls.push({ name: entity.name, colorToken, alpha, gain, kind }); };
+    equipmentRenderer.applyEquipmentGlbAppearance = (entity, assetId, colorToken, alpha) => { equipmentCalls.push({ name: entity.name, colorToken, alpha, kind: "glb:" + assetId }); };
+    equipmentRenderer.gameplayAssetLoader.activateFallback("unit_test");
+    const equipmentGrid = { x: 0, y: 0, width: 1, height: 1 };
+    // Fallback test: loader not ready → saber stages from primitives.
+    const result = equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }, { role: "right_wrist", x: 0.25, y: 0.5, mode: "boxing", dimmed: true }], { grid: equipmentGrid }, true);
+    assert.equal(result.equipmentCount, 2, "both accepted equipment roles must stage");
+    assert.deepEqual(result.roles, ["left_wrist", "right_wrist"]);
+    assert.equal(equipmentRenderer.describe().equipment.assetMode, "primitive", "loader fallback must report primitive asset mode");
+    const saberOuter = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
+    const saberCore = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[1];
+    assert.equal(saberOuter.type, "cylinder", "fallback saber outer must be a cylinder primitive");
+    assert.equal(saberCore.type, "cylinder", "fallback saber core must be a cylinder primitive");
     const wristPresentation = { x: 0, y: 1, z: 0.45 };
     const endPresentation = { x: wristPresentation.x + 1 * saberGeometry.length, y: wristPresentation.y };
     const expectedMid = { x: (wristPresentation.x + endPresentation.x) / 2, y: wristPresentation.y };
-    assert.ok(Math.abs(saberOuter.pos[0] - expectedMid.x) < 1e-9 && Math.abs(saberOuter.pos[1] - expectedMid.y) < 1e-9 && Math.abs(saberOuter.pos[2] - 0.45) < 1e-9, "saber must sit at the presentation-space midpoint of the direction segment at athlete plane Z=0.45");
-   assert.ok(Math.abs(saberOuter.scale[0] - saberGeometry.length) < 1e-9 && Math.abs(saberOuter.scale[1] - 2 * saberGeometry.radius) < 1e-9 && Math.abs(saberOuter.scale[2] - 2 * saberGeometry.radius) < 1e-9, "saber outer capsule must carry the contract axis + radius");
-   assert.ok(Math.abs(saberOuter.euler[2] - 90) < 1e-9, "saber must align +X toward the judge-space direction +X endpoint");
-   const gloveBody = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[0];
-   const gloveAccent = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[1];
-   assert.equal(gloveBody.type, "box", "boxing glove body must be a box primitive");
-   const expectedGloveZ = 0.45 + gloveGeometry.offsetZ;
-   assert.ok(Math.abs(gloveBody.pos[0] - (-0.5 - 0.5)) < 1e-9 && Math.abs(gloveBody.pos[1] - 1) < 1e-9 && Math.abs(gloveBody.pos[2] - expectedGloveZ) < 1e-9, "glove body must center at wrist +0.05 WU toward the grid (+z at the athlete plane)");
-   assert.ok(Math.abs(gloveBody.scale[0] - 2 * gloveGeometry.x) < 1e-9 && Math.abs(gloveBody.scale[1] - 2 * gloveGeometry.y) < 1e-9 && Math.abs(gloveBody.scale[2] - 2 * gloveGeometry.z) < 1e-9, "glove body must span the contract box extents");
-   assert.equal(gloveAccent.enabled, true, "glove must keep a structural accent primitive enabled");
-   const saberTint = equipmentCalls.find((call) => call.name === "equipment-left_wrist");
-   const gloveTint = equipmentCalls.find((call) => call.name === "equipment-right_wrist");
-   const gloveAccentCall = equipmentCalls.find((call) => call.name === "equipment-right_wrist-accent");
-   assert.equal(saberTint.colorToken, "#2693ff", "left saber must carry the left-hand theme color when no effective palette is set");
-   assert.equal(saberTint.alpha, 1, "undimmed equipment must stay at alpha 1");
-   assert.equal(gloveTint.colorToken, "#39c96b", "right glove must carry the right-hand theme color when no effective palette is set");
-   assert.equal(gloveTint.alpha, CURSOR_LOST_DIM_ALPHA, "dimmed equipment must take CURSOR_LOST_DIM_ALPHA");
-   assert.equal(gloveAccentCall.colorToken, "#F2F5FB", "glove accent must stay the white structural accent");
-   assert.equal(gloveAccentCall.alpha, CURSOR_LOST_DIM_ALPHA, "glove accent must share the dimmed record alpha");
-   const paletteSymbol = Symbol.for("aerobeat.web-renderer.internal-effective-palette");
-   equipmentRenderer[paletteSymbol]("#AABBCC", "#DDEEFF");
-   equipmentCalls.length = 0;
-   const paletteResult = equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 0, y: 1 } }, { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing" }], { grid: equipmentGrid }, true);
-   assert.equal(paletteResult.equipmentCount, 2, "effective palette must re-stage both roles");
-   assert.equal(equipmentCalls.find((call) => call.name === "equipment-left_wrist").colorToken, "#AABBCC", "left equipment must use the effective left palette token");
-   assert.equal(equipmentCalls.find((call) => call.name === "equipment-right_wrist").colorToken, "#DDEEFF", "right equipment must use the effective right palette token");
-   const diagonal = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
-   assert.ok(Math.abs(diagonal.euler[2] - 0) < 1e-9, "judge-space +Y direction must map to world +Y (0 degrees z-euler)");
-   equipmentRenderer[paletteSymbol](null, null);
-   equipmentCalls.length = 0;
-   const rejected = equipmentRenderer.stageGameplayEquipment([{ role: "nose", x: 0.5, y: 0.5, mode: "flow" }, { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", extra: true, direction: { x: 1, y: 0 } }, { role: "left_wrist", x: 2, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }, { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing", direction: { x: 1, y: 0 } }], { grid: equipmentGrid }, true);
-   assert.equal(rejected.equipmentCount, 0, "invalid equipment records (nose role, unknown key, out-of-range x, boxing direction, non-plain direction) must all be skipped");
-   assert.deepEqual(equipmentCalls, [], "rejected records must not trigger any material calls");
-   const empty = equipmentRenderer.stageGameplayEquipment([], { grid: equipmentGrid }, true);
-   assert.equal(empty.equipmentCount, 0, "empty equipment array must stage nothing without error");
-   assert.equal(equipmentRenderer.describe().equipment.instanceCount, 0, "describe().equipment must reflect the cleared state");
-   assert.throws(() => equipmentRenderer.stageGameplayEquipment(Array.from({ length: 5 }, (_, index) => ({ role: index % 2 ? "left_wrist" : "right_wrist", x: 0.5, y: 0.5, mode: "flow" })), { grid: equipmentGrid }, true), /cannot exceed 4 records/u, "equipment records are bounded to 4");
-   equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }], { grid: equipmentGrid }, true);
-   const saberEntities = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist");
-   assert.ok(saberEntities.every((entity) => entity.enabled === true), "staged saber entities must be enabled");
-   const gloveEntities = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist");
-   assert.ok(gloveEntities.every((entity) => entity.enabled === false), "un-staged glove entities must be disabled");
-   // 0.0.61 L-F6: two-handed UNIFORM-mode regression — the pre-fix shared pool let the right
-   // hand rename/reposition the left hand's saber entities, so only one beam was visible.
-   // Per-role pools must give each hand its own enabled pair at its own wrist position.
-   const twoHandedFlow = equipmentRenderer.stageGameplayEquipment([
-     { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } },
-     { role: "right_wrist", x: 0.25, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }
-   ], { grid: equipmentGrid }, true);
-   assert.equal(twoHandedFlow.equipmentCount, 2, "two-handed uniform-mode flow must stage both hands");
-   assert.deepEqual(twoHandedFlow.roles, ["left_wrist", "right_wrist"]);
-   assert.deepEqual(equipmentRenderer.describe().equipment.modes, ["left_wrist:flow", "right_wrist:flow"], "diagnostics must derive from actually enabled entities");
-   const twoHandedSaberPools = ["left_wrist", "right_wrist"].map((role) => equipmentRenderer.equipmentPools.get(`equipment/flow-saber-v1:${role}`));
-   assert.ok(twoHandedSaberPools.every((entries) => entries.length === 2 && entries.every((entity) => entity.enabled === true)), "both hands must own distinct enabled saber pairs");
-   const leftBeamPos = twoHandedSaberPools[0][0].pos, rightBeamPos = twoHandedSaberPools[1][0].pos;
-   assert.ok(Math.abs(leftBeamPos[0] - (0 + 0.375)) < 1e-9 && Math.abs(rightBeamPos[0] - (-1 + 0.375)) < 1e-9, "each saber must sit at its own hand's wrist midpoint, not one shared position");
-   assert.notDeepEqual(leftBeamPos, rightBeamPos, "uniform-mode beams must occupy distinct positions");
- }
- console.log("Equipment staging validation passed (0.0.61 L-F3).");
+    assert.ok(Math.abs(saberOuter.pos[0] - expectedMid.x) < 1e-9 && Math.abs(saberOuter.pos[1] - expectedMid.y) < 1e-9 && Math.abs(saberOuter.pos[2] - 0.45) < 1e-9, "fallback saber must sit at the presentation-space midpoint of the direction segment at athlete plane Z=0.45");
+    assert.ok(Math.abs(saberOuter.scale[0] - saberGeometry.length) < 1e-9 && Math.abs(saberOuter.scale[1] - 2 * saberGeometry.radius) < 1e-9 && Math.abs(saberOuter.scale[2] - 2 * saberGeometry.radius) < 1e-9, "fallback saber outer capsule must carry the contract axis + radius");
+    assert.ok(Math.abs(saberOuter.euler[2] - 90) < 1e-9, "fallback saber must align +X toward the judge-space direction +X endpoint");
+    const gloveBody = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[0];
+    const gloveAccent = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[1];
+    assert.equal(gloveBody.type, "box", "boxing glove body must be a box primitive");
+    const expectedGloveZ = 0.45 + gloveGeometry.offsetZ;
+    assert.ok(Math.abs(gloveBody.pos[0] - (-0.5 - 0.5)) < 1e-9 && Math.abs(gloveBody.pos[1] - 1) < 1e-9 && Math.abs(gloveBody.pos[2] - expectedGloveZ) < 1e-9, "glove body must center at wrist +0.05 WU toward the grid (+z at the athlete plane)");
+    assert.ok(Math.abs(gloveBody.scale[0] - 2 * gloveGeometry.x) < 1e-9 && Math.abs(gloveBody.scale[1] - 2 * gloveGeometry.y) < 1e-9 && Math.abs(gloveBody.scale[2] - 2 * gloveGeometry.z) < 1e-9, "glove body must span the contract box extents");
+    assert.equal(gloveAccent.enabled, true, "glove must keep a structural accent primitive enabled");
+    const saberTint = equipmentCalls.find((call) => call.name === "equipment-left_wrist");
+    const gloveTint = equipmentCalls.find((call) => call.name === "equipment-right_wrist");
+    const gloveAccentCall = equipmentCalls.find((call) => call.name === "equipment-right_wrist-accent");
+    assert.equal(saberTint.colorToken, "#2693ff", "left saber must carry the left-hand theme color when no effective palette is set");
+    assert.equal(saberTint.alpha, 1, "undimmed equipment must stay at alpha 1");
+    assert.equal(gloveTint.colorToken, "#39c96b", "right glove must carry the right-hand theme color when no effective palette is set");
+    assert.equal(gloveTint.alpha, CURSOR_LOST_DIM_ALPHA, "dimmed equipment must take CURSOR_LOST_DIM_ALPHA");
+    assert.equal(gloveAccentCall.colorToken, "#F2F5FB", "glove accent must stay the white structural accent");
+    assert.equal(gloveAccentCall.alpha, CURSOR_LOST_DIM_ALPHA, "glove accent must share the dimmed record alpha");
+    const paletteSymbol = Symbol.for("aerobeat.web-renderer.internal-effective-palette");
+    equipmentRenderer[paletteSymbol]("#AABBCC", "#DDEEFF");
+    equipmentCalls.length = 0;
+    const paletteResult = equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 0, y: 1 } }, { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing" }], { grid: equipmentGrid }, true);
+    assert.equal(paletteResult.equipmentCount, 2, "effective palette must re-stage both roles");
+    assert.equal(equipmentCalls.find((call) => call.name === "equipment-left_wrist").colorToken, "#AABBCC", "left equipment must use the effective left palette token");
+    assert.equal(equipmentCalls.find((call) => call.name === "equipment-right_wrist").colorToken, "#DDEEFF", "right equipment must use the effective right palette token");
+    const diagonal = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
+    assert.ok(Math.abs(diagonal.euler[2] - 0) < 1e-9, "judge-space +Y direction must map to world +Y (0 degrees z-euler)");
+    equipmentRenderer[paletteSymbol](null, null);
+    equipmentCalls.length = 0;
+    const rejected = equipmentRenderer.stageGameplayEquipment([{ role: "nose", x: 0.5, y: 0.5, mode: "flow" }, { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", extra: true, direction: { x: 1, y: 0 } }, { role: "left_wrist", x: 2, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }, { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing", direction: { x: 1, y: 0 } }], { grid: equipmentGrid }, true);
+    assert.equal(rejected.equipmentCount, 0, "invalid equipment records (nose role, unknown key, out-of-range x, boxing direction, non-plain direction) must all be skipped");
+    assert.deepEqual(equipmentCalls, [], "rejected records must not trigger any material calls");
+    const empty = equipmentRenderer.stageGameplayEquipment([], { grid: equipmentGrid }, true);
+    assert.equal(empty.equipmentCount, 0, "empty equipment array must stage nothing without error");
+    assert.equal(equipmentRenderer.describe().equipment.instanceCount, 0, "describe().equipment must reflect the cleared state");
+    assert.equal(equipmentRenderer.describe().equipment.assetMode, "none", "cleared equipment must report assetMode none");
+    assert.throws(() => equipmentRenderer.stageGameplayEquipment(Array.from({ length: 5 }, (_, index) => ({ role: index % 2 ? "left_wrist" : "right_wrist", x: 0.5, y: 0.5, mode: "flow" })), { grid: equipmentGrid }, true), /cannot exceed 4 records/u, "equipment records are bounded to 4");
+    equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }], { grid: equipmentGrid }, true);
+    const saberEntities = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist");
+    assert.ok(saberEntities.every((entity) => entity.enabled === true), "staged saber entities must be enabled");
+    const gloveEntities = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist");
+    assert.ok(gloveEntities.every((entity) => entity.enabled === false), "un-staged glove entities must be disabled");
+    // 0.0.61 L-F6: two-handed UNIFORM-mode regression — the pre-fix shared pool let the right
+    // hand rename/reposition the left hand's saber entities, so only one beam was visible.
+    // Per-role pools must give each hand its own enabled pair at its own wrist position.
+    const twoHandedFlow = equipmentRenderer.stageGameplayEquipment([
+      { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } },
+      { role: "right_wrist", x: 0.25, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }
+    ], { grid: equipmentGrid }, true);
+    assert.equal(twoHandedFlow.equipmentCount, 2, "two-handed uniform-mode flow must stage both hands");
+    assert.deepEqual(twoHandedFlow.roles, ["left_wrist", "right_wrist"]);
+    assert.deepEqual(equipmentRenderer.describe().equipment.modes, ["left_wrist:flow", "right_wrist:flow"], "diagnostics must derive from actually enabled entities");
+    assert.equal(equipmentRenderer.describe().equipment.assetMode, "primitive", "fallback two-handed flow must report primitive asset mode");
+    const twoHandedSaberPools = ["left_wrist", "right_wrist"].map((role) => equipmentRenderer.equipmentPools.get(`equipment/flow-saber-v1:${role}`));
+    assert.ok(twoHandedSaberPools.every((entries) => entries.length === 2 && entries.every((entity) => entity.enabled === true)), "both hands must own distinct enabled saber pairs");
+    const leftBeamPos = twoHandedSaberPools[0][0].pos, rightBeamPos = twoHandedSaberPools[1][0].pos;
+    assert.ok(Math.abs(leftBeamPos[0] - (0 + 0.375)) < 1e-9 && Math.abs(rightBeamPos[0] - (-1 + 0.375)) < 1e-9, "each saber must sit at its own hand's wrist midpoint, not one shared position");
+    assert.notDeepEqual(leftBeamPos, rightBeamPos, "uniform-mode beams must occupy distinct positions");
+  }
+  console.log("Equipment staging validation passed (0.0.62 L-C r2lb).");

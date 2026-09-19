@@ -10,8 +10,13 @@ const expectedReleaseCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
 const expectedReleaseSourceTree="d027617131fe2e291e451c5414169c52a6a5b867";
 const expectedAuditCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
 const expectedAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
-const expectedInventoryHash="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
-const expectedProofHash="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
+// 0.0.62 L-C (r2lb r1a): the asset-source repo (pinned to a157d93) has the
+// original 7-entry inventory/proof. The renderer target (assets/gameplay/
+// 0.0.11/) has the 8-entry inventory (flow-saber added) + updated proof.
+const expectedSourceInventoryHash="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
+const expectedSourceProofHash="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
+const expectedInventoryHash="92df598c776f3b55b75a8a6a4316e2b3a70653992310a93fb740dc45ba5293f1";
+const expectedProofHash="288046bdae45464676e92d3ec8fe7813be57ab7235c64762389ccae8ebc5d141";
 const expectedSetHash="af294a9e1e6654ccfd56c7b42b1f3fefdd536f4eb9bc4fb026ead8a3f970c8a7";
 const expectedMarkerGlbHash="f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc";
 const expectedReleaseTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";
@@ -44,14 +49,24 @@ const protectedLedger=" M .beads/interactions.jsonl";
 if(!(sourceStatus.length===0||(sourceStatus.length===1&&sourceStatus[0]===protectedLedger)))throw new Error(`asset source worktree is not fully clean or carries only the exact protected unstaged ledger export: ${JSON.stringify(sourceStatus)}`);
 
 const sha256=(bytes)=>createHash("sha256").update(bytes).digest("hex");
-const inventoryBytes=await readFile(path.join(sourceRelease,"inventory.v1.json"));
-const proofBytes=await readFile(path.join(sourceRelease,"proof.v1.json"));
-if(sha256(inventoryBytes)!==expectedInventoryHash)throw new Error("source inventory hash mismatch");
-if(sha256(proofBytes)!==expectedProofHash)throw new Error("source proof hash mismatch");
-const inventory=JSON.parse(inventoryBytes.toString("utf8"));
-const proof=JSON.parse(proofBytes.toString("utf8"));
-if(inventory.expected_asset_count!==7||inventory.immutable!==true||inventory.payload.length!==15)throw new Error("source inventory contract mismatch");
-if(proof.release!==release||proof.inventory_sha256!==expectedInventoryHash)throw new Error("source proof contract mismatch");
+const sourceInventoryBytes=await readFile(path.join(sourceRelease,"inventory.v1.json"));
+const sourceProofBytes=await readFile(path.join(sourceRelease,"proof.v1.json"));
+if(sha256(sourceInventoryBytes)!==expectedSourceInventoryHash)throw new Error("source inventory hash mismatch");
+if(sha256(sourceProofBytes)!==expectedSourceProofHash)throw new Error("source proof hash mismatch");
+const sourceInventory=JSON.parse(sourceInventoryBytes.toString("utf8"));
+const sourceProof=JSON.parse(sourceProofBytes.toString("utf8"));
+if(sourceInventory.expected_asset_count!==7||sourceInventory.immutable!==true||sourceInventory.payload.length!==15)throw new Error("source inventory contract mismatch");
+if(sourceProof.release!==release||sourceProof.inventory_sha256!==expectedSourceInventoryHash)throw new Error("source proof contract mismatch");
+// The renderer target inventory (8 entries, flow-saber added) is what the
+// validators + assembly consume. Parse it from the target tree.
+const targetInventoryBytes=await readFile(path.join(target,"inventory.v1.json"));
+const targetProofBytes=await readFile(path.join(target,"proof.v1.json"));
+if(sha256(targetInventoryBytes)!==expectedInventoryHash)throw new Error("target inventory hash mismatch");
+if(sha256(targetProofBytes)!==expectedProofHash)throw new Error("target proof hash mismatch");
+const inventory=JSON.parse(targetInventoryBytes.toString("utf8"));
+const proof=JSON.parse(targetProofBytes.toString("utf8"));
+if(inventory.expected_asset_count!==8||inventory.immutable!==true||inventory.payload.length!==16)throw new Error("target inventory contract mismatch");
+if(proof.release!==release||proof.inventory_sha256!==expectedInventoryHash)throw new Error("target proof contract mismatch");
 const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/default-v1.json");
 if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
 const markerEntry=inventory.payload.find(({path:relative})=>relative==="athlete-marker/sphere-v1.glb");
@@ -76,12 +91,12 @@ for(const relative of ["directional-arrow/rounded-outline-v1.glb","any-note/outl
   const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,`release/raw/${predecessorRelease}`,relative));
   if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from ${predecessorRelease}: ${relative}`);
 }
-// 0.0.62 L-C (r2lb): the flow-saber GLB is a renderer-authored asset (built
-// by scripts/blender/build-flow-saber-v1.py), NOT part of the asset-source
-// inventory. It ships under assets/gameplay/0.0.11/flow-saber/ and is
-// included in the npm package but NOT in the asset-source inventory payload.
-const expectedFiles=[...inventory.payload.map(({path:relative})=>relative),"flow-saber/flow-saber-v1.glb","inventory.v1.json","proof.v1.json"].sort();
-if(expectedFiles.length!==18||new Set(expectedFiles).size!==18)throw new Error("source exact inventory mismatch");
+// 0.0.62 L-C (r2lb r1a): the source tree has 7 GLBs (the asset-source commit
+// predates the flow-saber). The target tree has 8 GLBs (flow-saber added).
+const expectedSourceFiles=[...sourceInventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
+if(expectedSourceFiles.length!==17||new Set(expectedSourceFiles).size!==17)throw new Error("source exact inventory mismatch");
+const expectedTargetFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
+if(expectedTargetFiles.length!==18||new Set(expectedTargetFiles).size!==18)throw new Error("target exact inventory mismatch");
 
 async function makeDirectoriesWritable(root){
   let entries;
@@ -99,23 +114,18 @@ async function filesUnder(root,current=""){
 }
 async function verifyTree(root,label){
   const actual=await filesUnder(root);
-  // The source tree is pinned to the asset-source commit (a157d93) and does NOT
-  // contain the renderer-authored flow-saber GLB. The renderer target tree
-  // (assets/gameplay/0.0.11/) ships with the flow-saber.
-  const sourceFiles=expectedFiles.filter((file)=>!file.startsWith("flow-saber/"));
-  const targetFiles=expectedFiles;
-  const expected=label==="source"?sourceFiles:targetFiles;
+  const isSource=label==="source";
+  const expected=isSource?expectedSourceFiles:expectedTargetFiles;
   if(JSON.stringify(actual)!==JSON.stringify(expected))throw new Error(`${label} exact inventory mismatch\nexpected ${expected.join("\n")}\nactual ${actual.join("\n")}`);
-  for(const item of inventory.payload){
+  const invPayload=isSource?sourceInventory.payload:inventory.payload;
+  for(const item of invPayload){
     const bytes=await readFile(path.join(root,item.path));
     if(bytes.byteLength!==item.bytes||sha256(bytes)!==item.sha256)throw new Error(`${label} payload mismatch: ${item.path}`);
   }
-  if(label==="target"){
-    const saberBytes=await readFile(path.join(root,"flow-saber/flow-saber-v1.glb"));
-    if(saberBytes.byteLength!==6996||sha256(saberBytes)!=="a9a2faee28bc4ff370ad9613d408295d10ebc2a34131c5909ddf136bd221e851")throw new Error(`${label} flow-saber GLB drift (renderer-authored)`);
-  }
   const inv=await readFile(path.join(root,"inventory.v1.json")),proofFile=await readFile(path.join(root,"proof.v1.json"));
-  if(sha256(inv)!==expectedInventoryHash||sha256(proofFile)!==expectedProofHash)throw new Error(`${label} release metadata mismatch`);
+  const expectedInv=isSource?expectedSourceInventoryHash:expectedInventoryHash;
+  const expectedPrf=isSource?expectedSourceProofHash:expectedProofHash;
+  if(sha256(inv)!==expectedInv||sha256(proofFile)!==expectedPrf)throw new Error(`${label} release metadata mismatch`);
 }
 await verifyTree(sourceRelease,"source");
 if(mode==="sync"){
@@ -128,4 +138,4 @@ await stat(target);
 await verifyTree(target,"target");
 const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();
 if(JSON.stringify(packagedReleases)!==JSON.stringify([release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
-console.log(`${mode} gameplay ${release}: ${expectedFiles.length} exact files, inventory ${expectedInventoryHash}, proof ${expectedProofHash}, source ${commit}`);
+console.log(`${mode} gameplay ${release}: source ${expectedSourceFiles.length} files, target ${expectedTargetFiles.length} files, source inv ${expectedSourceInventoryHash}, target inv ${expectedInventoryHash}, source proof ${expectedSourceProofHash}, target proof ${expectedProofHash}, source ${commit}`);

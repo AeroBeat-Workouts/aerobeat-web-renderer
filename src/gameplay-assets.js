@@ -6,8 +6,8 @@ export const gameplayAssetSourceTree="d027617131fe2e291e451c5414169c52a6a5b867";
 export const gameplayAssetAuditCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
 export const gameplayAssetAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
 export const gameplayAssetRawTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";
-export const gameplayAssetInventorySha256="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
-export const gameplayAssetProofSha256="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
+export const gameplayAssetInventorySha256="92df598c776f3b55b75a8a6a4316e2b3a70653992310a93fb740dc45ba5293f1";
+export const gameplayAssetProofSha256="288046bdae45464676e92d3ec8fe7813be57ab7235c64762389ccae8ebc5d141";
 
 const definitions=[
   ["any-note/outlined-circle-v1","any-note","outlined-circle-v1",142020,"eb1368f09fe3034b9690e18f17e066ea4af7d20522f7c3ee009888c01f5235a6"],

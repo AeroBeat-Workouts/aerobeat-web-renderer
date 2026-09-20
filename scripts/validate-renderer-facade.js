@@ -144,16 +144,21 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
     assert.equal(result.equipmentCount, 2, "both accepted equipment roles must stage");
     assert.deepEqual(result.roles, ["left_wrist", "right_wrist"]);
     assert.equal(equipmentRenderer.describe().equipment.assetMode, "primitive", "loader fallback must report primitive asset mode");
-    const saberOuter = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
-    const saberCore = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[1];
-    assert.equal(saberOuter.type, "cylinder", "fallback saber outer must be a cylinder primitive");
-    assert.equal(saberCore.type, "cylinder", "fallback saber core must be a cylinder primitive");
-    const wristPresentation = { x: 0, y: 1, z: 0.45 };
-    const endPresentation = { x: wristPresentation.x + 1 * saberGeometry.length, y: wristPresentation.y };
-    const expectedMid = { x: (wristPresentation.x + endPresentation.x) / 2, y: wristPresentation.y };
-    assert.ok(Math.abs(saberOuter.pos[0] - expectedMid.x) < 1e-9 && Math.abs(saberOuter.pos[1] - expectedMid.y) < 1e-9 && Math.abs(saberOuter.pos[2] - 0.45) < 1e-9, "fallback saber must sit at the presentation-space midpoint of the direction segment at athlete plane Z=0.45");
-    assert.ok(Math.abs(saberOuter.scale[0] - saberGeometry.length) < 1e-9 && Math.abs(saberOuter.scale[1] - 2 * saberGeometry.radius) < 1e-9 && Math.abs(saberOuter.scale[2] - 2 * saberGeometry.radius) < 1e-9, "fallback saber outer capsule must carry the contract axis + radius");
-    assert.ok(Math.abs(saberOuter.euler[2] - 90) < 1e-9, "fallback saber must align +X toward the judge-space direction +X endpoint");
+    const saberHilt = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
+    const saberBlade = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[1];
+    assert.equal(saberHilt.type, "cylinder", "fallback saber hilt must be a cylinder primitive");
+    assert.equal(saberBlade.type, "cylinder", "fallback saber blade must be a cylinder primitive");
+    // 0.0.62 L-C r2: the primitive fallback is a two-cylinder approximation
+    // (dark hilt + tinted blade). The hilt sits at the wrist end, the blade
+    // at the far end. Both are aligned to the judge-space direction.
+    const hiltMidX = 0 + 1 * 0.09;  // hilt center: wrist + hiltLen/2
+    const bladeMidX = 0 + 1 * (0.18 + 0.285);  // blade center: wrist + hiltLen + bladeLen/2
+    assert.ok(Math.abs(saberHilt.pos[0] - hiltMidX) < 1e-9 && Math.abs(saberHilt.pos[1] - 1) < 1e-9 && Math.abs(saberHilt.pos[2] - 0.45) < 1e-9, "fallback saber hilt must sit at the wrist-end midpoint");
+    assert.ok(Math.abs(saberBlade.pos[0] - bladeMidX) < 1e-9 && Math.abs(saberBlade.pos[1] - 1) < 1e-9 && Math.abs(saberBlade.pos[2] - 0.45) < 1e-9, "fallback saber blade must sit at the blade-section midpoint");
+    assert.ok(Math.abs(saberHilt.scale[0] - 0.18) < 1e-9, "fallback saber hilt capsule must carry the hilt length");
+    assert.ok(Math.abs(saberBlade.scale[0] - 0.57) < 1e-9, "fallback saber blade capsule must carry the blade length");
+    assert.ok(Math.abs(saberHilt.euler[2] - 90) < 1e-9, "fallback saber hilt must align +X toward the judge-space direction");
+    assert.ok(Math.abs(saberBlade.euler[2] - 90) < 1e-9, "fallback saber blade must align +X toward the judge-space direction");
     const gloveBody = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[0];
     const gloveAccent = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[1];
     assert.equal(gloveBody.type, "box", "boxing glove body must be a box primitive");
@@ -161,11 +166,16 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
     assert.ok(Math.abs(gloveBody.pos[0] - (-0.5 - 0.5)) < 1e-9 && Math.abs(gloveBody.pos[1] - 1) < 1e-9 && Math.abs(gloveBody.pos[2] - expectedGloveZ) < 1e-9, "glove body must center at wrist +0.05 WU toward the grid (+z at the athlete plane)");
     assert.ok(Math.abs(gloveBody.scale[0] - 2 * gloveGeometry.x) < 1e-9 && Math.abs(gloveBody.scale[1] - 2 * gloveGeometry.y) < 1e-9 && Math.abs(gloveBody.scale[2] - 2 * gloveGeometry.z) < 1e-9, "glove body must span the contract box extents");
     assert.equal(gloveAccent.enabled, true, "glove must keep a structural accent primitive enabled");
-    const saberTint = equipmentCalls.find((call) => call.name === "equipment-left_wrist");
+    // 0.0.62 L-C r2: the primitive fallback stages two capsules (hilt + blade).
+    // The hilt (equipment-left_wrist) carries the dark gunmetal color; the
+    // blade (equipment-left_wrist-core) carries the per-hand theme color.
+    const saberHiltTint = equipmentCalls.find((call) => call.name === "equipment-left_wrist");
+    const saberBladeTint = equipmentCalls.find((call) => call.name === "equipment-left_wrist-core");
     const gloveTint = equipmentCalls.find((call) => call.name === "equipment-right_wrist");
     const gloveAccentCall = equipmentCalls.find((call) => call.name === "equipment-right_wrist-accent");
-    assert.equal(saberTint.colorToken, "#2693ff", "left saber must carry the left-hand theme color when no effective palette is set");
-    assert.equal(saberTint.alpha, 1, "undimmed equipment must stay at alpha 1");
+    assert.equal(saberHiltTint.colorToken, "#2a3038", "left saber hilt must carry the dark gunmetal color");
+    assert.equal(saberBladeTint.colorToken, "#2693ff", "left saber blade must carry the left-hand theme color when no effective palette is set");
+    assert.equal(saberBladeTint.alpha, 1, "undimmed equipment must stay at alpha 1");
     assert.equal(gloveTint.colorToken, "#39c96b", "right glove must carry the right-hand theme color when no effective palette is set");
     assert.equal(gloveTint.alpha, CURSOR_LOST_DIM_ALPHA, "dimmed equipment must take CURSOR_LOST_DIM_ALPHA");
     assert.equal(gloveAccentCall.colorToken, "#F2F5FB", "glove accent must stay the white structural accent");
@@ -175,7 +185,9 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
     equipmentCalls.length = 0;
     const paletteResult = equipmentRenderer.stageGameplayEquipment([{ role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 0, y: 1 } }, { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing" }], { grid: equipmentGrid }, true);
     assert.equal(paletteResult.equipmentCount, 2, "effective palette must re-stage both roles");
-    assert.equal(equipmentCalls.find((call) => call.name === "equipment-left_wrist").colorToken, "#AABBCC", "left equipment must use the effective left palette token");
+    // 0.0.62 L-C r2: the hilt (equipment-left_wrist) is always dark gunmetal;
+    // the blade (equipment-left_wrist-core) carries the effective palette color.
+    assert.equal(equipmentCalls.find((call) => call.name === "equipment-left_wrist-core").colorToken, "#AABBCC", "left saber blade must use the effective left palette token");
     assert.equal(equipmentCalls.find((call) => call.name === "equipment-right_wrist").colorToken, "#DDEEFF", "right equipment must use the effective right palette token");
     const diagonal = equipmentRenderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")[0];
     assert.ok(Math.abs(diagonal.euler[2] - 0) < 1e-9, "judge-space +Y direction must map to world +Y (0 degrees z-euler)");
@@ -207,8 +219,10 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
     assert.equal(equipmentRenderer.describe().equipment.assetMode, "primitive", "fallback two-handed flow must report primitive asset mode");
     const twoHandedSaberPools = ["left_wrist", "right_wrist"].map((role) => equipmentRenderer.equipmentPools.get(`equipment/flow-saber-v1:${role}`));
     assert.ok(twoHandedSaberPools.every((entries) => entries.length === 2 && entries.every((entity) => entity.enabled === true)), "both hands must own distinct enabled saber pairs");
-    const leftBeamPos = twoHandedSaberPools[0][0].pos, rightBeamPos = twoHandedSaberPools[1][0].pos;
-    assert.ok(Math.abs(leftBeamPos[0] - (0 + 0.375)) < 1e-9 && Math.abs(rightBeamPos[0] - (-1 + 0.375)) < 1e-9, "each saber must sit at its own hand's wrist midpoint, not one shared position");
-    assert.notDeepEqual(leftBeamPos, rightBeamPos, "uniform-mode beams must occupy distinct positions");
+    // 0.0.62 L-C r2: entries[0] is the hilt (at wrist + hiltLen/2), entries[1] is the blade.
+    // Check the hilt positions (entries[0]) at each hand's wrist-end.
+    const leftHiltPos = twoHandedSaberPools[0][0].pos, rightHiltPos = twoHandedSaberPools[1][0].pos;
+    assert.ok(Math.abs(leftHiltPos[0] - (0 + 0.09)) < 1e-9 && Math.abs(rightHiltPos[0] - (-1 + 0.09)) < 1e-9, "each saber hilt must sit at its own hand's wrist-end midpoint, not one shared position");
+    assert.notDeepEqual(leftHiltPos, rightHiltPos, "uniform-mode hilt positions must be distinct");
   }
   console.log("Equipment staging validation passed (0.0.62 L-C r2lb).");

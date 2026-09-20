@@ -15,8 +15,8 @@ const expectedAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
 // 0.0.11/) has the 8-entry inventory (flow-saber added) + updated proof.
 const expectedSourceInventoryHash="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
 const expectedSourceProofHash="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
-const expectedInventoryHash="92df598c776f3b55b75a8a6a4316e2b3a70653992310a93fb740dc45ba5293f1";
-const expectedProofHash="288046bdae45464676e92d3ec8fe7813be57ab7235c64762389ccae8ebc5d141";
+const expectedInventoryHash="04084ea5119c4c30011840318ada3f483db3843c60806499d8f25f0e48ffa583";
+const expectedProofHash="378e566dd7bf5ed261db0276485032f6448f4ae4268d461ca516c2419095e3c6";
 const expectedSetHash="af294a9e1e6654ccfd56c7b42b1f3fefdd536f4eb9bc4fb026ead8a3f970c8a7";
 const expectedMarkerGlbHash="f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc";
 const expectedReleaseTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";

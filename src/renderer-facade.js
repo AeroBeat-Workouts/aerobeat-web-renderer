@@ -187,36 +187,34 @@ export class AeroPlayCanvasRenderer {
     const anySaberGlb=roles.some((role)=>this.assetMaterials.get(this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0])?.length>0);
     const assetMode=anySaberGlb?"glb":(roles.length>0?"primitive":"none");
     this.equipmentDiagnostics=Object.freeze({instanceCount:roles.length,roles:Object.freeze([...roles]),modes:Object.freeze(modes.map((mode,index)=>`${roles[index]}:${mode}`)),depthTest:true,depthWrite:anySaberGlb,assetMode});return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});}
-  /** 0.0.62 L-C (r2lb): flow saber = custom Blender energy blade GLB (flow-saber/flow-saber-v1)
-   *   from the wrist along the judge-space direction. The GLB extends along LOCAL +Y for
-   *   0.75 WU (== detection capsule length, what-you-see-is-what-hits). Two material slots:
-   *     mat/saber_core  → bright EMISSIVE inner blade, per-hand TINTABLE (carries the
-   *                       song-palette color via the effective-palette seam).
-   *     mat/saber_shell → dark outer body with a subtle low-gain emissive edge tint
-   *                       (authored in the GLB; reads as a crisp dark blade edge over
-   *                       BOTH bright Aero and dark Camera backgrounds).
-   *   MATERIAL CONSTRAINTS (0.0.61 baseline defect fix): no BLEND_ADDITIVE, depthWrite ON,
-   *   normal blend — the saber MUST visibly dim (dimmed alpha 0.45 produces a measurable
-   *   real-pixel difference vs undimmed).
-   *
-   *   Orientation: the GLB's local +Y axis is aligned to the judge-space direction via
-   *   `eulerZ = 90 - atan2(dirY, dirX)` (the SAME math as the 0.0.61 cylinder primitive),
-   *   so the blade points from the wrist along the direction. The entity sits at the
-   *   wrist (position.x, position.y, 0.45) — the blade extends +Y from the wrist for
-   *   0.75 WU.
-   *
-   *   Fallback: when the GLB loader is not "ready" (preload error / fallback / context
-   *   lost), the saber stages from two capsule primitives (outer emissive beam + smaller
-   *   brighter core) — the 0.0.61 look, kept as a truthful degradation. The diagnostics
-   *   report which path was used (assetMode: "glb" | "primitive").
-   *
-   * @param {string} role "left_wrist" | "right_wrist"
-   * @param {{x:number,y:number}} position Wrist position in presentation space.
-   * @param {Readonly<{x:number,y:number}>|null} direction JUDGE-space unit vector.
-   * @param {string} color Per-hand color token (song palette / theme default).
-   * @param {number} alpha 1 (undimmed) or CURSOR_LOST_DIM_ALPHA (0.45, dimmed).
-   */
-  stageSaber(role,position,direction,color,alpha){
+  /** 0.0.62 L-C (r2lb r2): flow saber v2 = two-cylinder GLB (hilt + blade + rounded tip)
+    *   from the wrist along the judge-space direction. The GLB extends along LOCAL +Y for
+    *   0.75 WU (== detection capsule length, what-you-see-is-what-hits). Two material slots:
+    *     mat/saber_blade → bright EMISSIVE blade + rounded tip, per-hand TINTABLE (carries
+    *                       the song-palette color via the effective-palette seam).
+    *     mat/saber_hilt  → dark gunmetal structural hilt (NOT tintable, no emissive glow).
+    *   MATERIAL CONSTRAINTS: OPAQUE normal blend, depthWrite ON, depthTest ON.
+    *   Dimming: blade dims via opacity (0.45). The in-engine additive glow dims via
+    *   color/emissive scaling (× 0.45) — PlayCanvas additive blend ignores alpha.
+    *
+    *   In-engine glow: a primitive cylinder (additive blend, depthWrite OFF) staged
+    *   around the blade section only (from hilt tip to blade tip). The glow color is
+    *   the blade tint color × gain. The hilt gets NO glow.
+    *
+    *   Orientation: the GLB's local +Y axis is aligned to the judge-space direction via
+    *   `eulerZ = 90 - atan2(dirY, dirX)`. The entity sits at the wrist (position.x,
+    *   position.y, 0.45) — the blade extends +Y from the wrist for 0.75 WU.
+    *
+    *   Fallback: when the GLB loader is not "ready", the saber stages from two capsule
+    *   primitives (dark hilt + tinted blade). Diagnostics: assetMode: "glb"|"primitive".
+    *
+    * @param {string} role "left_wrist" | "right_wrist"
+    * @param {{x:number,y:number}} position Wrist position in presentation space.
+    * @param {Readonly<{x:number,y:number}>|null} direction JUDGE-space unit vector.
+    * @param {string} color Per-hand color token (song palette / theme default).
+    * @param {number} alpha 1 (undimmed) or CURSOR_LOST_DIM_ALPHA (0.45, dimmed).
+    */
+   stageSaber(role,position,direction,color,alpha){
     const dx=direction?.x??0,dy=direction?.y??0,length=Math.hypot(dx,dy),unitX=length>0?dx/length:0,unitY=length>0?dy/length:-1;
     const loaderMode=this.gameplayAssetLoader.describe().state;
     const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/flow-saber-v1:"+role):null;
@@ -227,18 +225,46 @@ export class AeroPlayCanvasRenderer {
       const radians=Math.atan2(unitY,unitX);
       glbEntity.setEulerAngles(0,0,(90-radians*180/Math.PI));
       this.applyEquipmentGlbAppearance(glbEntity,"flow-saber/flow-saber-v1",color,alpha);
+      // Stage the additive glow layer around the blade section.
+      this.acquireSaberGlow(role,position,unitX,unitY,color,alpha);
       this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:true,assetMode:"glb"});
       return;
     }
-    // Primitive fallback (loader not ready): two stacked capsule primitives.
-    const entries=this.acquireEquipmentEntries("equipment/flow-saber-v1:"+role,2);const outer=entries[0],core=entries[1];if(!outer||!core)return;
-    const endX=position.x+unitX*saberGeometry.length,endY=position.y+unitY*saberGeometry.length;
-    const mid={x:(position.x+endX)/2,y:(position.y+endY)/2},z=0.45;
-    outer.enabled=true;outer.name=`equipment-${role}`;this.applyEquipmentTransform(outer,mid.x,mid.y,z,"capsule",[saberGeometry.length,saberGeometry.radius,unitX,unitY]);
-    core.enabled=true;core.name=`equipment-${role}-core`;this.applyEquipmentTransform(core,mid.x,mid.y,z,"capsule",[saberGeometry.length*0.8,saberGeometry.radius*0.45,unitX,unitY]);
-    this.updateEquipmentMaterial(outer,color,alpha,1,"equipment/flow-saber-v1");
-    this.updateEquipmentMaterial(core,lightenEquipmentColor(color),alpha,1.4,"equipment/flow-saber-v1-core");
+    // Primitive fallback (loader not ready): dark hilt + tinted blade.
+    const entries=this.acquireEquipmentEntries("equipment/flow-saber-v1:"+role,2);const hilt=entries[0],blade=entries[1];if(!hilt||!blade)return;
+    const hiltLen=0.18,bladeLen=0.57,hiltR=0.03,bladeR=0.024,z=0.45;
+    const hiltMidX=position.x+unitX*(hiltLen/2),hiltMidY=position.y+unitY*(hiltLen/2);
+    const bladeMidX=position.x+unitX*(hiltLen+bladeLen/2),bladeMidY=position.y+unitY*(hiltLen+bladeLen/2);
+    hilt.enabled=true;hilt.name=`equipment-${role}`;this.applyEquipmentTransform(hilt,hiltMidX,hiltMidY,z,"capsule",[hiltLen,hiltR,unitX,unitY]);
+    blade.enabled=true;blade.name=`equipment-${role}-core`;this.applyEquipmentTransform(blade,bladeMidX,bladeMidY,z,"capsule",[bladeLen,bladeR,unitX,unitY]);
+    this.updateEquipmentMaterial(hilt,"#2a3038",alpha,0.5,"equipment/flow-saber-v1");
+    this.updateEquipmentMaterial(blade,color,alpha,1,"equipment/flow-saber-v1-core");
     this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:false,assetMode:"primitive"});
+  }
+  /** 0.0.62 L-C (r2lb r2): acquire (or lazily create) an additive glow primitive
+    *   around the saber's blade section. The glow is a cylinder (additive blend,
+    *   depthWrite OFF) positioned from the hilt tip to the blade tip. Its color
+    *   is the blade tint × gain. Dimming: color × alpha (NOT opacity — additive
+    *   blend ignores alpha). */
+  acquireSaberGlow(role,position,unitX,unitY,color,alpha){
+    const glowKey=`equipment/flow-saber-v1-glow:${role}`;
+    let entries=this.equipmentPools.get(glowKey);
+    if(!entries){entries=[];this.equipmentPools.set(glowKey,entries);while(entries.length<1)entries.push(this.makeEntity(`equipment-glow-${entries.length}`,"cylinder"));}
+    const glow=entries[0];if(!glow)return;
+    const hiltLen=0.18,bladeLen=0.57,glowRadius=0.045,glowGain=0.6;
+    const glowMidX=position.x+unitX*(hiltLen+bladeLen/2);
+    const glowMidY=position.y+unitY*(hiltLen+bladeLen/2);
+    glow.enabled=true;glow.name=`equipment-${role}-glow`;
+    this.applyEquipmentTransform(glow,glowMidX,glowMidY,0.45,"capsule",[bladeLen+0.06,glowRadius,unitX,unitY]);
+    const rgba=colorTokenToRgba(color,[1,1,1,1]);
+    const gR=rgba[0]*glowGain,gG=rgba[1]*glowGain,gB=rgba[2]*glowGain;
+    // Dimming: scale the color/emissive by alpha (additive blend ignores opacity).
+    const dimR=gR*alpha,dimG=gG*alpha,dimB=gB*alpha;
+    const material=this.entityMaterials.get(glow);if(!material)return;
+    const state={kind:glowKey,diffuseR:dimR,diffuseG:dimG,diffuseB:dimB,emissiveR:dimR,emissiveG:dimG,emissiveB:dimB,opacity:1,blendType:pc.BLEND_ADDITIVE,depthTest:true,depthWrite:false,useLighting:false,cull:pc.CULLFACE_NONE,diffuseMap:null,emissiveMap:null,opacityMap:null,diffuseMapChannel:material.diffuseMapChannel,emissiveMapChannel:material.emissiveMapChannel,opacityMapChannel:material.opacityMapChannel};
+    if(materialStateIsUnchanged(material,this.materialStates.get(material),state))return;
+    material.diffuse.set(state.diffuseR,state.diffuseG,state.diffuseB);material.emissive.set(state.emissiveR,state.emissiveG,state.emissiveB);material.opacity=state.opacity;material.blendType=state.blendType;material.depthTest=state.depthTest;material.depthWrite=state.depthWrite;material.useLighting=state.useLighting;material.cull=state.cull;material.diffuseMap=null;material.emissiveMap=null;material.opacityMap=null;material.update();this.materialStates.set(material,state);
+    return glow;
   }
   /** 0.0.62 L-C (r2lb): acquire (or lazily create) a GLB-backed equipment entity for the flow saber.
    *   Pool key: `<assetId>:<role>` (e.g. "equipment/flow-saber-v1:left_wrist"). Each role
@@ -270,13 +296,13 @@ export class AeroPlayCanvasRenderer {
       if(material!==record.material){if(record.materialOwned)record.material.destroy();record.material=material;record.materialOwned=false;}
       const materialRole=gameplayAssetMaterialRole(assetId,record.name);
       let diffuseR,diffuseG,diffuseB,emissiveR,emissiveG,emissiveB;
-      if(materialRole==="saber_core_tint"){
-        // Per-hand TINTABLE core: diffuse = emissive = hand color (bright emissive).
+      if(materialRole==="saber_blade_tint"){
+        // Per-hand TINTABLE blade: diffuse = emissive = hand color (bright emissive).
+        // The blade dims via opacity (alpha).
         diffuseR=rgba[0];diffuseG=rgba[1];diffuseB=rgba[2];
         emissiveR=rgba[0];emissiveG=rgba[1];emissiveB=rgba[2];
-      }else if(materialRole==="saber_shell_dark"){
-        // Dark outer body: authored color (no per-hand tint). Subtle low-gain emissive
-        // edge tint (the GLB's authored emissive, kept at low gain).
+      }else if(materialRole==="saber_hilt_dark"){
+        // Dark gunmetal hilt: authored color (no per-hand tint, no emissive).
         diffuseR=record.diffuse.r;diffuseG=record.diffuse.g;diffuseB=record.diffuse.b;
         emissiveR=record.emissive.r;emissiveG=record.emissive.g;emissiveB=record.emissive.b;
       }else{

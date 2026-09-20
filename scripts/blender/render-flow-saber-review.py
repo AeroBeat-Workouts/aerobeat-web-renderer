@@ -135,19 +135,29 @@ def place_cam(elev_deg, azim_deg, dist=2.6):
 # blade (the grid/background never bloom). Compositing is done with PIL below.
 from PIL import Image, ImageChops, ImageFilter
 
-def set_blade(color, alpha=1.0):
+def set_blade(color, alpha=1.0, mode="scene"):
     if blade_mat.use_nodes:
         bsdf = blade_mat.node_tree.nodes.get("Principled BSDF")
         if bsdf:
-            bsdf.inputs["Base Color"].default_value = (color[0], color[1], color[2], 1.0)
-            if "Emission Color" in bsdf.inputs:
+            if mode == "glow":
+                # Pure white emitter: the glow pass is a LUMINANCE MASK only.
+                # The exact blade color is applied in the PIL composite, so the
+                # halo matches the file-listed color (Derrick's call).
+                bsdf.inputs["Base Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+                bsdf.inputs["Emission Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+                bsdf.inputs["Emission Strength"].default_value = 1.0
+                blade_mat.blend_method = "OPAQUE"
+                if "Alpha" in bsdf.inputs:
+                    bsdf.inputs["Alpha"].default_value = 1.0
+            else:
+                # bright but color-preserving (no white blowout) — matches the
+                # in-engine tinted emissive blade
+                bsdf.inputs["Base Color"].default_value = (color[0], color[1], color[2], 1.0)
                 bsdf.inputs["Emission Color"].default_value = (color[0], color[1], color[2], 1.0)
-                # bright but color-preserving (blowout to white kills the tint);
-                # the additive halo comes from the glow pass, not core exposure
-                bsdf.inputs["Emission Strength"].default_value = 1.4 * alpha
-            blade_mat.blend_method = "BLEND" if alpha < 1.0 else "OPAQUE"
-            if "Alpha" in bsdf.inputs:
-                bsdf.inputs["Alpha"].default_value = alpha
+                bsdf.inputs["Emission Strength"].default_value = 1.0 * alpha
+                blade_mat.blend_method = "BLEND" if alpha < 1.0 else "OPAQUE"
+                if "Alpha" in bsdf.inputs:
+                    bsdf.inputs["Alpha"].default_value = alpha
 
 os.makedirs(out_dir, exist_ok=True)
 jobs = []
@@ -158,26 +168,31 @@ jobs.append((f"r2-saber-theme-blue-angle2b.png", COLORS[0][1], 1.0, ANGLES[2][1]
 jobs.append((f"r2-saber-dimmed-theme-blue.png", COLORS[0][1], DIM, ANGLES[0][1], ANGLES[0][2]))
 
 for fname, color, alpha, elev, azim in jobs:
-    set_blade(color, alpha)
     place_cam(elev, azim)
     final_path = os.path.join(out_dir, fname)
     glow_path = os.path.join(out_dir, ".glow-" + fname)
-    # Pass 1: glow pass — saber only, transparent film (halo source on black)
+    # Pass 1: glow pass — saber only, WHITE emitter (luminance mask), transparent film
+    set_blade(color, alpha, mode="glow")
     grid.hide_render = True
     scene.render.film_transparent = True
     scene.render.filepath = glow_path
     bpy.ops.render.render(write_still=True)
-    # Pass 2: scene pass — grid + saber, opaque film
+    # Pass 2: scene pass — tinted blade + grid, opaque film
+    set_blade(color, alpha, mode="scene")
     grid.hide_render = False
     scene.render.film_transparent = False
     scene.render.filepath = final_path
     bpy.ops.render.render(write_still=True)
-    # Additive composite: scene + tight halo + wide halo (the in-engine additive glow)
+    # Additive composite: scene + halos tinted with the EXACT file color.
+    # halo = blur(white luminance mask) x file-color x dim-factor.
     base = Image.open(final_path).convert("RGB")
     glow = Image.open(glow_path).convert("RGB")
-    halo_tight = glow.filter(ImageFilter.GaussianBlur(8))
-    halo_wide = glow.filter(ImageFilter.GaussianBlur(22))
-    out_img = ImageChops.add(ImageChops.add(base, halo_tight), halo_wide)
+    tint_img = Image.new("RGB", base.size, (int(color[0] * 255), int(color[1] * 255), int(color[2] * 255)))
+    dim_img = Image.new("RGB", base.size, (int(255 * alpha),) * 3)
+    def tinted_halo(radius):
+        h = glow.filter(ImageFilter.GaussianBlur(radius))
+        return ImageChops.multiply(ImageChops.multiply(h, tint_img), dim_img)
+    out_img = ImageChops.add(ImageChops.add(base, tinted_halo(8)), tinted_halo(22))
     out_img.save(final_path)
     os.remove(glow_path)
     print(f"[render-saber] {fname} elev={elev} azim={azim} alpha={alpha}")

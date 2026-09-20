@@ -78,31 +78,12 @@ def mat_by_sub(needle):
 blade_mat = mat_by_sub("blade") or saber.data.materials[0]
 hilt_mat = mat_by_sub("hilt")
 
-# ---- glow halo (translucent emissive, around the BLADE section only) ----
-# The saber runs along local +Y; a primitive cylinder's axis is local +Z, so
-# rotate 90deg about X to align the halo with the blade.
-bpy.ops.mesh.primitive_cylinder_add(radius=GLOW_RADIUS, depth=GLOW_LENGTH, vertices=24,
-                                    location=(0, GLOW_CENTER_Y, 0),
-                                    rotation=(math.radians(90), 0, 0))
-glow = bpy.context.active_object
-glow.name = "saber_glow"
-glow_mat = bpy.data.materials.new("saber_glow_mat")
-glow_mat.use_nodes = True
-nt = glow_mat.node_tree
-nt.nodes.clear()
-out_node = nt.nodes.new("ShaderNodeOutputMaterial")
-emis = nt.nodes.new("ShaderNodeEmission")
-emis.name = "Emission"
-emis.inputs["Strength"].default_value = 1.6
-transp = nt.nodes.new("ShaderNodeBsdfTransparent")
-mix = nt.nodes.new("ShaderNodeMixShader")
-mix.inputs["Fac"].default_value = 0.45   # additive-ish halo strength (EEVEE 4.0 has no ADD blend)
-nt.links.new(emis.outputs["Emission"], mix.inputs[1])
-nt.links.new(transp.outputs["BSDF"], mix.inputs[2])
-nt.links.new(mix.outputs["Shader"], out_node.inputs["Surface"])
-glow_mat.blend_method = "BLEND"
-glow_mat.shadow_method = "NONE"
-glow.data.materials.append(glow_mat)
+# ---- glow: NOT scene geometry ----
+# The in-engine glow is an additive-blend halo staged by the renderer around the
+# blade section (radius 0.045 WU, tint x gain 0.6). A transparent cylinder in
+# the scene does NOT read as glow (Derrick's call) — the review render
+# reproduces the additive look with compositor BLOOM: the emissive blade is
+# thresholded, blurred, and added back over the frame (see setup below).
 
 # ---- grid floor (viewport-style) ----
 bpy.ops.mesh.primitive_grid_add(x_subdivisions=60, y_subdivisions=60, size=12, location=(0, 0.4, -0.05))
@@ -146,6 +127,14 @@ def place_cam(elev_deg, azim_deg, dist=2.6):
     d = mathutils.Vector(TARGET) - cam.location
     cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
+# ---- glow: two-pass additive composite (like in-engine BLEND_ADDITIVE) ----
+# Each job renders TWICE: (1) the scene (grid + saber, opaque film), (2) a
+# glow pass (saber only, TRANSPARENT film). The glow pass is the saber on
+# black/alpha — blurring it and ADDing it over the scene reproduces the
+# in-engine additive halo: colored (not blown-out white), and confined to the
+# blade (the grid/background never bloom). Compositing is done with PIL below.
+from PIL import Image, ImageChops, ImageFilter
+
 def set_blade(color, alpha=1.0):
     if blade_mat.use_nodes:
         bsdf = blade_mat.node_tree.nodes.get("Principled BSDF")
@@ -153,14 +142,12 @@ def set_blade(color, alpha=1.0):
             bsdf.inputs["Base Color"].default_value = (color[0], color[1], color[2], 1.0)
             if "Emission Color" in bsdf.inputs:
                 bsdf.inputs["Emission Color"].default_value = (color[0], color[1], color[2], 1.0)
-                bsdf.inputs["Emission Strength"].default_value = 0.85
+                # bright but color-preserving (blowout to white kills the tint);
+                # the additive halo comes from the glow pass, not core exposure
+                bsdf.inputs["Emission Strength"].default_value = 1.4 * alpha
             blade_mat.blend_method = "BLEND" if alpha < 1.0 else "OPAQUE"
             if "Alpha" in bsdf.inputs:
                 bsdf.inputs["Alpha"].default_value = alpha
-    emis = glow_mat.node_tree.nodes.get("Emission")
-    if emis:
-        emis.inputs["Color"].default_value = (color[0] * GLOW_GAIN, color[1] * GLOW_GAIN, color[2] * GLOW_GAIN, 1.0)
-        emis.inputs["Strength"].default_value = 1.6
 
 os.makedirs(out_dir, exist_ok=True)
 jobs = []
@@ -172,9 +159,26 @@ jobs.append((f"r2-saber-dimmed-theme-blue.png", COLORS[0][1], DIM, ANGLES[0][1],
 
 for fname, color, alpha, elev, azim in jobs:
     set_blade(color, alpha)
-    glow_mat.node_tree.nodes["Emission"].inputs["Strength"].default_value = 1.6 * alpha
     place_cam(elev, azim)
-    scene.render.filepath = os.path.join(out_dir, fname)
+    final_path = os.path.join(out_dir, fname)
+    glow_path = os.path.join(out_dir, ".glow-" + fname)
+    # Pass 1: glow pass — saber only, transparent film (halo source on black)
+    grid.hide_render = True
+    scene.render.film_transparent = True
+    scene.render.filepath = glow_path
     bpy.ops.render.render(write_still=True)
+    # Pass 2: scene pass — grid + saber, opaque film
+    grid.hide_render = False
+    scene.render.film_transparent = False
+    scene.render.filepath = final_path
+    bpy.ops.render.render(write_still=True)
+    # Additive composite: scene + tight halo + wide halo (the in-engine additive glow)
+    base = Image.open(final_path).convert("RGB")
+    glow = Image.open(glow_path).convert("RGB")
+    halo_tight = glow.filter(ImageFilter.GaussianBlur(8))
+    halo_wide = glow.filter(ImageFilter.GaussianBlur(22))
+    out_img = ImageChops.add(ImageChops.add(base, halo_tight), halo_wide)
+    out_img.save(final_path)
+    os.remove(glow_path)
     print(f"[render-saber] {fname} elev={elev} azim={azim} alpha={alpha}")
 print("[render-saber] DONE")

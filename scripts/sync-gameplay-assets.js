@@ -12,11 +12,11 @@ const expectedAuditCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
 const expectedAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
 // 0.0.62 L-C (r2lb r1a): the asset-source repo (pinned to a157d93) has the
 // original 7-entry inventory/proof. The renderer target (assets/gameplay/
-// 0.0.11/) has the 8-entry inventory (flow-saber added) + updated proof.
+// 0.0.11/) has the 9-entry inventory (flow-saber + boxing-glove added) + updated proof.
 const expectedSourceInventoryHash="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
 const expectedSourceProofHash="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
-const expectedInventoryHash="04084ea5119c4c30011840318ada3f483db3843c60806499d8f25f0e48ffa583";
-const expectedProofHash="378e566dd7bf5ed261db0276485032f6448f4ae4268d461ca516c2419095e3c6";
+const expectedInventoryHash="b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29";
+const expectedProofHash="a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3";
 const expectedSetHash="af294a9e1e6654ccfd56c7b42b1f3fefdd536f4eb9bc4fb026ead8a3f970c8a7";
 const expectedMarkerGlbHash="f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc";
 const expectedReleaseTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";
@@ -57,7 +57,7 @@ const sourceInventory=JSON.parse(sourceInventoryBytes.toString("utf8"));
 const sourceProof=JSON.parse(sourceProofBytes.toString("utf8"));
 if(sourceInventory.expected_asset_count!==7||sourceInventory.immutable!==true||sourceInventory.payload.length!==15)throw new Error("source inventory contract mismatch");
 if(sourceProof.release!==release||sourceProof.inventory_sha256!==expectedSourceInventoryHash)throw new Error("source proof contract mismatch");
-// The renderer target inventory (8 entries, flow-saber added) is what the
+// The renderer target inventory (9 entries, flow-saber + boxing-glove added) is what the
 // validators + assembly consume. Parse it from the target tree.
 const targetInventoryBytes=await readFile(path.join(target,"inventory.v1.json"));
 const targetProofBytes=await readFile(path.join(target,"proof.v1.json"));
@@ -65,7 +65,7 @@ if(sha256(targetInventoryBytes)!==expectedInventoryHash)throw new Error("target 
 if(sha256(targetProofBytes)!==expectedProofHash)throw new Error("target proof hash mismatch");
 const inventory=JSON.parse(targetInventoryBytes.toString("utf8"));
 const proof=JSON.parse(targetProofBytes.toString("utf8"));
-if(inventory.expected_asset_count!==8||inventory.immutable!==true||inventory.payload.length!==16)throw new Error("target inventory contract mismatch");
+if(inventory.expected_asset_count!==9||inventory.immutable!==true||inventory.payload.length!==17)throw new Error("target inventory contract mismatch");
 if(proof.release!==release||proof.inventory_sha256!==expectedInventoryHash)throw new Error("target proof contract mismatch");
 const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/default-v1.json");
 if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
@@ -92,11 +92,11 @@ for(const relative of ["directional-arrow/rounded-outline-v1.glb","any-note/outl
   if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from ${predecessorRelease}: ${relative}`);
 }
 // 0.0.62 L-C (r2lb r1a): the source tree has 7 GLBs (the asset-source commit
-// predates the flow-saber). The target tree has 8 GLBs (flow-saber added).
+// predates the flow-saber). The target tree has 9 GLBs (flow-saber + boxing-glove added).
 const expectedSourceFiles=[...sourceInventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
 if(expectedSourceFiles.length!==17||new Set(expectedSourceFiles).size!==17)throw new Error("source exact inventory mismatch");
 const expectedTargetFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
-if(expectedTargetFiles.length!==18||new Set(expectedTargetFiles).size!==18)throw new Error("target exact inventory mismatch");
+if(expectedTargetFiles.length!==19||new Set(expectedTargetFiles).size!==19)throw new Error("target exact inventory mismatch");
 
 async function makeDirectoriesWritable(root){
   let entries;

@@ -184,9 +184,9 @@ export class AeroPlayCanvasRenderer {
     // role still "accepted" while only one hand was visible).
     const staged=new Map();for(const role of equipmentRoles){const lead=this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0]??null;if(lead?.enabled){staged.set(role,"flow");continue;}const body=this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)?.[0]??null;if(body?.enabled)staged.set(role,"boxing");}
     const roles=equipmentRoles.filter((role)=>staged.has(role)),modes=roles.map((role)=>staged.get(role));
-    const anySaberGlb=roles.some((role)=>this.assetMaterials.get(this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0])?.length>0);
-    const assetMode=anySaberGlb?"glb":(roles.length>0?"primitive":"none");
-    this.equipmentDiagnostics=Object.freeze({instanceCount:roles.length,roles:Object.freeze([...roles]),modes:Object.freeze(modes.map((mode,index)=>`${roles[index]}:${mode}`)),depthTest:true,depthWrite:anySaberGlb,assetMode});return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});}
+    const anyEquipmentGlb=roles.some((role)=>(this.assetMaterials.get(this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0])?.length>0)||(this.assetMaterials.get(this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)?.[0])?.length>0));
+    const assetMode=anyEquipmentGlb?"glb":(roles.length>0?"primitive":"none");
+    this.equipmentDiagnostics=Object.freeze({instanceCount:roles.length,roles:Object.freeze([...roles]),modes:Object.freeze(modes.map((mode,index)=>`${roles[index]}:${mode}`)),depthTest:true,depthWrite:anyEquipmentGlb,assetMode});return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});}
   /** 0.0.62 L-C (r2lb r2): flow saber v2 = two-cylinder GLB (hilt + blade + rounded tip)
     *   from the wrist along the judge-space direction. The GLB extends along LOCAL +Y for
     *   0.75 WU (== detection capsule length, what-you-see-is-what-hits). Two material slots:
@@ -217,7 +217,7 @@ export class AeroPlayCanvasRenderer {
    stageSaber(role,position,direction,color,alpha){
     const dx=direction?.x??0,dy=direction?.y??0,length=Math.hypot(dx,dy),unitX=length>0?dx/length:0,unitY=length>0?dy/length:-1;
     const loaderMode=this.gameplayAssetLoader.describe().state;
-    const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/flow-saber-v1:"+role):null;
+    const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/flow-saber-v1:"+role,"flow-saber/flow-saber-v1"):null;
     if(glbEntity){
       glbEntity.enabled=true;glbEntity.name=`equipment-${role}`;
       glbEntity.setPosition(position.x,position.y,0.45);
@@ -269,11 +269,11 @@ export class AeroPlayCanvasRenderer {
   /** 0.0.62 L-C (r2lb): acquire (or lazily create) a GLB-backed equipment entity for the flow saber.
    *   Pool key: `<assetId>:<role>` (e.g. "equipment/flow-saber-v1:left_wrist"). Each role
    *   owns a distinct GLB entity (independent material clones via cloneAssetMaterials). */
-  acquireEquipmentGlbEntity(assetId){
+  acquireEquipmentGlbEntity(assetId,resourceId){
     let entries=this.equipmentPools.get(assetId);
     if(!entries){entries=[];this.equipmentPools.set(assetId,entries);}
     while(entries.length<1){
-      const resource=this.gameplayAssetLoader.resourceFor("flow-saber/flow-saber-v1");
+      const resource=this.gameplayAssetLoader.resourceFor(resourceId);
       if(!resource?.instantiateRenderEntity)return null;
       const entity=resource.instantiateRenderEntity({castShadows:false,receiveShadows:false});
       entity.enabled=false;
@@ -305,12 +305,19 @@ export class AeroPlayCanvasRenderer {
         // Dark gunmetal hilt: authored color (no per-hand tint, no emissive).
         diffuseR=record.diffuse.r;diffuseG=record.diffuse.g;diffuseB=record.diffuse.b;
         emissiveR=record.emissive.r;emissiveG=record.emissive.g;emissiveB=record.emissive.b;
+      }else if(materialRole==="glove_body_tint"){
+        // 0.0.62 L-D (5y0q r1): per-hand TINTABLE glove fist. diffuse = hand color,
+        // emissive = 0.4x hand color (matches the primitive glove's emissive gain).
+        // Vertex-color AO (COLOR_0) multiplies in automatically, keeping the baked
+        // crevice depth under the tint. Dims via opacity (alpha) like the saber.
+        diffuseR=rgba[0];diffuseG=rgba[1];diffuseB=rgba[2];
+        emissiveR=rgba[0]*0.4;emissiveG=rgba[1]*0.4;emissiveB=rgba[2]*0.4;
       }else{
         // Unrecognized part: keep authored source appearance.
         diffuseR=record.diffuse.r;diffuseG=record.diffuse.g;diffuseB=record.diffuse.b;
         emissiveR=record.emissive.r;emissiveG=record.emissive.g;emissiveB=record.emissive.b;
       }
-      const state={kind:"equipment-glb",assetId,materialRole,sourceMaterial:record.sourceMaterial,diffuseR,diffuseG,diffuseB,emissiveR,emissiveG,emissiveB,opacity:alpha,blendType:pc.BLEND_NORMAL,depthWrite:true,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
+      const state={kind:"equipment-glb",assetId,materialRole,sourceMaterial:record.sourceMaterial,diffuseR,diffuseG,diffuseB,emissiveR,emissiveG,emissiveB,opacity:alpha,blendType:pc.BLEND_NORMAL,depthWrite:true,depthTest:true,useLighting:false,cull:materialRole==="glove_body_tint"?pc.CULLFACE_NONE:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
       if(materialStateIsUnchanged(material,this.materialStates.get(material),state))continue;
       material.diffuse.set(diffuseR,diffuseG,diffuseB);material.emissive.set(emissiveR,emissiveG,emissiveB);material.opacity=state.opacity;material.blendType=state.blendType;material.depthWrite=state.depthWrite;material.depthTest=state.depthTest;material.useLighting=state.useLighting;material.cull=state.cull;material.diffuseMap=state.diffuseMap;material.emissiveMap=state.emissiveMap;material.opacityMap=state.opacityMap;material.update();
       this.materialStates.set(material,state);
@@ -318,6 +325,21 @@ export class AeroPlayCanvasRenderer {
   }
   /** 0.0.61 L-F3: boxing glove = tinted body box + white structural accent box centered at wrist + 0.05 WU toward the grid (toward the athlete camera, +z at the athlete plane). */
   stageGlove(role,position,color,alpha){
+    const loaderMode=this.gameplayAssetLoader.describe().state;
+    const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/boxing-glove-v1:"+role,"boxing-glove/boxing-glove-v1"):null;
+    if(glbEntity){
+      glbEntity.enabled=true;glbEntity.name=`equipment-${role}`;
+      glbEntity.setPosition(position.x,position.y,0.45+gloveGeometry.offsetZ);
+      // The GLB is authored left-hand convention (thumb +X); the right hand mirrors.
+      // The glove body material is double-sided (CULLFACE_NONE via the
+      // glove_body_tint role), so the negative-scale winding flip is safe.
+      glbEntity.setLocalScale(role==="right_wrist"?-1:1,1,1);
+      glbEntity.setEulerAngles(0,0,0);
+      this.applyEquipmentGlbAppearance(glbEntity,"boxing-glove/boxing-glove-v1",color,alpha);
+      this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:boxing`]),depthTest:true,depthWrite:true,assetMode:"glb"});
+      return;
+    }
+    // Primitive fallback (loader not ready): tinted body box + white structural accent.
     const entries=this.acquireEquipmentEntries("equipment/boxing-glove-v1:"+role,2);const body=entries[0],accent=entries[1];if(!body||!accent)return;
     const z=0.45+gloveGeometry.offsetZ;
     body.enabled=true;body.name=`equipment-${role}`;this.applyEquipmentTransform(body,position.x,position.y,z,"box",[gloveGeometry.x,gloveGeometry.y,gloveGeometry.z]);

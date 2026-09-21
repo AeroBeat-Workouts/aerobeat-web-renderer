@@ -9,9 +9,9 @@ import { chromium } from "playwright";
 import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root = process.cwd();
-const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "directional-arrow/rounded-outline-v1", "flow-saber/flow-saber-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
-const gameplayInventorySha256 = "04084ea5119c4c30011840318ada3f483db3843c60806499d8f25f0e48ffa583";
-const gameplayProofSha256 = "378e566dd7bf5ed261db0276485032f6448f4ae4268d461ca516c2419095e3c6";
+const gameplayAssetIds = ["any-note/outlined-circle-v1", "athlete-marker/sphere-v1", "bomb/urchin-v1", "boxing-glove/boxing-glove-v1", "directional-arrow/rounded-outline-v1", "flow-saber/flow-saber-v1", "guard/outlined-shield-v1", "track/blue-glass-v1", "wall/red-glass-v1"];
+const gameplayInventorySha256 = "b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29";
+const gameplayProofSha256 = "a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3";
 const environmentRoot = resolve(root, "../aerobeat-environment-community");
 const brandingRoot = resolve(root, "../aerobeat-branding/icons/web-gameplay");
 const catalog = JSON.parse(await readFile(resolve(environmentRoot, ".testbed/assets/images/photosphere-catalog.json"), "utf8"));
@@ -97,7 +97,7 @@ try {
     await page.waitForFunction(() => globalThis.__AERO_RENDERER_TEST__?.ready === true);
     await page.waitForFunction(() => globalThis.__AERO_RENDERER_TEST__.renderers.every((renderer) => renderer.describe().gameplayAssets.state === "ready"));
     const gameplay = await page.evaluate(() => globalThis.__AERO_RENDERER_TEST__.renderers.map((renderer) => renderer.describe().gameplayAssets));
-    assert.ok(gameplay.every((status) => status.ready && !status.fallback && status.assetCount === 8 && status.loadedAssetIds.length === 8));
+    assert.ok(gameplay.every((status) => status.ready && !status.fallback && status.assetCount === 9 && status.loadedAssetIds.length === 9));
     for (const status of gameplay) {
       assert.deepEqual(status.loadedAssetIds, gameplayAssetIds);
       assert.equal(status.inventorySha256, gameplayInventorySha256);
@@ -167,7 +167,7 @@ try {
     assert.equal(lifecycle.lost.gameplayAssets.state, "fallback");
     assert.equal(lifecycle.lost.environment.state, "idle");
     assert.equal(lifecycle.restored.gameplayAssets.state, "ready");
-    assert.equal(lifecycle.restored.gameplayAssets.loadedAssetIds.length, 8);
+    assert.equal(lifecycle.restored.gameplayAssets.loadedAssetIds.length, 9);
     assert.equal(lifecycle.restored.environment.state, "ready");
     assert.equal(lifecycle.restored.environment.count, 1);
     assert.ok(lifecycle.generationRestored > lifecycle.generationBefore);

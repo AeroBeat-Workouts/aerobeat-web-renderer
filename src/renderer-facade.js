@@ -246,17 +246,23 @@ export class AeroPlayCanvasRenderer {
     *   depthWrite OFF) positioned from the hilt tip to the blade tip. Its color
     *   is the blade tint × gain. Dimming: color × alpha (NOT opacity — additive
     *   blend ignores alpha). 0.0.62 r2b: gain 0.6 -> 1.0 (bright-Aero halo
-     *   visibility, sweep-measured, Derrick-approved). */
+     *   visibility, sweep-measured, Derrick-approved).
+     *   0.0.63 D6: glow start moved 0.15 -> 0.18 (blade base), so the capsule no
+     *   longer paints a bright band over the hilt; the hilt is excluded and the
+     *   hilt/blade seam reads continuous. Gain stays 1.0. */
   acquireSaberGlow(role,position,unitX,unitY,color,alpha){
     const glowKey=`equipment/flow-saber-v1-glow:${role}`;
     let entries=this.equipmentPools.get(glowKey);
     if(!entries){entries=[];this.equipmentPools.set(glowKey,entries);while(entries.length<1)entries.push(this.makeEntity(`equipment-glow-${entries.length}`,"cylinder"));}
     const glow=entries[0];if(!glow)return;
     const hiltLen=0.18,bladeLen=0.57,glowRadius=0.045,glowGain=1.0;
-    const glowMidX=position.x+unitX*(hiltLen+bladeLen/2);
-    const glowMidY=position.y+unitY*(hiltLen+bladeLen/2);
+    // 0.0.63 D6: glow is blade-section only (hilt excluded); 0.18 = BLADE_Y0 per
+    // 0.0.63 D6 sign-off. Capsule start 0.15 -> 0.18: length shrinks 0.63 -> 0.60
+    // (=bladeLen+0.03), center shifts 0.465 -> 0.48, END stays 0.78 unchanged.
+    const glowMidX=position.x+unitX*(hiltLen+bladeLen/2+0.015);
+    const glowMidY=position.y+unitY*(hiltLen+bladeLen/2+0.015);
     glow.enabled=true;glow.name=`equipment-${role}-glow`;
-    this.applyEquipmentTransform(glow,glowMidX,glowMidY,0.45,"capsule",[bladeLen+0.06,glowRadius,unitX,unitY]);
+    this.applyEquipmentTransform(glow,glowMidX,glowMidY,0.45,"capsule",[bladeLen+0.03,glowRadius,unitX,unitY]);
     const rgba=colorTokenToRgba(color,[1,1,1,1]);
     const gR=rgba[0]*glowGain,gG=rgba[1]*glowGain,gB=rgba[2]*glowGain;
     // Dimming: scale the color/emissive by alpha (additive blend ignores opacity).

@@ -245,13 +245,14 @@ export class AeroPlayCanvasRenderer {
     *   around the saber's blade section. The glow is a cylinder (additive blend,
     *   depthWrite OFF) positioned from the hilt tip to the blade tip. Its color
     *   is the blade tint × gain. Dimming: color × alpha (NOT opacity — additive
-    *   blend ignores alpha). */
+    *   blend ignores alpha). 0.0.62 r2b: gain 0.6 -> 1.0 (bright-Aero halo
+     *   visibility, sweep-measured, Derrick-approved). */
   acquireSaberGlow(role,position,unitX,unitY,color,alpha){
     const glowKey=`equipment/flow-saber-v1-glow:${role}`;
     let entries=this.equipmentPools.get(glowKey);
     if(!entries){entries=[];this.equipmentPools.set(glowKey,entries);while(entries.length<1)entries.push(this.makeEntity(`equipment-glow-${entries.length}`,"cylinder"));}
     const glow=entries[0];if(!glow)return;
-    const hiltLen=0.18,bladeLen=0.57,glowRadius=0.045,glowGain=0.6;
+    const hiltLen=0.18,bladeLen=0.57,glowRadius=0.045,glowGain=1.0;
     const glowMidX=position.x+unitX*(hiltLen+bladeLen/2);
     const glowMidY=position.y+unitY*(hiltLen+bladeLen/2);
     glow.enabled=true;glow.name=`equipment-${role}-glow`;

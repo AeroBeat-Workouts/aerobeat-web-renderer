@@ -7,7 +7,7 @@
 # Produces 1280x720 angled product renders (dark background + grid floor + area light):
 #   4 blade colors at angle1, theme-blue at angle2 + angle2b, and one dimmed variant.
 # The glow is approximated in-scene with an additive halo matched to the in-engine
-# parameters (radius 0.045 WU, blade tint x gain 0.6) — the runtime glow itself is
+# parameters (radius 0.045 WU, blade tint x gain 1.0) — the runtime glow itself is
 # staged by the renderer and is not part of the GLB.
 import sys, os, math
 

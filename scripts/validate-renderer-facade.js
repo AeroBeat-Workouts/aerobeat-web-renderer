@@ -226,3 +226,51 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
     assert.notDeepEqual(leftHiltPos, rightHiltPos, "uniform-mode hilt positions must be distinct");
   }
   console.log("Equipment staging validation passed (0.0.62 L-C r2lb).");
+
+// --- 0.0.63 C2: per-hand equipment transform contract (scale + rotationZDeg) ---
+{
+  const r = createAeroPlayCanvasRenderer();
+  r.app = { root: { addChild() {} } };
+  const makeStub = (name, type) => ({ name, type, enabled: false, pos: [0,0,0], scale: [1,1,1], euler: [0,0,0], setPosition(x,y,z){this.pos=[x,y,z];}, setLocalScale(x,y,z){this.scale=[x,y,z];}, setEulerAngles(x,y,z){this.euler=[x,y,z];} });
+  r.makeEntity = (name, type) => makeStub(name, type);
+  r.updateEquipmentMaterial = () => {};
+  r.applyEquipmentGlbAppearance = () => {};
+  r.gameplayAssetLoader.activateFallback("unit_test");
+  const grid = { x: 0, y: 0, width: 1, height: 1 };
+  const base = { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow" };
+  let res;
+  // Absent → accepted (defaults 0/1)
+  res = r.stageGameplayEquipment([{ ...base }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "absent scale/rotationZDeg must be accepted");
+  // Each alone
+  res = r.stageGameplayEquipment([{ ...base, scale: 2.0 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "scale alone must be accepted");
+  res = r.stageGameplayEquipment([{ ...base, rotationZDeg: 45 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "rotationZDeg alone must be accepted");
+  // Both
+  res = r.stageGameplayEquipment([{ ...base, scale: 1.5, rotationZDeg: -30 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "scale + rotationZDeg must be accepted");
+  // With dimmed / direction combos
+  res = r.stageGameplayEquipment([{ ...base, dimmed: true, scale: 2 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "scale with dimmed must be accepted");
+  res = r.stageGameplayEquipment([{ ...base, direction: { x: 1, y: 0 }, rotationZDeg: 90 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "rotationZDeg with direction must be accepted");
+  res = r.stageGameplayEquipment([{ ...base, dimmed: true, direction: { x: 0, y: 1 }, scale: 1.2, rotationZDeg: 10 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "all four optionals must be accepted");
+  res = r.stageGameplayEquipment([{ role: "right_wrist", x: 0.3, y: 0.3, mode: "boxing", scale: 0.8, rotationZDeg: -15 }], { grid }, true);
+  assert.equal(res.equipmentCount, 1, "boxing with scale + rotationZDeg must be accepted");
+  // Invalid values → rejected
+  res = r.stageGameplayEquipment([{ ...base, rotationZDeg: NaN }], { grid }, true);
+  assert.equal(res.equipmentCount, 0, "rotationZDeg NaN must be rejected");
+  res = r.stageGameplayEquipment([{ ...base, scale: 0 }], { grid }, true);
+  assert.equal(res.equipmentCount, 0, "scale 0 must be rejected");
+  res = r.stageGameplayEquipment([{ ...base, scale: -1 }], { grid }, true);
+  assert.equal(res.equipmentCount, 0, "scale -1 must be rejected");
+  res = r.stageGameplayEquipment([{ ...base, rotationZDeg: "x" }], { grid }, true);
+  assert.equal(res.equipmentCount, 0, "rotationZDeg string must be rejected");
+  res = r.stageGameplayEquipment([{ ...base, scale: "1.5" }], { grid }, true);
+  assert.equal(res.equipmentCount, 0, "scale string must be rejected");
+  res = r.stageGameplayEquipment([{ ...base, scale: Infinity }], { grid }, true);
+  assert.equal(res.equipmentCount, 0, "scale Infinity must be rejected");
+  console.log("Equipment transform contract validation passed (0.0.63 C2).");
+}

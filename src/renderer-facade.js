@@ -119,14 +119,17 @@ export class AeroPlayCanvasRenderer {
    * boxing glove) in the same post-updateSceneObjects order as cursors.
    * `equipment` records share the cursor staging grid but carry their own
    * fields: `{role:"left_wrist"|"right_wrist", x, y (normalized 0..1), mode:
-   * "flow"|"boxing", dimmed?, direction? ({x,y} in JUDGE space, flow only)}`.
+   * "flow"|"boxing", dimmed?, direction? ({x,y} in JUDGE space, flow only),
+   * scale? (finite number > 0, default 1), rotationZDeg? (finite number,
+   * default 0)}`. `rotationZDeg` rotates the equipment model IN THE STAGING
+   * PLANE around the wrist anchor; `scale` multiplies the model's size.
    * `cursorOptions`/`equipmentOptions` are the same option records as
    * `renderGameplayFrameWithCursors` (grid, minConfidence, sizeCssPx).
    * No records → no staging.
    * @param {import("./gameplay-scene-model.js").AeroGameplayFrame} frame
    * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,confidence:number,dimmed?:boolean}>>|null} cursors
    * @param {unknown} cursorOptions
-   * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>}>>|null} equipment
+   * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>,scale?:number,rotationZDeg?:number}>>|null} equipment
    * @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
@@ -141,16 +144,19 @@ export class AeroPlayCanvasRenderer {
     const effectivePalette=effectiveMarkerPalettes.get(this);for(const role of cursorRoles){const cursor=accepted.get(role);if(!cursor)continue;const position=gridPositionForNormalized(cursor.x,cursor.y,0.45),color=role==="nose"?"#F4C20D":role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor);let entity=null;if(mode==="ready")entity=this.acquireMarkerEntity(roles.length);else if(mode==="fallback")entity=this.acquireFallbackMarker(roles.length);if(!entity)continue;const worldScale=this.worldScaleForCssPx(sizeCssPx,position,mode==="ready"?.18:1);entity.enabled=true;entity.name=`cursor-${role}`;entity.setPosition(position.x,position.y,position.z);entity.setLocalScale(worldScale,worldScale,worldScale);entity.setEulerAngles(0,0,0);const cursorAlpha=cursor.dimmed===true?CURSOR_LOST_DIM_ALPHA:1;if(mode==="ready")this.applyAssetAppearance(entity,"athlete-marker/sphere-v1",color,cursorAlpha,false);else this.updateMaterial(entity,color,cursorAlpha,null,false,true);roles.push(role);markerScales.push(worldScale);}
     this.cursorDiagnostics=Object.freeze({instanceCount:roles.length,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([...roles]),depthTest:true,depthWrite:true,sourceMode:mode,sizeCssPx,worldScales:Object.freeze(markerScales)});return Object.freeze({cursorCount:roles.length,roles:Object.freeze(roles)});
   }
-  /** 0.0.61 L-F3: standalone equipment staging (mirrors renderGameplayCursors). @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>}>>} equipment @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} options */
+  /** 0.0.61 L-F3: standalone equipment staging (mirrors renderGameplayCursors). @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>,scale?:number,rotationZDeg?:number}>>} equipment @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} options */
   renderGameplayEquipment(equipment,options){const result=this.stageGameplayEquipment(equipment,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),equipmentCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.equipmentCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
   /**
    * 0.0.61 L-F3 (chgy/hk5q/vths): stage athlete equipment at the athlete plane
    * Z=0.45, in the same post-updateSceneObjects order as cursors.
    *
    * Records: `{role:"left_wrist"|"right_wrist", x, y, mode:"flow"|"boxing",
-   * dimmed?:boolean, direction?:{x,y}}` with x/y normalized 0..1 against
-   * `options.grid` (same mapping as cursors) and `direction` in JUDGE space
-   * (flow sabers only; see @aerobeat/web-contracts/equipment-contracts).
+   * dimmed?:boolean, direction?:{x,y}, scale?:number, rotationZDeg?:number}`
+   * with x/y normalized 0..1 against `options.grid` (same mapping as cursors)
+   * and `direction` in JUDGE space (flow sabers only; see
+   * @aerobeat/web-contracts/equipment-contracts). `rotationZDeg` rotates the
+   * equipment model IN THE STAGING PLANE around the wrist anchor; `scale`
+   * multiplies the model's size (both default 0/1 when absent).
    * 0.0.61 L-F6: each role owns a dedicated pool (key "<assetId>:<role>"),
    * so a two-handed frame in the SAME mode stages two independent entity
    * pairs instead of the second role renaming and repositioning the first
@@ -170,14 +176,14 @@ export class AeroPlayCanvasRenderer {
    * from the entities actually ENABLED in the pools after the staging
    * pass, never from the accepted record count, so a record that failed
    * to stage is not reported as staged.
-   * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>}>>} equipment
+   * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>,scale?:number,rotationZDeg?:number}>>} equipment
    * @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} options
    * @param {boolean} clear
    */
-  stageGameplayEquipment(equipment,options,clear){normalizeCursorGrid(options?.grid);if(!Array.isArray(equipment)||equipment.length>4)throw new TypeError("Gameplay equipment cannot exceed 4 records");const accepted=new Map();for(const record of equipment){if(!plainData(record)||!(Object.keys(record).length===4||(Object.keys(record).length===5&&typeof record.dimmed==="boolean")||(Object.keys(record).length===5&&record.direction!==undefined&&plainData(record.direction))||(Object.keys(record).length===6&&typeof record.dimmed==="boolean"&&plainData(record.direction)))||!equipmentRoles.includes(record.role)||!equipmentModes.includes(record.mode)||accepted.has(record.role)||![record.x,record.y].every(Number.isFinite)||record.x<0||record.x>1||record.y<0||record.y>1)continue;if(record.mode==="flow"&&record.direction!==undefined){if(!(Object.keys(record.direction).length===2&&[record.direction.x,record.direction.y].every(Number.isFinite)))continue;}else if(record.direction!==undefined)continue;accepted.set(record.role,record);}
+  stageGameplayEquipment(equipment,options,clear){normalizeCursorGrid(options?.grid);if(!Array.isArray(equipment)||equipment.length>4)throw new TypeError("Gameplay equipment cannot exceed 4 records");const accepted=new Map();for(const record of equipment){if(!plainData(record)||!(function(){const k=Object.keys(record);const hd="dimmed" in record,hf="direction" in record,hs="scale" in record,hr="rotationZDeg" in record;const cnt=(hd?1:0)+(hf?1:0)+(hs?1:0)+(hr?1:0);const od=!hd||typeof record.dimmed==="boolean";const ofd=!hf||plainData(record.direction);const os=!hs||(typeof record.scale==="number"&&Number.isFinite(record.scale)&&record.scale>0);const or_=!hr||(typeof record.rotationZDeg==="number"&&Number.isFinite(record.rotationZDeg));const n=k.length;if(n!==4+cnt)return false;return od&&ofd&&os&&or_;})()||!equipmentRoles.includes(record.role)||!equipmentModes.includes(record.mode)||accepted.has(record.role)||![record.x,record.y].every(Number.isFinite)||record.x<0||record.x>1||record.y<0||record.y>1)continue;if(record.mode==="flow"&&record.direction!==undefined){if(!(Object.keys(record.direction).length===2&&[record.direction.x,record.direction.y].every(Number.isFinite)))continue;}else if(record.direction!==undefined)continue;accepted.set(record.role,record);}
     if(!this.app||this.destroyed||this.contextLost)return Object.freeze({equipmentCount:0,roles:Object.freeze([])});
     if(clear)this.clearOverlayEntities();for(const entries of this.equipmentPools.values())for(const entity of entries)entity.enabled=false;const effectivePalette=effectiveMarkerPalettes.get(this);
-    for(const role of equipmentRoles){const record=accepted.get(role);if(!record)continue;const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor),alpha=record.dimmed===true?CURSOR_LOST_DIM_ALPHA:1,position=gridPositionForNormalized(record.x,record.y,0.45);if(record.mode==="flow")this.stageSaber(role,position,record.direction,color,alpha);else this.stageGlove(role,position,color,alpha);}
+    for(const role of equipmentRoles){const record=accepted.get(role);if(!record)continue;const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor),alpha=record.dimmed===true?CURSOR_LOST_DIM_ALPHA:1,position=gridPositionForNormalized(record.x,record.y,0.45),scale=Number.isFinite(record.scale)?record.scale:1,rotationZDeg=Number.isFinite(record.rotationZDeg)?record.rotationZDeg:0;if(record.mode==="flow")this.stageSaber(role,position,record.direction,color,alpha,scale,rotationZDeg);else this.stageGlove(role,position,color,alpha,scale,rotationZDeg);}
     // 0.0.61 L-F6: truthful diagnostics — derive instanceCount/roles/modes from the
     // entities actually ENABLED in the per-role pools after this staging pass, not from
     // the accepted records (the pre-fix code counted records, which a clobbered/failed
@@ -213,30 +219,39 @@ export class AeroPlayCanvasRenderer {
     * @param {Readonly<{x:number,y:number}>|null} direction JUDGE-space unit vector.
     * @param {string} color Per-hand color token (song palette / theme default).
     * @param {number} alpha 1 (undimmed) or CURSOR_LOST_DIM_ALPHA (0.45, dimmed).
+    * @param {number} scale Multiplier for the saber model size (default 1). Applied
+    *   uniformly to the GLB entity and the glow capsule so they stay consistent.
+    * @param {number} rotationZDeg Additional Z (view-axis) rotation in degrees
+    *   applied to the saber entity around the wrist anchor (default 0). The
+    *   effective direction is the record's direction rotated by this angle
+    *   in-plane around the wrist.
     */
-   stageSaber(role,position,direction,color,alpha){
+   stageSaber(role,position,direction,color,alpha,scale=1,rotationZDeg=0){
     const dx=direction?.x??0,dy=direction?.y??0,length=Math.hypot(dx,dy),unitX=length>0?dx/length:0,unitY=length>0?dy/length:-1;
+    // 0.0.63 C2: rotate the effective direction in-plane by rotationZDeg around the wrist.
+    const rotRad=rotationZDeg*Math.PI/180,cosR=Math.cos(rotRad),sinR=Math.sin(rotRad),effX=unitX*cosR-unitY*sinR,effY=unitX*sinR+unitY*cosR;
     const loaderMode=this.gameplayAssetLoader.describe().state;
     const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/flow-saber-v1:"+role,"flow-saber/flow-saber-v1"):null;
     if(glbEntity){
       glbEntity.enabled=true;glbEntity.name=`equipment-${role}`;
       glbEntity.setPosition(position.x,position.y,0.45);
-      glbEntity.setLocalScale(1,1,1);
-      const radians=Math.atan2(unitY,unitX);
+      glbEntity.setLocalScale(scale,scale,scale);
+      const radians=Math.atan2(effY,effX);
       glbEntity.setEulerAngles(0,0,(90-radians*180/Math.PI));
       this.applyEquipmentGlbAppearance(glbEntity,"flow-saber/flow-saber-v1",color,alpha);
       // Stage the additive glow layer around the blade section.
-      this.acquireSaberGlow(role,position,unitX,unitY,color,alpha);
+      this.acquireSaberGlow(role,position,effX,effY,color,alpha,scale);
       this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:true,assetMode:"glb"});
       return;
     }
     // Primitive fallback (loader not ready): dark hilt + tinted blade.
     const entries=this.acquireEquipmentEntries("equipment/flow-saber-v1:"+role,2);const hilt=entries[0],blade=entries[1];if(!hilt||!blade)return;
     const hiltLen=0.18,bladeLen=0.57,hiltR=0.03,bladeR=0.024,z=0.45;
-    const hiltMidX=position.x+unitX*(hiltLen/2),hiltMidY=position.y+unitY*(hiltLen/2);
-    const bladeMidX=position.x+unitX*(hiltLen+bladeLen/2),bladeMidY=position.y+unitY*(hiltLen+bladeLen/2);
-    hilt.enabled=true;hilt.name=`equipment-${role}`;this.applyEquipmentTransform(hilt,hiltMidX,hiltMidY,z,"capsule",[hiltLen,hiltR,unitX,unitY]);
-    blade.enabled=true;blade.name=`equipment-${role}-core`;this.applyEquipmentTransform(blade,bladeMidX,bladeMidY,z,"capsule",[bladeLen,bladeR,unitX,unitY]);
+    const sHiltLen=hiltLen*scale,sBladeLen=bladeLen*scale,sHiltR=hiltR*scale,sBladeR=bladeR*scale;
+    const hiltMidX=position.x+effX*(sHiltLen/2),hiltMidY=position.y+effY*(sHiltLen/2);
+    const bladeMidX=position.x+effX*(sHiltLen+sBladeLen/2),bladeMidY=position.y+effY*(sHiltLen+sBladeLen/2);
+    hilt.enabled=true;hilt.name=`equipment-${role}`;this.applyEquipmentTransform(hilt,hiltMidX,hiltMidY,z,"capsule",[sHiltLen,sHiltR,effX,effY]);
+    blade.enabled=true;blade.name=`equipment-${role}-core`;this.applyEquipmentTransform(blade,bladeMidX,bladeMidY,z,"capsule",[sBladeLen,sBladeR,effX,effY]);
     this.updateEquipmentMaterial(hilt,"#2a3038",alpha,0.5,"equipment/flow-saber-v1");
     this.updateEquipmentMaterial(blade,color,alpha,1,"equipment/flow-saber-v1-core");
     this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:false,assetMode:"primitive"});
@@ -250,7 +265,7 @@ export class AeroPlayCanvasRenderer {
      *   0.0.63 D6: glow start moved 0.15 -> 0.18 (blade base), so the capsule no
      *   longer paints a bright band over the hilt; the hilt is excluded and the
      *   hilt/blade seam reads continuous. Gain stays 1.0. */
-  acquireSaberGlow(role,position,unitX,unitY,color,alpha){
+  acquireSaberGlow(role,position,unitX,unitY,color,alpha,scale=1){
     const glowKey=`equipment/flow-saber-v1-glow:${role}`;
     let entries=this.equipmentPools.get(glowKey);
     if(!entries){entries=[];this.equipmentPools.set(glowKey,entries);while(entries.length<1)entries.push(this.makeEntity(`equipment-glow-${entries.length}`,"cylinder"));}
@@ -262,7 +277,7 @@ export class AeroPlayCanvasRenderer {
     const glowMidX=position.x+unitX*(hiltLen+bladeLen/2+0.015);
     const glowMidY=position.y+unitY*(hiltLen+bladeLen/2+0.015);
     glow.enabled=true;glow.name=`equipment-${role}-glow`;
-    this.applyEquipmentTransform(glow,glowMidX,glowMidY,0.45,"capsule",[bladeLen+0.03,glowRadius,unitX,unitY]);
+    this.applyEquipmentTransform(glow,glowMidX,glowMidY,0.45,"capsule",[(bladeLen+0.03)*scale,glowRadius*scale,unitX,unitY]);
     const rgba=colorTokenToRgba(color,[1,1,1,1]);
     const gR=rgba[0]*glowGain,gG=rgba[1]*glowGain,gB=rgba[2]*glowGain;
     // Dimming: scale the color/emissive by alpha (additive blend ignores opacity).
@@ -330,8 +345,11 @@ export class AeroPlayCanvasRenderer {
       this.materialStates.set(material,state);
     }
   }
-  /** 0.0.61 L-F3: boxing glove = tinted body box + white structural accent box centered at wrist + 0.05 WU toward the grid (toward the athlete camera, +z at the athlete plane). */
-  stageGlove(role,position,color,alpha){
+  /** 0.0.61 L-F3: boxing glove = tinted body box + white structural accent box centered at wrist + 0.05 WU toward the grid (toward the athlete camera, +z at the athlete plane).
+    * @param {number} scale Multiplier for the glove model size (default 1), applied to the
+    *   GLB entity and both primitive boxes. @param {number} rotationZDeg Z (view-axis)
+    *   rotation in degrees around the wrist anchor (default 0). */
+  stageGlove(role,position,color,alpha,scale=1,rotationZDeg=0){
     const loaderMode=this.gameplayAssetLoader.describe().state;
     const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/boxing-glove-v1:"+role,"boxing-glove/boxing-glove-v1"):null;
     if(glbEntity){
@@ -340,8 +358,8 @@ export class AeroPlayCanvasRenderer {
       // The GLB is authored left-hand convention (thumb +X); the right hand mirrors.
       // The glove body material is double-sided (CULLFACE_NONE via the
       // glove_body_tint role), so the negative-scale winding flip is safe.
-      glbEntity.setLocalScale(role==="right_wrist"?-1:1,1,1);
-      glbEntity.setEulerAngles(0,0,0);
+      glbEntity.setLocalScale((role==="right_wrist"?-1:1)*scale,scale,scale);
+      glbEntity.setEulerAngles(0,0,rotationZDeg);
       this.applyEquipmentGlbAppearance(glbEntity,"boxing-glove/boxing-glove-v1",color,alpha);
       this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:boxing`]),depthTest:true,depthWrite:true,assetMode:"glb"});
       return;
@@ -349,8 +367,8 @@ export class AeroPlayCanvasRenderer {
     // Primitive fallback (loader not ready): tinted body box + white structural accent.
     const entries=this.acquireEquipmentEntries("equipment/boxing-glove-v1:"+role,2);const body=entries[0],accent=entries[1];if(!body||!accent)return;
     const z=0.45+gloveGeometry.offsetZ;
-    body.enabled=true;body.name=`equipment-${role}`;this.applyEquipmentTransform(body,position.x,position.y,z,"box",[gloveGeometry.x,gloveGeometry.y,gloveGeometry.z]);
-    accent.enabled=true;accent.name=`equipment-${role}-accent`;this.applyEquipmentTransform(accent,position.x,position.y,z,"box",[gloveGeometry.x*0.55,gloveGeometry.y*0.45,gloveGeometry.z*0.55]);
+    body.enabled=true;body.name=`equipment-${role}`;this.applyEquipmentTransform(body,position.x,position.y,z,"box",[gloveGeometry.x*scale,gloveGeometry.y*scale,gloveGeometry.z*scale]);body.setEulerAngles(0,0,rotationZDeg);
+    accent.enabled=true;accent.name=`equipment-${role}-accent`;this.applyEquipmentTransform(accent,position.x,position.y,z,"box",[gloveGeometry.x*0.55*scale,gloveGeometry.y*0.45*scale,gloveGeometry.z*0.55*scale]);accent.setEulerAngles(0,0,rotationZDeg);
     this.updateEquipmentMaterial(body,color,alpha,1,"equipment/boxing-glove-v1");
     this.updateEquipmentMaterial(accent,"#F2F5FB",alpha,1,"equipment/boxing-glove-v1-accent");
   }

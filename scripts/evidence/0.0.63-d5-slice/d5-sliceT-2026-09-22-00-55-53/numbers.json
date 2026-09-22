@@ -1,0 +1,121 @@
+{
+  "runTag": "d5-sliceT-2026-09-22-00-55-53",
+  "nowMs": 1300,
+  "scale": {
+    "d5Z": -0.9,
+    "pxPerHalfWU": 37.11671073557966,
+    "pxPerWU": 74.23342147115932
+  },
+  "diffPx": 950,
+  "legacy": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.11718019695952535,
+        "sliceT": null,
+        "world": [
+          -0.1172,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 807,
+          "meanX": 410.8,
+          "meanY": 242.2
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.042819803040474655,
+        "sliceT": null,
+        "world": [
+          0.0428,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 1005,
+          "meanX": 414.8,
+          "meanY": 266.3
+        }
+      }
+    ]
+  },
+  "mid": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.33689306625863535,
+        "sliceT": 0.5,
+        "world": [
+          -0.3369,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 887,
+          "meanX": 392.3,
+          "meanY": 242.8
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.12310693374136464,
+        "sliceT": 0.5,
+        "world": [
+          0.1231,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 1104,
+          "meanX": 420.4,
+          "meanY": 264.9
+        }
+      }
+    ]
+  },
+  "off": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.33689306625863535,
+        "sliceT": 0.25,
+        "world": [
+          -0.3369,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 410,
+          "meanX": 393.8,
+          "meanY": 234.3
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.12310693374136464,
+        "sliceT": 0.25,
+        "world": [
+          0.1231,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 1680,
+          "meanX": 423.1,
+          "meanY": 260.2
+        }
+      }
+    ]
+  },
+  "sepLegacyWU": 0.16,
+  "sepMidWU": 0.45999999999999996,
+  "sepLegacyPx": 11.877347435385445,
+  "sepMidPx": 34.1473738767333,
+  "sepDeltaPx": 22.270026441347852,
+  "midBoundaryY": 253.89231839125534,
+  "offBoundaryY": 247.26835801393727,
+  "boundaryDeltaY": -6.62396037731807,
+  "massSplitDelta": 1053
+}

@@ -14,10 +14,18 @@
 //       The bomb-flash envelope (`hazardContacts`) regression is covered by (d).
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { chromium } from "playwright";
 import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
+
+// 0.0.63 D5 evidence: the off-center sliceT clip plane + wider half separation are proven
+// with REAL pixels, written under scripts/evidence/0.0.63-d5-slice/<run>/ per the repo
+// evidence convention (timestamped run dirs committed alongside the oracle).
+const D5_EVIDENCE_ROOT = resolve(process.cwd(), "scripts/evidence/0.0.63-d5-slice");
+const D5_RUN_TAG = `d5-sliceT-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
+const D5_EVIDENCE_DIR = join(D5_EVIDENCE_ROOT, D5_RUN_TAG);
 
 const root = process.cwd(),
   brandingRoot = resolve(root, "../aerobeat-branding/icons/web-gameplay"),
@@ -209,6 +217,148 @@ try {
     })();
     // Restore the live slice frame state.
     renderer.renderGameplayFrame({ ...idleFrame, nowMs: SLICE_NOW_MS, aftermath: [sliceEntry] });
+
+    // --- (h) 0.0.63 D5: real-pixel evidence for the off-center sliceT clip plane + wider half separation.
+    // Same arrow glyph (rounded-outline-v1), same hand/seed (42)/timing, ONLY sliceT differs:
+    //   mid  = sliceT 0.5  (explicit midpoint — must equal the legacy plane)
+    //   off  = sliceT 0.25 (off-center toward the tail; plane shifted (0.25-0.5)*0.78 = -0.195 WU)
+    //   legacy = NO sliceT (legacy midpoint plane + the legacy .16 base spread)
+    // The camera's real WU→px scale at the corpse depth is measured IN-PAGE (the harness
+    // camera is not the canonical pose; scale is pinned from the probe, never assumed).
+    const D5_NOW_MS = 1300;
+    const d5EntryFor = (sliceT) => {
+      const entry = { targetId: "d5", hitCommitMs: 850, family: "flow", hand: "neutral", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 42, shape: "arrow", appearanceColor: "#3B82C4" };
+      if (sliceT !== undefined) entry.sliceT = sliceT;
+      return entry;
+    };
+    const d5Probe = (() => {
+      const p = { x: 0, y: 0, z: 0 };
+      return (x, y, z) => { p.x = x; p.y = y; p.z = z; const out = renderer.cameraEntity.camera.worldToScreen(p); return { x: out.x, y: out.y }; };
+    })();
+    // World→px scale along the corpse depth (z=-0.9 at the D5 sample): project a 0.5 WU
+    // baseline and take the pixel distance — the known WU→px scale of THIS fixture.
+    const d5Z = -0.9;
+    const d5Scale = d5Probe(0.5, 1, d5Z).x - d5Probe(0, 1, d5Z).x; // px per 0.5 WU
+    const d5Measure = (sliceT) => {
+      const entry = d5EntryFor(sliceT);
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [] });
+      const baseline = sample();
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [entry] });
+      const pixels = sample();
+      const halves = renderer.lastModel.objects.filter((o) => o.targetId === "d5" && o.kind === "aftermath");
+      const pool = renderer.aftermathAssetPools.get("directional-arrow/rounded-outline-v1") ?? [];
+      const stats = [];
+      let combined = 0;
+      for (let index = 0; index < pixels.length; index += 4) if (deltaRGB(pixels, baseline, index) > 24) combined++;
+      for (const half of halves) {
+        const slot = pool.find((e) => String(e.name).includes(half.aftermath.sliceSign === 1 ? "half+" : "half-"));
+        let count = 0, sumX = 0, sumY = 0, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        if (slot) {
+          slot.enabled = false; renderer.manualTick();
+          const without = sample(); slot.enabled = true; renderer.manualTick();
+          const withIt = sample();
+          for (let index = 0; index < withIt.length; index += 4) {
+            if (deltaRGB(withIt, without, index) > 24) {
+              const x = (index / 4) % canvas.width, y = Math.floor(index / 4 / canvas.width);
+              count++; sumX += x; sumY += y;
+              if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
+            }
+          }
+        }
+        const sp = d5Probe(half.position.x, half.position.y, half.position.z);
+        stats.push({ sign: half.aftermath.sliceSign, offsetXWU: half.aftermath.offsetXWU, sliceT: half.aftermath.sliceT ?? null, world: [half.position.x, half.position.y, half.position.z], screen: [sp.x, sp.y], own: { count, meanX: count ? sumX / count : 0, meanY: count ? sumY / count : 0, minX, maxX, minY, maxY } });
+      }
+      return { combined, halves: stats };
+    };
+    const d5Legacy = d5Measure(undefined),
+      d5Mid = d5Measure(0.5),
+      d5Off = d5Measure(0.25);
+    // Per-frame full-frame pixel diff (off vs mid) — OFF-CENTER IS REAL beyond a noise floor.
+    const d5FrameDiff = (a, b) => {
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [a] });
+      const pa = sample();
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [b] });
+      const pb = sample();
+      let diff = 0;
+      for (let index = 0; index < pa.length; index += 4) if (deltaRGB(pa, pb, index) > 24) diff++;
+      return diff;
+    };
+    const d5DiffPx = d5FrameDiff(d5EntryFor(0.25), d5EntryFor(0.5));
+    // The clip plane slides along the glyph's local LONG axis (local Y, the arrow's tip axis).
+    // In the screen frame we read the cut as a centroid split: the plane sits at the screen-Y
+    // weighted boundary of the two halves, and an off-center (tail) cut moves the heavier (tip)
+    // mass's centroid toward the tip. `centroidX`/`centroidY` are each half's own-pixel means.
+    const d5Half = (m, sign) => m.halves.find((h) => h.sign === sign);
+    const d5 = {
+      scale: { d5Z, pxPerHalfWU: d5Scale, pxPerWU: d5Scale / 0.5 },
+      diffPx: d5DiffPx,
+      legacy: { halves: d5Legacy.halves.map((h) => ({ sign: h.sign, offsetXWU: h.offsetXWU, sliceT: h.sliceT, world: h.world.map((v) => +v.toFixed(4)), own: { count: h.own.count, meanX: +h.own.meanX.toFixed(1), meanY: +h.own.meanY.toFixed(1) } })) },
+      mid: { halves: d5Mid.halves.map((h) => ({ sign: h.sign, offsetXWU: h.offsetXWU, sliceT: h.sliceT, world: h.world.map((v) => +v.toFixed(4)), own: { count: h.own.count, meanX: +h.own.meanX.toFixed(1), meanY: +h.own.meanY.toFixed(1) } })) },
+      off: { halves: d5Off.halves.map((h) => ({ sign: h.sign, offsetXWU: h.offsetXWU, sliceT: h.sliceT, world: h.world.map((v) => +v.toFixed(4)), own: { count: h.own.count, meanX: +h.own.meanX.toFixed(1), meanY: +h.own.meanY.toFixed(1) } })) },
+      // (b) separation: world-position half-distance (WU) — exact, no rotation.
+      sepLegacyWU: Math.abs(d5Legacy.halves[0].world[0] - d5Legacy.halves[1].world[0]),
+      sepMidWU: Math.abs(d5Mid.halves[0].world[0] - d5Mid.halves[1].world[0]),
+      sepLegacyPx: Math.abs(d5Legacy.halves[0].screen[0] - d5Legacy.halves[1].screen[0]),
+      sepMidPx: Math.abs(d5Mid.halves[0].screen[0] - d5Mid.halves[1].screen[0]),
+      sepDeltaPx: Math.abs(d5Mid.halves[0].screen[0] - d5Mid.halves[1].screen[0]) - Math.abs(d5Legacy.halves[0].screen[0] - d5Legacy.halves[1].screen[0]),
+      // (a) cut position: screen-Y of the centroid boundary between the two halves (plane proxy)
+      //     + per-half mass, so an off-center cut moves the heavier (tip) side's centroid.
+      midBoundaryY: (d5Mid.halves[0].own.meanY + d5Mid.halves[1].own.meanY) / 2,
+      offBoundaryY: (d5Off.halves[0].own.meanY + d5Off.halves[1].own.meanY) / 2,
+      boundaryDeltaY: (d5Off.halves[0].own.meanY + d5Off.halves[1].own.meanY) / 2 - (d5Mid.halves[0].own.meanY + d5Mid.halves[1].own.meanY) / 2,
+      // tail-shift: the off-center (tail) cut leaves MORE mass on the tail (heavier) side.
+      // tip side = the half that contains the glyph tip; for sliceT<0.5 the tip is on the sign=+1
+      // side (the plane keeps localY>=plane on the + side). Mass asymmetry = heavier-tip - lighter-tail.
+      midTipMass: Math.max(d5Mid.halves[0].own.count, d5Mid.halves[1].own.count),
+      midTailMass: Math.min(d5Mid.halves[0].own.count, d5Mid.halves[1].own.count),
+      offTipMass: Math.max(d5Off.halves[0].own.count, d5Off.halves[1].own.count),
+      offTailMass: Math.min(d5Off.halves[0].own.count, d5Off.halves[1].own.count),
+      midMassSplit: Math.max(d5Mid.halves[0].own.count, d5Mid.halves[1].own.count) - Math.min(d5Mid.halves[0].own.count, d5Mid.halves[1].own.count),
+      offMassSplit: Math.max(d5Off.halves[0].own.count, d5Off.halves[1].own.count) - Math.min(d5Off.halves[0].own.count, d5Off.halves[1].own.count),
+      massSplitDelta: (Math.max(d5Off.halves[0].own.count, d5Off.halves[1].own.count) - Math.min(d5Off.halves[0].own.count, d5Off.halves[1].own.count)) - (Math.max(d5Mid.halves[0].own.count, d5Mid.halves[1].own.count) - Math.min(d5Mid.halves[0].own.count, d5Mid.halves[1].own.count)),
+      // full-frame captures for the side-by-side PNGs
+      crops: {
+        legacy: (() => { renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(undefined)] }); return canvas.toDataURL("image/png"); })(),
+        mid: (() => { renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(0.5)] }); return canvas.toDataURL("image/png"); })(),
+        off: (() => { renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(0.25)] }); return canvas.toDataURL("image/png"); })()
+      }
+    };
+    // The full-frame off vs mid diff PNG (pixel-diff evidence).
+    d5.crops.diff = (() => {
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(0.25)] });
+      const pa = sample();
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(0.5)] });
+      const pb = sample();
+      const c = document.createElement("canvas");
+      c.width = canvas.width; c.height = canvas.height;
+      const ctx = c.getContext("2d");
+      const img = ctx.createImageData(canvas.width, canvas.height);
+      for (let index = 0; index < pa.length; index += 4) {
+        const d = deltaRGB(pa, pb, index);
+        img.data[index] = d > 24 ? 255 : 0; img.data[index + 1] = 0; img.data[index + 2] = 0; img.data[index + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL("image/png");
+    })();
+    // Side-by-side: legacy | mid | off | diff.
+    d5.crops.sideBySide = (() => {
+      const c = document.createElement("canvas");
+      c.width = canvas.width * 4 + 12; c.height = canvas.height;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, c.width, c.height);
+      const put = (entry, dx) => { renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [entry] }); ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, dx, 0, canvas.width, canvas.height); };
+      put(d5EntryFor(undefined), 0); put(d5EntryFor(0.5), canvas.width + 4); put(d5EntryFor(0.25), canvas.width * 2 + 8);
+      // diff
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(0.25)] });
+      const pa = sample(); renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [d5EntryFor(0.5)] });
+      const pb = sample();
+      const img = ctx.createImageData(canvas.width, canvas.height);
+      for (let index = 0; index < pa.length; index += 4) { const d = deltaRGB(pa, pb, index); img.data[index] = d > 24 ? 255 : 0; img.data[index + 1] = 0; img.data[index + 2] = 0; img.data[index + 3] = 255; }
+      const tmp = document.createElement("canvas"); tmp.width = canvas.width; tmp.height = canvas.height;
+      tmp.getContext("2d").putImageData(img, 0, 0);
+      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height, canvas.width * 3 + 12, 0, canvas.width, canvas.height);
+      return c.toDataURL("image/png");
+    })();
 
     // --- (b) Boxing straight punch aftermath: projected position/size shifts toward the background over 0→500 ms ---
     const punchEntry = {
@@ -403,6 +553,7 @@ try {
         edgeRed: glowDecayEdgeRed,
         centerRed: glowDecayCenterRed
       },
+      d5,
       redCubeAbsent,
       wallRampEnd,
       wallMidPulse,
@@ -491,9 +642,84 @@ try {
   assert.equal(evidence.wallDecayDone.vignetteEnabled, false, "vignette disabled after the decay completes");
   assert.ok(evidence.wallDecayDone.shifted < 200, `post-decay frame returns to baseline: ${evidence.wallDecayDone.shifted}px`);
 
+  // (h) 0.0.63 D5: the off-center sliceT clip plane + wider half separation render in REAL pixels.
+  // MEASURED_* anchors are pinned from a deterministic in-page measurement pass (no env overrides).
+  // The WU→px scale is measured at the corpse depth (z=-0.9) by projecting a 0.5 WU baseline.
+  const MEASURED_PX_PER_WU = 74.23; // px per WU at the D5 corpse depth (z=-0.9, harness camera pose)
+  const MEASURED_SEPARATION_DELTA_PX = 22.3; // |screen-sep(sliceT .5) - screen-sep(legacy)| at z=-0.9
+  const MEASURED_SEP_TOLERANCE_PX = 5;
+  const MEASURED_MASS_SPLIT_DELTA = 1053; // (off massSplit) - (mid massSplit): the tail-cut tip side gains mass
+  const MEASURED_MASS_SPLIT_TOLERANCE = 200;
+  const MEASURED_BOUNDARY_DELTA_PX = 6.6; // |off boundaryY - mid boundaryY|: the cut line moved
+  const MEASURED_BOUNDARY_TOLERANCE_PX = 4;
+  const MEASURED_OFF_CENTER_DIFF_FLOOR = 200; // off-vs-mid full-frame pixel diff must exceed this
+  const MEASURED_LEGACY_OFFSET_DELTA_PX = 11.9; // |legacy screen-sep| at z=-0.9 (the legacy .16 base spread)
+  const MEASURED_LEGACY_OFFSET_TOLERANCE_PX = 4;
+
+  // (a) OFF-CENTER IS REAL: the 0.25 render differs from the 0.5 render beyond a noise floor.
+  assert.ok(evidence.d5.diffPx > MEASURED_OFF_CENTER_DIFF_FLOOR, `D5 off-center clip plane must render a real diff: diffPx=${evidence.d5.diffPx} (floor ${MEASURED_OFF_CENTER_DIFF_FLOOR})`);
+  // The cut line moved toward the tail: the centroid boundary between the two halves shifted.
+  assert.ok(
+    Math.abs(evidence.d5.boundaryDeltaY) >= MEASURED_BOUNDARY_DELTA_PX - MEASURED_BOUNDARY_TOLERANCE_PX &&
+      Math.abs(evidence.d5.boundaryDeltaY) <= MEASURED_BOUNDARY_DELTA_PX + MEASURED_BOUNDARY_TOLERANCE_PX,
+    `D5 off-center cut line must move by the measured delta: |ΔboundaryY|=${Math.abs(evidence.d5.boundaryDeltaY).toFixed(1)} (measured ${MEASURED_BOUNDARY_DELTA_PX} ± ${MEASURED_BOUNDARY_TOLERANCE_PX})`
+  );
+  // The off-center (tail) cut leaves MORE mass on the tip side (heavier) than the midpoint.
+  assert.ok(
+    evidence.d5.massSplitDelta >= MEASURED_MASS_SPLIT_DELTA - MEASURED_MASS_SPLIT_TOLERANCE &&
+      evidence.d5.massSplitDelta <= MEASURED_MASS_SPLIT_DELTA + MEASURED_MASS_SPLIT_TOLERANCE,
+    `D5 off-center cut must shift mass toward the tail: massSplitDelta=${evidence.d5.massSplitDelta} (measured ${MEASURED_MASS_SPLIT_DELTA} ± ${MEASURED_MASS_SPLIT_TOLERANCE})`
+  );
+
+  // (b) WIDER SEPARATION IS REAL: the sliceT-present entry spreads WIDER than the legacy no-sliceT
+  // entry by the .46-vs-.16 WU ratio, converted via the measured in-page WU→px scale.
+  const measuredScale = evidence.d5.scale.pxPerWU;
+  assert.ok(
+    Math.abs(measuredScale - MEASURED_PX_PER_WU) <= 1.5,
+    `D5 in-page WU→px scale must match the fixture: ${measuredScale.toFixed(3)} (pinned ${MEASURED_PX_PER_WU} ± 1.5)`
+  );
+  assert.ok(
+    Math.abs(evidence.d5.sepDeltaPx - MEASURED_SEPARATION_DELTA_PX) <= MEASURED_SEP_TOLERANCE_PX,
+    `D5 wider half separation must match the measured delta: Δsep=${evidence.d5.sepDeltaPx.toFixed(1)} px (measured ${MEASURED_SEPARATION_DELTA_PX} ± ${MEASURED_SEP_TOLERANCE_PX})`
+  );
+  // The world-position half-distance carries the exact .46 vs .16 WU spread (no rotation error).
+  assert.ok(
+    Math.abs(evidence.d5.sepMidWU - 0.46) < 1e-3 && Math.abs(evidence.d5.sepLegacyWU - 0.16) < 1e-3,
+    `D5 world half-distance must carry the exact WU spread: mid=${evidence.d5.sepMidWU.toFixed(4)} (0.46), legacy=${evidence.d5.sepLegacyWU.toFixed(4)} (0.16)`
+  );
+  assert.ok(
+    Math.abs((evidence.d5.sepMidWU - evidence.d5.sepLegacyWU) * measuredScale - MEASURED_SEPARATION_DELTA_PX) <= MEASURED_SEP_TOLERANCE_PX,
+    `D5 wider spread in px must equal the WU delta × measured scale: ${((evidence.d5.sepMidWU - evidence.d5.sepLegacyWU) * measuredScale).toFixed(1)} vs ${MEASURED_SEPARATION_DELTA_PX}`
+  );
+
+  // (c) NO REGRESSION: the legacy no-sliceT case keeps the exact legacy .16-based offset spread,
+  // and the existing (a) slice assertions above (offsets/signs/bbox) are unchanged and intact.
+  assert.ok(
+    Math.abs(evidence.d5.sepLegacyPx - MEASURED_LEGACY_OFFSET_DELTA_PX) <= MEASURED_LEGACY_OFFSET_TOLERANCE_PX,
+    `D5 legacy no-sliceT half separation must keep the legacy .16-based offset: ${evidence.d5.sepLegacyPx.toFixed(1)} px (measured ${MEASURED_LEGACY_OFFSET_DELTA_PX} ± ${MEASURED_LEGACY_OFFSET_TOLERANCE_PX})`
+  );
+  assert.ok(
+    evidence.d5.legacy.halves.every((h) => h.sliceT === null),
+    "D5 legacy (no sliceT) halves must omit the sliceT visual"
+  );
+
+  // Persist D5 evidence: side-by-side + diff PNGs + numbers.
+  mkdirSync(D5_EVIDENCE_DIR, { recursive: true });
+  const d5Png = (dataUrl) => Buffer.from(dataUrl.slice("data:image/png;base64,".length), "base64");
+  writeFileSync(join(D5_EVIDENCE_DIR, "legacy.png"), d5Png(evidence.d5.crops.legacy));
+  writeFileSync(join(D5_EVIDENCE_DIR, "mid.png"), d5Png(evidence.d5.crops.mid));
+  writeFileSync(join(D5_EVIDENCE_DIR, "off.png"), d5Png(evidence.d5.crops.off));
+  writeFileSync(join(D5_EVIDENCE_DIR, "diff-off-vs-mid.png"), d5Png(evidence.d5.crops.diff));
+  writeFileSync(join(D5_EVIDENCE_DIR, "side-by-side.png"), d5Png(evidence.d5.crops.sideBySide));
+  writeFileSync(
+    join(D5_EVIDENCE_DIR, "numbers.json"),
+    `${JSON.stringify({ runTag: D5_RUN_TAG, nowMs: 1300, scale: evidence.d5.scale, diffPx: evidence.d5.diffPx, legacy: evidence.d5.legacy, mid: evidence.d5.mid, off: evidence.d5.off, sepLegacyWU: evidence.d5.sepLegacyWU, sepMidWU: evidence.d5.sepMidWU, sepLegacyPx: evidence.d5.sepLegacyPx, sepMidPx: evidence.d5.sepMidPx, sepDeltaPx: evidence.d5.sepDeltaPx, midBoundaryY: evidence.d5.midBoundaryY, offBoundaryY: evidence.d5.offBoundaryY, boundaryDeltaY: evidence.d5.boundaryDeltaY, massSplitDelta: evidence.d5.massSplitDelta }, null, 2)}\n`
+  );
+  console.log(`D5 evidence written to ${D5_EVIDENCE_DIR}: diffPx=${evidence.d5.diffPx} Δsep=${evidence.d5.sepDeltaPx.toFixed(1)}px ΔboundaryY=${evidence.d5.boundaryDeltaY.toFixed(1)}px massSplitΔ=${evidence.d5.massSplitDelta}`);
+
   // Zero console noise beyond pinned ReadPixels grammar
   assert.deepEqual(noise, [], `unexpected console noise: ${JSON.stringify(noise)}`);
-  console.log("W1-C facade pixel oracles (slice cut, punch displacement, bonk floor, glow envelope, idle, red-cube-absent, state-driven pulsing vignette) all passed.");
+  console.log("W1-C facade pixel oracles (slice cut, punch displacement, bonk floor, glow envelope, idle, red-cube-absent, state-driven pulsing vignette, D5 off-center sliceT + wider separation) all passed.");
 } finally {
   await browser.close();
   await new Promise((done) => server.close(done));

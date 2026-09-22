@@ -56,7 +56,7 @@ export class AeroPlayCanvasRenderer {
     this.cursorDiagnostics=Object.freeze({instanceCount:0,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([]),depthTest:true,depthWrite:true});
     /** @type {{instanceCount:number,roles:readonly string[],modes:readonly string[],depthTest:boolean,depthWrite:boolean,assetMode?:string}} */
     this.equipmentDiagnostics=Object.freeze({instanceCount:0,roles:Object.freeze([]),modes:Object.freeze([]),depthTest:true,depthWrite:false});
-    this.debugEnabled=false;this.debugYaw=defaultGameplayCameraPose.rotationEulerDegrees.yYaw*Math.PI/180;this.debugPitch=defaultGameplayCameraPose.rotationEulerDegrees.xPitch*Math.PI/180;this.debugPosition={...defaultGameplayCameraPose.position};this.debugProjection={...defaultGameplayCameraPose.projection};this.debugListeners=[];
+    this.debugEnabled=false;this.debugCameraAuthoringInputEnabled=true;this.debugYaw=defaultGameplayCameraPose.rotationEulerDegrees.yYaw*Math.PI/180;this.debugPitch=defaultGameplayCameraPose.rotationEulerDegrees.xPitch*Math.PI/180;this.debugPosition={...defaultGameplayCameraPose.position};this.debugProjection={...defaultGameplayCameraPose.projection};this.debugListeners=[];
     this.debugNow=typeof options.now==="function"?options.now:()=>globalThis.performance?.now?.()??Date.now();this.debugLastFrameTimeMs=null;
     this.debugKeyboardIntents=new Set();this.debugDomIntents=new Set();this.debugShiftActive=false;this.debugGuiSpeedMode="normal";this.debugCaptureMode="none";this.debugTouchToggle=null;this.debugTouchDrag=null;
     this.debugCaptureCursor=null;this.debugCaptureReleasePending=null;this.debugPointerLockRequest=null;this.debugReleaseListener=null;this.debugReleaseWaiters=[];
@@ -86,7 +86,7 @@ export class AeroPlayCanvasRenderer {
     return this.describe();
   }
   detach(){
-    this.setDebugCameraEnabled(false);
+    this.setDebugCameraEnabled(false);this.debugCameraAuthoringInputEnabled=true;
     if(this.canvas){this.canvas.removeEventListener("webglcontextlost",this.onContextLost);this.canvas.removeEventListener("webglcontextrestored",this.onContextRestored);}
     this.destroyInstantiatedPools();this.destroyHazardGlow();this.environmentOwner.dispose();this.environmentLoadPromise=null;this.gameplayAssetLoader.dispose();this.gameplayAssetLoadPromise=null;for(const material of this.ownedMaterials)material.destroy();this.ownedMaterials.clear();this.materialStates=new WeakMap();
     const app=this.app;this.removeGameplayLayers();this.app=null;this.appStarted=false;this.cameraEntity=null;this.pool=[];this.assetPools=new Map();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.overlayEntities=[];this.iconTexture=null;this.atlasRestorePending=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();this.cursorDiagnostics=Object.freeze({instanceCount:0,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([]),depthTest:true,depthWrite:true});this.equipmentDiagnostics=Object.freeze({instanceCount:0,roles:Object.freeze([]),modes:Object.freeze([]),depthTest:true,depthWrite:false});
@@ -396,16 +396,16 @@ export class AeroPlayCanvasRenderer {
   renderLandmarkOverlay(landmarks,options={}){if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),pointCount:0,lineVertexCount:0};this.clearOverlayEntities();const surface=normalizeOverlaySurfaceDescriptor({viewportWidth:this.canvas.width,viewportHeight:this.canvas.height,...options.surface});const min=options.minVisibility??0;const visible=landmarks.filter((entry)=>(typeof entry.v==="number"?entry.v:1)>=min);const byId=new Map(visible.map((entry)=>[entry.id,entry]));const color=rgbaToHex(options.color??[0.24,0.9,0.45,0.95]);for(const landmark of visible){const p=mapNormalizedLandmarkToViewport(landmark,surface);const position=gridPositionForNormalized(p.x/surface.viewportWidth,p.y/surface.viewportHeight,0.42);this.addOverlayDisc(`landmark-${landmark.id??this.overlayEntities.length}`,position.x,position.y,position.z,(options.pointSize??6)/42,color);}let lines=0;for(const [aId,bId] of options.connections??[]){const a=byId.get(aId),b=byId.get(bId);if(!a||!b)continue;const ap=mapNormalizedLandmarkToViewport(a,surface),bp=mapNormalizedLandmarkToViewport(b,surface);this.addOverlayLine(ap,bp,surface,color);lines+=2;}this.manualTick();this.drawCount+=visible.length+lines/2;this.state="running";return{status:this.describe(),pointCount:visible.length,lineVertexCount:lines};}
   setDebugCameraEnabled(enabled){
     const next=Boolean(enabled)&&!this.destroyed&&Boolean(this.canvas)&&Boolean(this.app);if(this.debugEnabled===next)return this.describe();
-    if(!next){this.clearDebugInteractionState(true);this.debugEnabled=false;this.removeDebugListeners();this.resetProductionCameraParallax();this.resetDebugCamera();return this.describe();}
-    this.removeDebugListeners();this.clearDebugInteractionState(true);this.resetProductionCameraParallax();this.debugEnabled=true;
+    if(!next){this.clearDebugInteractionState(true);this.debugEnabled=false;this.debugCameraAuthoringInputEnabled=true;this.removeDebugListeners();this.resetProductionCameraParallax();this.resetDebugCamera();return this.describe();}
+    this.removeDebugListeners();this.clearDebugInteractionState(true);this.resetProductionCameraParallax();this.debugEnabled=true;this.debugCameraAuthoringInputEnabled=true;
     const canvas=this.canvas;const on=(target,type,listener,options)=>{target.addEventListener(type,listener,options);this.debugListeners.push(()=>target.removeEventListener(type,listener,options));};
-    on(canvas,"contextmenu",(event)=>event.preventDefault());
-    on(canvas,"mousedown",(event)=>{if(event.button!==2)return;event.preventDefault();if(this.debugCaptureReleasePending)return;if(this.debugCaptureMode!=="none")this.exitDebugCapture(true);else this.enterDebugPointerCapture();});
+    on(canvas,"contextmenu",(event)=>{if(this.debugCameraAuthoringInputEnabled)event.preventDefault();});
+    on(canvas,"mousedown",(event)=>{if(event.button!==2||!this.debugCameraAuthoringInputEnabled)return;event.preventDefault();if(this.debugCaptureReleasePending)return;if(this.debugCaptureMode!=="none")this.exitDebugCapture(true);else this.enterDebugPointerCapture();});
     on(document,"pointerlockchange",()=>this.handleDebugPointerLockChange(canvas));
     on(document,"pointerlockerror",()=>this.handleDebugPointerLockError(canvas));
-    on(document,"mousemove",(event)=>{if(!this.debugEnabled||this.debugCaptureReleasePending||!debugMouseCaptureModes.includes(this.debugCaptureMode))return;this.applyDebugLookDelta(event.movementX,event.movementY,0.0025);});
-    on(window,"keydown",(event)=>{if(!this.debugEnabled)return;if(event.code==="Escape"&&this.debugCaptureMode!=="none"){event.preventDefault();this.exitDebugCapture(true);return;}if(event.code==="ShiftLeft"||event.code==="ShiftRight"){this.debugShiftActive=true;event.preventDefault();return;}const intent=debugKeyIntents[event.code];if(!intent)return;this.debugKeyboardIntents.add(intent);event.preventDefault();});
-    on(window,"keyup",(event)=>{if(event.code==="ShiftLeft"||event.code==="ShiftRight"){this.debugShiftActive=false;return;}const intent=debugKeyIntents[event.code];if(intent)this.debugKeyboardIntents.delete(intent);});
+    on(document,"mousemove",(event)=>{if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled||this.debugCaptureReleasePending||!debugMouseCaptureModes.includes(this.debugCaptureMode))return;this.applyDebugLookDelta(event.movementX,event.movementY,0.0025);});
+    on(window,"keydown",(event)=>{if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled)return;if(event.code==="Escape"&&this.debugCaptureMode!=="none"){event.preventDefault();this.exitDebugCapture(true);return;}if(event.code==="ShiftLeft"||event.code==="ShiftRight"){this.debugShiftActive=true;event.preventDefault();return;}const intent=debugKeyIntents[event.code];if(!intent)return;this.debugKeyboardIntents.add(intent);event.preventDefault();});
+    on(window,"keyup",(event)=>{if(!this.debugCameraAuthoringInputEnabled)return;if(event.code==="ShiftLeft"||event.code==="ShiftRight"){this.debugShiftActive=false;return;}const intent=debugKeyIntents[event.code];if(intent)this.debugKeyboardIntents.delete(intent);});
     on(window,"blur",()=>this.clearDebugInteractionState(true));
     on(document,"visibilitychange",()=>{if(document.visibilityState==="hidden")this.clearDebugInteractionState(true);});
     on(canvas,"touchstart",(event)=>this.onDebugTouchStart(event),{passive:false});
@@ -414,7 +414,8 @@ export class AeroPlayCanvasRenderer {
     on(canvas,"touchcancel",(event)=>this.onDebugTouchCancel(event),{passive:false});
     return this.describe();
   }
-  setDebugCameraMovementIntent(intent,active){if(!debugMovementIntents.includes(intent))throw new TypeError(`Unknown debug camera movement intent: ${String(intent)}`);if(typeof active!=="boolean")throw new TypeError("Debug camera movement intent active state must be boolean");if(!this.debugEnabled||this.destroyed)return this.describe();if(active)this.debugDomIntents.add(intent);else this.debugDomIntents.delete(intent);return this.describe();}
+  setDebugCameraAuthoringInputEnabled(enabled){if(typeof enabled!=="boolean")throw new TypeError("Debug camera authoring input enabled state must be boolean");if(this.destroyed)return this.describe();if(this.debugCameraAuthoringInputEnabled===enabled)return this.describe();this.debugCameraAuthoringInputEnabled=enabled;if(!enabled)this.clearDebugInteractionState(true);return this.describe();}
+  setDebugCameraMovementIntent(intent,active){if(!debugMovementIntents.includes(intent))throw new TypeError(`Unknown debug camera movement intent: ${String(intent)}`);if(typeof active!=="boolean")throw new TypeError("Debug camera movement intent active state must be boolean");if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled||this.destroyed)return this.describe();if(active)this.debugDomIntents.add(intent);else this.debugDomIntents.delete(intent);return this.describe();}
   setDebugCameraSpeedMode(mode){if(!debugSpeedModes.includes(mode))throw new TypeError(`Unknown debug camera speed mode: ${String(mode)}`);if(!this.debugEnabled||this.destroyed)return this.describe();this.debugGuiSpeedMode=mode;return this.describe();}
   releaseDebugCameraAuthoringInput(){if(this.debugEnabled&&!this.destroyed)this.clearDebugInteractionState(true);return this.describe();}
   /** Strictly normalize unknown v1 data and apply it only to the live rendered debug camera after authoring input is released. @param {unknown} value */
@@ -429,7 +430,7 @@ export class AeroPlayCanvasRenderer {
     return pose;
   }
   enterDebugPointerCapture(){
-    if(!this.debugEnabled||!this.canvas||this.debugCaptureReleasePending||this.debugCaptureMode!=="none")return;const canvas=this.canvas;this.captureDebugCursor(canvas);this.debugCaptureMode="fallback";
+    if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled||!this.canvas||this.debugCaptureReleasePending||this.debugCaptureMode!=="none")return;const canvas=this.canvas;this.captureDebugCursor(canvas);this.debugCaptureMode="fallback";
     try{const pending=canvas.requestPointerLock?.();if(pending&&typeof pending.then==="function"){const request={canvas,promise:pending};this.debugPointerLockRequest=request;pending.then(()=>{if(this.debugPointerLockRequest===request)this.debugPointerLockRequest=null;if(this.debugCaptureReleasePending||!this.debugEnabled||this.destroyed)this.exitDebugCapture(true);}).catch(()=>{if(this.debugPointerLockRequest===request)this.debugPointerLockRequest=null;if(this.debugCaptureReleasePending)this.finalizeDebugCapture(canvas);});}}
     catch{this.debugPointerLockRequest=null;/* bounded fallback remains active */}
   }
@@ -453,26 +454,26 @@ export class AeroPlayCanvasRenderer {
   installDebugReleaseListener(){if(this.debugReleaseListener||typeof document==="undefined")return;const listener=()=>{const pending=this.debugCaptureReleasePending;if(pending)this.handleDebugPointerLockChange(pending.canvas);};document.addEventListener("pointerlockchange",listener);this.debugReleaseListener=()=>document.removeEventListener("pointerlockchange",listener);}
   removeDebugReleaseListener(){const remove=this.debugReleaseListener;this.debugReleaseListener=null;remove?.();}
   clearDebugInteractionState(exitPointerLock){this.debugKeyboardIntents.clear();this.debugDomIntents.clear();this.debugShiftActive=false;this.debugLastFrameTimeMs=null;this.exitDebugCapture(exitPointerLock);}
-  applyDebugLookDelta(deltaX,deltaY,sensitivity){if(!Number.isFinite(deltaX)||!Number.isFinite(deltaY))return;this.debugYaw=normalizeRadians(this.debugYaw-deltaX*sensitivity);this.debugPitch=clamp(this.debugPitch-deltaY*sensitivity,-1.35,1.35);this.applyDebugPose();}
+  applyDebugLookDelta(deltaX,deltaY,sensitivity){if(!this.debugCameraAuthoringInputEnabled||!Number.isFinite(deltaX)||!Number.isFinite(deltaY))return;this.debugYaw=normalizeRadians(this.debugYaw-deltaX*sensitivity);this.debugPitch=clamp(this.debugPitch-deltaY*sensitivity,-1.35,1.35);this.applyDebugPose();}
   onDebugTouchStart(event){
-    if(!this.debugEnabled)return;const touches=Array.from(event.touches);
+    if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled)return;const touches=Array.from(event.touches);
     if(touches.length===2){this.debugTouchDrag=null;this.debugTouchToggle={startedAt:event.timeStamp,points:new Map(touches.map((touch)=>[touch.identifier,{x:touch.clientX,y:touch.clientY}])),moved:false,maxTouches:2};if(this.debugCaptureMode==="touch")event.preventDefault();return;}
     if(touches.length===1&&this.debugCaptureMode==="touch"){const touch=touches[0];this.debugTouchToggle=null;this.debugTouchDrag={identifier:touch.identifier,x:touch.clientX,y:touch.clientY};event.preventDefault();return;}
     if(touches.length>2){this.debugTouchToggle=null;this.debugTouchDrag=null;if(this.debugCaptureMode==="touch")event.preventDefault();}
   }
   onDebugTouchMove(event){
-    if(!this.debugEnabled)return;const touches=Array.from(event.touches),toggle=this.debugTouchToggle;
+    if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled)return;const touches=Array.from(event.touches),toggle=this.debugTouchToggle;
     if(toggle){toggle.maxTouches=Math.max(toggle.maxTouches,touches.length);if(touches.length!==2)toggle.moved=true;for(const touch of touches){const start=toggle.points.get(touch.identifier);if(!start||Math.hypot(touch.clientX-start.x,touch.clientY-start.y)>DEBUG_TOUCH_TAP_MAX_MOVE_PX)toggle.moved=true;}if(this.debugCaptureMode==="touch")event.preventDefault();return;}
     const drag=this.debugTouchDrag;if(this.debugCaptureMode!=="touch"||!drag)return;const touch=touches.find((entry)=>entry.identifier===drag.identifier);if(!touch){this.debugTouchDrag=null;return;}const deltaX=touch.clientX-drag.x,deltaY=touch.clientY-drag.y;drag.x=touch.clientX;drag.y=touch.clientY;this.applyDebugLookDelta(deltaX,deltaY,0.006);event.preventDefault();
   }
   onDebugTouchEnd(event){
-    if(!this.debugEnabled)return;const wasTouchCaptured=this.debugCaptureMode==="touch",toggle=this.debugTouchToggle;if(wasTouchCaptured)event.preventDefault();
+    if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled)return;const wasTouchCaptured=this.debugCaptureMode==="touch",toggle=this.debugTouchToggle;if(wasTouchCaptured)event.preventDefault();
     if(toggle&&event.touches.length===0){const duration=event.timeStamp-toggle.startedAt,valid=toggle.maxTouches===2&&!toggle.moved&&duration>=0&&duration<=DEBUG_TOUCH_TAP_MAX_MS;this.debugTouchToggle=null;if(valid){if(wasTouchCaptured)this.exitDebugCapture(true);else if(!this.debugCaptureReleasePending){this.exitDebugCapture(true);if(!this.debugCaptureReleasePending)this.debugCaptureMode="touch";}}}
     if(this.debugTouchDrag&&!Array.from(event.touches).some((touch)=>touch.identifier===this.debugTouchDrag.identifier))this.debugTouchDrag=null;
   }
-  onDebugTouchCancel(event){if(this.debugCaptureMode==="touch")event.preventDefault();this.debugTouchToggle=null;this.debugTouchDrag=null;}
+  onDebugTouchCancel(event){if(!this.debugCameraAuthoringInputEnabled)return;if(this.debugCaptureMode==="touch")event.preventDefault();this.debugTouchToggle=null;this.debugTouchDrag=null;}
   integrateDebugCameraMotion(){
-    if(!this.debugEnabled){this.debugLastFrameTimeMs=null;return;}const now=Number(this.debugNow());if(!Number.isFinite(now)){this.debugLastFrameTimeMs=null;return;}const previous=this.debugLastFrameTimeMs;this.debugLastFrameTimeMs=now;if(previous===null)return;const deltaSeconds=clamp(now-previous,0,DEBUG_MAX_DELTA_MS)/1000;if(deltaSeconds===0)return;
+    if(!this.debugEnabled||!this.debugCameraAuthoringInputEnabled){this.debugLastFrameTimeMs=null;return;}const now=Number(this.debugNow());if(!Number.isFinite(now)){this.debugLastFrameTimeMs=null;return;}const previous=this.debugLastFrameTimeMs;this.debugLastFrameTimeMs=now;if(previous===null)return;const deltaSeconds=clamp(now-previous,0,DEBUG_MAX_DELTA_MS)/1000;if(deltaSeconds===0)return;
     const active=new Set([...this.debugKeyboardIntents,...this.debugDomIntents]),forward=(active.has("forward")?1:0)-(active.has("back")?1:0),right=(active.has("right")?1:0)-(active.has("left")?1:0),vertical=(active.has("up")?1:0)-(active.has("down")?1:0);let planarForward=forward,planarRight=right;const planarLength=Math.hypot(planarForward,planarRight);if(planarLength>1){planarForward/=planarLength;planarRight/=planarLength;}const sin=Math.sin(this.debugYaw),cos=Math.cos(this.debugYaw);let x=-sin*planarForward+cos*planarRight,z=-cos*planarForward-sin*planarRight,y=vertical;const totalLength=Math.hypot(x,y,z);if(totalLength>1){x/=totalLength;y/=totalLength;z/=totalLength;}const speed=(this.debugShiftActive||this.debugGuiSpeedMode==="boost")?DEBUG_BOOST_UNITS_PER_SECOND:DEBUG_NORMAL_UNITS_PER_SECOND;this.debugPosition.x=clamp(this.debugPosition.x+x*speed*deltaSeconds,-DEBUG_POSITION_BOUNDS.x,DEBUG_POSITION_BOUNDS.x);this.debugPosition.y=clamp(this.debugPosition.y+y*speed*deltaSeconds,DEBUG_POSITION_BOUNDS.yMin,DEBUG_POSITION_BOUNDS.yMax);this.debugPosition.z=clamp(this.debugPosition.z+z*speed*deltaSeconds,DEBUG_POSITION_BOUNDS.zMin,DEBUG_POSITION_BOUNDS.zMax);this.applyDebugPose();
   }
   resetDebugCamera(){this.debugYaw=defaultGameplayCameraPose.rotationEulerDegrees.yYaw*Math.PI/180;this.debugPitch=defaultGameplayCameraPose.rotationEulerDegrees.xPitch*Math.PI/180;this.debugPosition={...defaultGameplayCameraPose.position};this.debugProjection={...defaultGameplayCameraPose.projection};this.debugLastFrameTimeMs=null;this.applyPose(defaultGameplayCameraPose);return this.describe();}

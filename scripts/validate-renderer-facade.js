@@ -193,9 +193,37 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
     assert.ok(Math.abs(diagonal.euler[2] - 0) < 1e-9, "judge-space +Y direction must map to world +Y (0 degrees z-euler)");
     equipmentRenderer[paletteSymbol](null, null);
     equipmentCalls.length = 0;
-    const rejected = equipmentRenderer.stageGameplayEquipment([{ role: "nose", x: 0.5, y: 0.5, mode: "flow" }, { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", extra: true, direction: { x: 1, y: 0 } }, { role: "left_wrist", x: 2, y: 0.5, mode: "flow", direction: { x: 1, y: 0 } }, { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing", direction: { x: 1, y: 0 } }], { grid: equipmentGrid }, true);
-    assert.equal(rejected.equipmentCount, 0, "invalid equipment records (nose role, unknown key, out-of-range x, boxing direction, non-plain direction) must all be skipped");
-    assert.deepEqual(equipmentCalls, [], "rejected records must not trigger any material calls");
+    const offGrid = equipmentRenderer.stageGameplayEquipment([
+      { role: "left_wrist", x: -0.25, y: -2, mode: "boxing" },
+      { role: "right_wrist", x: 1.5, y: 3, mode: "boxing" }
+    ], { grid: equipmentGrid }, true);
+    assert.equal(offGrid.equipmentCount, 2, "otherwise-valid finite off-grid equipment must remain staged");
+    const offGridLeftBody = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:left_wrist")[0];
+    const offGridRightBody = equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:right_wrist")[0];
+    assert.deepEqual(offGridLeftBody.pos, [-2, 2.5, 0.45 + gloveGeometry.offsetZ], "negative equipment coordinates must clamp to the exact left/top grid edges");
+    assert.deepEqual(offGridRightBody.pos, [2, -0.5, 0.45 + gloveGeometry.offsetZ], ">1 equipment coordinates must clamp to the exact right/bottom grid edges");
+    const malformedRecords = [
+      { role: "nose", x: 0.5, y: 0.5, mode: "flow" },
+      { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", extra: true },
+      { role: "left_wrist", x: NaN, y: 0.5, mode: "flow" },
+      { role: "left_wrist", x: 0.5, y: Infinity, mode: "flow" },
+      { role: "left_wrist", x: 0.5, y: 0.5, mode: "dance" },
+      { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: NaN, y: 0 } },
+      { role: "left_wrist", x: 0.5, y: 0.5, mode: "flow", direction: { x: 1, y: 0, extra: true } },
+      { role: "right_wrist", x: 0.5, y: 0.5, mode: "boxing", direction: { x: 1, y: 0 } }
+    ];
+    for (const record of malformedRecords) {
+      equipmentCalls.length = 0;
+      const rejected = equipmentRenderer.stageGameplayEquipment([record], { grid: equipmentGrid }, true);
+      assert.equal(rejected.equipmentCount, 0, `malformed/nonfinite equipment record must be skipped: ${String(record.role)}/${String(record.mode)}`);
+      assert.deepEqual(equipmentCalls, [], "rejected records must not trigger any material calls");
+    }
+    const duplicateRole = equipmentRenderer.stageGameplayEquipment([
+      { role: "left_wrist", x: 0.25, y: 0.5, mode: "boxing" },
+      { role: "left_wrist", x: 0.75, y: 0.5, mode: "boxing" }
+    ], { grid: equipmentGrid }, true);
+    assert.equal(duplicateRole.equipmentCount, 1, "duplicate equipment roles must preserve the first record and reject the duplicate");
+    assert.equal(equipmentRenderer.equipmentPools.get("equipment/boxing-glove-v1:left_wrist")[0].pos[0], -1, "duplicate rejection must not overwrite the first staged role position");
     const empty = equipmentRenderer.stageGameplayEquipment([], { grid: equipmentGrid }, true);
     assert.equal(empty.equipmentCount, 0, "empty equipment array must stage nothing without error");
     assert.equal(equipmentRenderer.describe().equipment.instanceCount, 0, "describe().equipment must reflect the cleared state");

@@ -6,6 +6,7 @@ import {
   gameplayWorldGrid,
   aftermathPose,
   aftermathLaunchVelocity,
+  aftermathSliceGlyphLengthWU,
   aftermathSliceOffsetX,
   hazardContactEnvelopeIntensity,
   hazardContactIntensity,
@@ -213,6 +214,55 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.notEqual(aftermathSliceOffsetX(entry, 1), aftermathSliceOffsetX(entry, -1), "opposite signs differ");
 }
 
+// 0.0.63 D5: wider half separation (blade-cut entries only).
+{
+  const tuning = defaultRendererTuning;
+  // A saber-cut flow/slice entry carries `sliceT` → the WIDER per-half spread.
+  const cut = { targetId: "w1", hitCommitMs: 0, family: "flow", hand: "left", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 11, shape: "arrow", sliceT: 0.5 };
+  assert.ok(Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1)) > tuning.aftermathSliceSeparationWU * 0.99, "a sliceT-present slice corpse spreads WIDER than the legacy base total (.16)");
+  assert.ok(Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1)) <= tuning.aftermathSliceWiderSeparationWU + 1e-9, "wider spread caps at aftermathSliceWiderSeparationWU + jitter bound");
+  // Legacy / non-slice entries keep the exact .16-based offset (backward compatible).
+  const legacy = { targetId: "w2", hitCommitMs: 0, family: "flow", hand: "left", mode: "single", spawn: { x: 0, y: 1, z: 0 }, seed: 11 };
+  const baseSpread = tuning.aftermathSliceSeparationWU;
+  // The two legacy halves' total spread stays on the legacy base scale (never the wider one).
+  const legacyTotal = Math.abs(aftermathSliceOffsetX(legacy, 1) - aftermathSliceOffsetX(legacy, -1));
+  const cutTotal = Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1));
+  assert.ok(legacyTotal < cutTotal, "legacy (no sliceT) halves stay narrower than a blade-cut corpse (cut=${cutTotal.toFixed(4)} vs legacy=${legacyTotal.toFixed(4)})");
+  assert.ok(legacyTotal <= baseSpread + 1e-9, "legacy spread never exceeds the .16 base total");
+  // Glyph long-axis length per shape (authored GLB local extents).
+  assert.equal(aftermathSliceGlyphLengthWU({ shape: "arrow" }), 0.78, "arrow glyph long axis = 0.78 WU (authored Y extent)");
+  assert.equal(aftermathSliceGlyphLengthWU({ shape: "orb" }), 0.7, "orb glyph long axis = 0.70 WU (authored Y extent)");
+  assert.equal(aftermathSliceGlyphLengthWU({}), 0.7, "absent shape defaults to the orb extent");
+}
+
+// 0.0.63 D5: sliceT rides the scene visual for slice halves ONLY.
+{
+  const mkEntry = (sliceT, mode = "slice") => Object.freeze({ targetId: "s", hitCommitMs: 0, family: "flow", hand: "left", mode, spawn: Object.freeze({ x: 0, y: 1, z: 0 }), seed: 5, ...(sliceT === undefined ? {} : { sliceT }) });
+  // sliceT present on a slice → both halves carry it in their aftermath visual.
+  const modelCut = buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [mkEntry(0.3)] });
+  const cutHalves = modelCut.objects.filter((o) => o.kind === "aftermath");
+  assert.equal(cutHalves.length, 2, "slice produces two halves");
+  assert.ok(cutHalves.every((h) => h.aftermath.sliceT === 0.3), "both halves ride sliceT in the visual");
+  assert.ok(cutHalves.every((h) => Number.isFinite(h.aftermath.offsetXWU)), "each half keeps its lateral offset");
+  // Absent sliceT (legacy) → no sliceT key on the visual (byte-identical to pre-D5 shape).
+  const modelLegacy = buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [mkEntry(undefined)] });
+  assert.ok(modelLegacy.objects.every((o) => !(o.aftermath && Object.hasOwn(o.aftermath, "sliceT"))), "legacy slice halves omit sliceT from the visual");
+  // Non-slice aftermath (whole) never carries sliceT even if the field is present… 
+  // (it's only honored on flow/slice entries; validator still admits it but the
+  //  scene builder omits it from whole-corpse visuals by construction.)
+  const singleEntry = Object.freeze({ targetId: "ss", hitCommitMs: 0, family: "flow", hand: "left", mode: "single", spawn: Object.freeze({ x: 0, y: 1, z: 0 }), seed: 5 });
+  const modelSingle = buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [singleEntry] });
+  const whole = modelSingle.objects.find((o) => o.kind === "aftermath");
+  assert.ok(!Object.hasOwn(whole.aftermath, "sliceT"), "whole (non-slice) aftermath never carries sliceT");
+  // Scene-model admission: out-of-range sliceT is REJECTED by frame validation.
+  assert.throws(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [{ ...mkEntry(), sliceT: 1.4 }] }), TypeError);
+  assert.throws(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [{ ...mkEntry(), sliceT: -0.1 }] }), TypeError);
+  assert.throws(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [{ ...mkEntry(), sliceT: Number.NaN }] }), TypeError);
+  // Boundaries 0 and 1 are ADMITTED (tail / head cuts).
+  assert.doesNotThrow(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [mkEntry(0)] }));
+  assert.doesNotThrow(() => buildGameplaySceneModel({ presentation: "flow", nowMs: 50, targets: [], aftermath: [mkEntry(1)] }));
+}
+
 // --- dntq: hazard-contact red glow vignette ---
 
 // Envelope timing: ramp to full over rampMs, decay to zero over decayMs.
@@ -271,8 +321,10 @@ assert.equal(T.hazardVignettePulseHz, 2, "default hazardVignettePulseHz is 2");
 assert.equal(T.hazardVignettePulseDepth, 0.35, "default hazardVignettePulseDepth is 0.35");
 assert.equal(T.hazardVignetteRampMs, 150, "default hazardVignetteRampMs is 150");
 assert.equal(T.hazardVignetteDecayMs, 400, "default hazardVignetteDecayMs is 400");
-assert.equal(T.version, "5", "tuning version bumped to 5");
-assert.equal(T.hash, "visual-playcanvas-v5", "tuning hash bumped to v5");
+assert.equal(T.version, "6", "0.0.63 D5: tuning version bumped to 6 (wider slice separation)");
+assert.equal(T.hash, "visual-3fed1dee", "0.0.63 D5: tuning hash bumped to v6 (aftermathSliceWiderSeparationWU added)");
+assert.equal(T.aftermathSliceWiderSeparationWU, 0.46, "0.0.63 D5: wider slice separation = .46 WU total spread (.16 base + .30 per-half target)");
+assert.ok(T.aftermathSliceWiderSeparationWU > T.aftermathSliceSeparationWU, "wider separation exceeds the legacy base");
 assert.equal(COLLIDER_OVERLAY_CAM_OFFSET_WU, 0.03, "camera-side overlay offset is +0.03 WU");
 
 // Overlays anchor at (p.x, p.y, p.z + camOffset) exactly at sampled travel depths.

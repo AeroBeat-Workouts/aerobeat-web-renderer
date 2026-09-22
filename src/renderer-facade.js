@@ -11,7 +11,7 @@ import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 import { gameplayAssetMaterialRole } from "./gameplay-assets.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
+import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
@@ -585,6 +585,14 @@ export class AeroPlayCanvasRenderer {
   applyAftermathAppearance(object,entity){
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     const sliceSign=object.aftermath?.sliceSign??null;if(sliceSign===null)return;
+    // 0.0.63 D5: the clip plane no longer sits at the glyph's fixed midpoint —
+    // it sits where the saber blade actually crossed the glyph. `sliceT` (0..1,
+    // 0 = tail / 1 = head, the glyph's local long axis) offsets the plane along
+    // that axis by (sliceT − 0.5) × the glyph's local long-axis length; both
+    // halves share the same plane, so they stay aligned and merely tumble apart
+    // laterally (see `aftermathSliceOffsetX`). Absent `sliceT` → legacy midpoint.
+    const sliceT=object.aftermath?.sliceT;
+    const planeLocalY=(sliceT!==undefined)?(sliceT-0.5)*aftermathSliceGlyphLengthWU(object):0;
     // 0.0.58 B11b: the corpse keeps the note's ACTUAL glyph (white outline + silhouette)
     // but DESATURATED — it must read as the same arrow/orb with the color gone, NOT a flat
     // uniform gray blob (the 0.0.57 AFTERMATH_HIT_CORPSE_GRAY override force-set EVERY
@@ -603,9 +611,9 @@ export class AeroPlayCanvasRenderer {
     for(const record of records){
       const role=gameplayAssetMaterialRole(object.assetId??"",record.name);
       const baseRgba=this.aftermathCorpsePartColor(role,object,record);
-      const variant=this.sliceVariantMaterial(record,sliceSign);
+      const variant=this.sliceVariantMaterial(record,sliceSign,planeLocalY);
       record.meshInstance.material=variant;
-      const state={kind:"aftermath-slice",sliceSign,part:role,baseR:[baseRgba[0],baseRgba[1],baseRgba[2]],opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
+      const state={kind:"aftermath-slice",sliceSign,planeLocalY,part:role,baseR:[baseRgba[0],baseRgba[1],baseRgba[2]],opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
       if(materialStateIsUnchanged(variant,this.materialStates.get(variant),state))continue;
       variant.diffuse.set(baseRgba[0],baseRgba[1],baseRgba[2]);variant.emissive.set(baseRgba[0]*.32,baseRgba[1]*.32,baseRgba[2]*.32);
       variant.opacity=baseRgba[3]*object.alpha;variant.blendType=state.blendType;variant.depthWrite=state.depthWrite;variant.depthTest=true;variant.useLighting=false;variant.cull=record.cull;
@@ -656,11 +664,11 @@ export class AeroPlayCanvasRenderer {
     // Any other / unrecognized part: keep the authored source appearance unchanged.
     return [record.diffuse.r,record.diffuse.g,record.diffuse.b,1];
   }
-  /** Lazily clone one clip-plane variant per (pool entity, material part, sliceSign) from the record's pooled material and install the local-X discard blocks (vertical cut — left/right halves, 0.0.56 B10). Both variants are owned and destroyed in the pool/detach teardown. 0.0.60 F1: the key uses the record's unique `materialUid` — the original key interpolated the meshInstance OBJECT ("[object Object]"), so every part of a slice half collided on one cache entry: the first part's clone won and the last part's color painted the whole half flat (flow corpses lost the white outline / charcoal / fill structure; latent since the 0.0.52 clip-plane introduction). */
-  sliceVariantMaterial(record,sliceSign){
-    const key=`${sliceSign}:${this.assetPoolGeneration}:${record.materialUid}`;
+  /** Lazily clone one clip-plane variant per (pool entity, material part, sliceSign, planeLocalY) from the record's pooled material and install the local-X discard blocks (vertical cut — left/right halves, 0.0.56 B10). Both variants are owned and destroyed in the pool/detach teardown. 0.0.60 F1: the key uses the record's unique `materialUid` — the original key interpolated the meshInstance OBJECT ("[object Object]"), so every part of a slice half collided on one cache entry: the first part's clone won and the last part's color painted the whole half flat (flow corpses lost the white outline / charcoal / fill structure; latent since the 0.0.52 clip-plane introduction). 0.0.63 D5: the key also carries `planeLocalY` — the glyph-local Y where the saber blade actually crossed at cut time — so a midpoint cut and an off-center cut for the same glyph produce distinct shader variants (the clip threshold is baked into the GLSL uniform). */
+  sliceVariantMaterial(record,sliceSign,planeLocalY=0){
+    const key=`${sliceSign}:${this.assetPoolGeneration}:${record.materialUid}:${+planeLocalY.toFixed(4)}`;
     let variant=this.sliceVariantMaterials.get(key);
-    if(!variant){variant=record.material.clone();this.installSliceClipBlocks(variant,sliceSign);this.ownedMaterials.add(variant);this.sliceVariantMaterials.set(key,variant);}
+    if(!variant){variant=record.material.clone();this.installSliceClipBlocks(variant,sliceSign,planeLocalY);this.ownedMaterials.add(variant);this.sliceVariantMaterials.set(key,variant);}
     return variant;
   }
   /** Restore pooled materials after a slice entity is disabled (prevents cross-contamination when the next icon reuses the same pool slot). 0.0.56 B10: also called from `applyAssetAppearance` so that when a LIVE icon acquires a pool slot that still carries a clip-plane variant material from a previous aftermath use, the variant is swapped back to the pooled material BEFORE the live appearance is applied — without this, the live arrow/orb renders with the clip blocks installed and is cut in half. Only restores when the current material is a known slice variant (a value in `sliceVariantMaterials`); externally-installed borrowed materials are left for the normal reconciliation path. */
@@ -668,13 +676,16 @@ export class AeroPlayCanvasRenderer {
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     for(const record of records){const mat=record.meshInstance.material;if(mat===record.material)continue;let isSliceVariant=false;for(const v of this.sliceVariantMaterials.values())if(v===mat){isSliceVariant=true;break;}if(isSliceVariant){record.meshInstance.material=record.material;this.materialStates.delete(record.meshInstance.material);}}
   }
-  /** PlayCanvas 2.21.4 has no ShaderBlock class; the paired shader blocks are injected into the material's `shaderChunks` GLSL map — the engine's own user-block injection points. 0.0.56 B10 follow-up: the cut is a VERTICAL slice down the note's local X axis (left/right halves), not the original top/bottom local-Y cut — Derrick's spec: for a hit DOWN arrow the cut runs from the horizontal middle down to the bottom, and the two SIDES fall while separating left/right. The vertex pair (declaration + `litUserMainStartVS`) feeds object-space X as a `vLocalX_aeroSlice` varying; the fragment pair (declaration + `litUserMainStartPS`) discards the far half of LOCAL X (`vLocalX_aeroSlice * SIGN < 0.0`). SIGN is baked per variant (1 keeps the right half where local X ≥ 0, -1 keeps the left half). `material.update()` flags the chunk map dirty so the variant cache serves a distinct clipped program for this variant only. */
-  installSliceClipBlocks(material,sliceSign){
+  /** PlayCanvas 2.21.4 has no ShaderBlock class; the paired shader blocks are injected into the material's `shaderChunks` GLSL map — the engine's own user-block injection points. 0.0.56 B10 follow-up: the cut is a VERTICAL slice down the note's local X axis (left/right halves), not the original top/bottom local-Y cut — Derrick's spec: for a hit DOWN arrow the cut runs from the horizontal middle down to the bottom, and the two SIDES fall while separating left/right. The vertex pair (declaration + `litUserMainStartVS`) feeds object-space X as a `vLocalX_aeroSlice` varying; the fragment pair (declaration + `litUserMainStartPS`) discards the far half of LOCAL X (`vLocalX_aeroSlice * SIGN < 0.0`). SIGN is baked per variant (1 keeps the right half where local X ≥ 0, -1 keeps the left half). 0.0.63 D5: `planeLocalY` offsets the CLIP PLANE along the glyph's local long axis (local Y, tail→head) so the cut sits at the blade's actual crossing point instead of always the midpoint. Because both glyphs (arrow + orb) have their local origin at the CENTER of the shape, the midpoint cut passes through local Y = 0. An off-center cut shifts that plane to local Y = PLANE. The left/right identity of each half is preserved by SIGN: SIGN = +1 keeps local Y ≥ PLANE (the "right" half when reading the glyph top-to-bottom), SIGN = −1 keeps local Y ≤ PLANE. At PLANE = 0 the test collapses to `localY * SIGN < 0`, which is exactly the local-Y split at the midpoint — a CONTINUOUS extension of the old local-X-based midpoint test (both partition the glyph into two disjoint halves that tile the whole shape without overlap or gap). Both variants are still cloned on first use from the record's pooled material; the cache key now also carries `planeLocalY` so a midpoint cut and an off-center cut for the same glyph produce distinct shader variants. `material.update()` flags the chunk map dirty so the variant cache serves a distinct clipped program for this variant only. */
+  installSliceClipBlocks(material,sliceSign,planeLocalY=0){
     const sign=sliceSign===1?"1.0":"-1.0";
-    material.shaderChunks.glsl.set("litUserDeclarationVS","varying float vLocalX_aeroSlice;\n");
-    material.shaderChunks.glsl.set("litUserMainStartVS","vLocalX_aeroSlice = vertex_position.x;\n");
-    material.shaderChunks.glsl.set("litUserDeclarationPS","varying float vLocalX_aeroSlice;\n");
-    material.shaderChunks.glsl.set("litUserMainStartPS",`if (vLocalX_aeroSlice * ${sign} < 0.0) discard;\n`);
+    const plane=+planeLocalY.toFixed(4);
+    material.shaderChunks.glsl.set("litUserDeclarationVS","varying float vLocalY_aeroSlice;\n");
+    material.shaderChunks.glsl.set("litUserMainStartVS","vLocalY_aeroSlice = vertex_position.y;\n");
+    material.shaderChunks.glsl.set("litUserDeclarationPS","varying float vLocalY_aeroSlice;\n");
+    material.shaderChunks.glsl.set("litUserMainStartPS",plane===0
+      ? `if (vLocalY_aeroSlice * ${sign} < 0.0) discard;\n`
+      : `if ((vLocalY_aeroSlice - (${plane})) * ${sign} < 0.0) discard;\n`);
     material.update();
   }
   /** 0.0.52 W1-C follow-up: fullscreen hazard-contact red vignette. One persistent unlit fullscreen quad on the topmost transparent gameplay layer (above Targets, below product-UI layers); driven per frame by the model's hazard_glow scene object; disabled (zero cost) at zero intensity. Uses a ShaderMaterial with screen-space UV vignette; depth-test OFF so it always composites on top of the gameplay scene. */

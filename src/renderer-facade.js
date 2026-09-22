@@ -118,7 +118,7 @@ export class AeroPlayCanvasRenderer {
    * 0.0.61 L-F3 (chgy/hk5q/vths): stage gameplay equipment (flow saber beam /
    * boxing glove) in the same post-updateSceneObjects order as cursors.
    * `equipment` records share the cursor staging grid but carry their own
-   * fields: `{role:"left_wrist"|"right_wrist", x, y (normalized 0..1), mode:
+   * fields: `{role:"left_wrist"|"right_wrist", x, y (finite; off-grid values edge-clamp), mode:
    * "flow"|"boxing", dimmed?, direction? ({x,y} in JUDGE space, flow only),
    * scale? (finite number > 0, default 1), rotationZDeg? (finite number,
    * default 0)}`. `rotationZDeg` rotates the equipment model IN THE STAGING

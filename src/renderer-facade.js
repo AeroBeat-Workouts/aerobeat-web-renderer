@@ -16,7 +16,7 @@ import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSl
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
-export const equipmentPoseContractsCommit="af4150a10e51e08419701646b654bbc6ad03db5d";
+export const equipmentPoseContractsCommit="51c2b42805f5aa008386dc8bc779cfad8542af34";
 const cursorRoles=Object.freeze(["nose","left_wrist","right_wrist"]);
 const equipmentRoles=Object.freeze(["left_wrist","right_wrist"]);
 const equipmentModes=Object.freeze(["flow","boxing"]);

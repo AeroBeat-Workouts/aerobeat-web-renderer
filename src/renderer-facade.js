@@ -173,8 +173,8 @@ export class AeroPlayCanvasRenderer {
   renderGameplayEquipment(equipment,options){const result=this.stageGameplayEquipment(equipment,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),equipmentCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.equipmentCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
   /**
    * One bounded pose root per role owns anchor, positive uniform scale, and final quaternion.
-   * Axis-corrected GLB or canonical local fallback children plus the shared local-Y glow inherit
-   * that exact world matrix. Accepted input is intentionally centralized in
+   * Axis-corrected GLB, fallback, and glow children all present canonical pose-local +X
+   * geometry while inheriting that exact world matrix. Accepted input is intentionally centralized in
    * adaptResolvedEquipmentRecord so the shared-contract export can replace it atomically.
    * @param {ReadonlyArray<unknown>} equipment
    * @param {unknown} _options
@@ -213,7 +213,7 @@ export class AeroPlayCanvasRenderer {
     return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});
   }
   /** 0.0.62 L-C (r2lb r2): flow saber v2 = two-cylinder GLB (hilt + blade + rounded tip)
-    *   inheriting one wrist-anchored root. Canonical rendered geometry extends along local +Y for
+    *   inheriting one wrist-anchored root. Canonical rendered geometry extends along pose-local +X for
     *   0.75 WU (== detection capsule length, what-you-see-is-what-hits). Two material slots:
     *     mat/saber_blade → bright EMISSIVE blade + rounded tip, per-hand TINTABLE (carries
     *                       the song-palette color via the effective-palette seam).

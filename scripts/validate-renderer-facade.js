@@ -305,3 +305,30 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
   assert.equal(res.equipmentCount, 0, "scale Infinity must be rejected");
   console.log("Equipment transform contract validation passed (0.0.63 C2).");
 }
+
+// Private debug-equipment anchor projection: lifecycle, viewport, ray, clip,
+// exact inverse-grid bounds, epsilon snapping, immutability, and read-only state.
+{
+  const renderer=createAeroPlayCanvasRenderer(),box={left:10,top:20,width:100,height:100};
+  const canvas={getBoundingClientRect:()=>box};
+  const camera={enabled:true,nearClip:1,farClip:10,rect:{x:0,y:0,z:1,w:1},screenToWorld(x,y,destinationZ,out){out.set((x/100)*4-2,2.5-(y/100)*3,5-destinationZ);return out;}};
+  renderer.canvas=canvas;renderer.app={graphicsDevice:{clientRect:{width:100,height:100}},tick(){},start(){}};renderer.cameraEntity={enabled:true,camera,getPosition(){return null;}};
+  assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"an attached camera without a completed frame must fail closed");
+  renderer.manualTick();renderer.state="running";
+  const before=JSON.stringify({description:renderer.describe(),frameCount:renderer.frameCount,drawCount:renderer.drawCount,state:renderer.state});
+  const center=renderer.projectDebugEquipmentAnchor(60,70);assert.deepEqual(center,{x:.5,y:.5});assert.ok(Object.isFrozen(center),"successful projection must return a frozen record");assert.deepEqual(renderer.projectDebugEquipmentAnchor(-100,70),{x:0,y:.5},"finite client points must clamp to the canvas client box before projection");
+  assert.equal(JSON.stringify({description:renderer.describe(),frameCount:renderer.frameCount,drawCount:renderer.drawCount,state:renderer.state}),before,"projection query must not mutate public/private render counters or diagnostics");
+  for(const [x,y] of [[NaN,70],[60,Infinity],["60",70]])assert.equal(renderer.projectDebugEquipmentAnchor(x,y),null,"only finite numeric CSS client coordinates are accepted");
+  box.width=0;assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"zero CSS geometry must fail closed");box.width=100;
+  renderer.app.graphicsDevice.clientRect.width=0;assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"zero PlayCanvas client geometry must fail closed");renderer.app.graphicsDevice.clientRect.width=100;
+  renderer.contextLost=true;assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"context loss must fail closed");renderer.contextLost=false;renderer.state="error";assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"inactive renderer lifecycle must fail closed");renderer.state="running";
+  camera.rect={x:.25,y:.25,z:.5,w:.5};assert.equal(renderer.projectDebugEquipmentAnchor(20,70),null,"points outside a non-full camera viewport must fail closed");assert.deepEqual(renderer.projectDebugEquipmentAnchor(60,70),{x:.5,y:.5},"points inside a non-full camera viewport must project");camera.rect={x:0,y:0,z:1,w:1};
+  const originalScreenToWorld=camera.screenToWorld;camera.screenToWorld=(x,y,d,out)=>out.set(0,1,d===camera.nearClip?1:1+1e-8);assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"a ray parallel to the equipment plane must fail closed");
+  camera.screenToWorld=(x,y,d,out)=>out.set(0,1,d===camera.nearClip?5:6);assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"a plane behind the camera ray must fail closed");
+  camera.screenToWorld=(x,y,d,out)=>out.set(0,1,d===camera.nearClip?5:4);assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"an intersection beyond the far clip must fail closed");
+  camera.screenToWorld=(x,y,d,out)=>out.set(2.000002,1,d===camera.nearClip?4:-5);assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"world intersections beyond grid epsilon must not clamp");
+  camera.screenToWorld=(x,y,d,out)=>out.set(2.0000005,-.5000005,d===camera.nearClip?4:-5);assert.deepEqual(renderer.projectDebugEquipmentAnchor(60,70),{x:1,y:1},"epsilon-only grid drift must snap to exact normalized bounds");
+  camera.screenToWorld=originalScreenToWorld;camera.rect={x:0,y:0,z:0,w:1};assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"zero camera viewport geometry must fail closed");
+  camera.rect={x:0,y:0,z:1,w:1};renderer.destroyed=true;assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"destroyed lifecycle must fail closed");
+  console.log("Private debug-equipment projection facade validation passed.");
+}

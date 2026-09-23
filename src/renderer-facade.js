@@ -27,6 +27,8 @@ const internalEffectivePaletteSymbol=Symbol.for("aerobeat.web-renderer.internal-
 const effectiveMarkerPalettes=new WeakMap();
 /** @type {WeakMap<AeroPlayCanvasRenderer,{offset:{x:number,y:number},lastTimeMs:number|null}>} */
 const productionCameraStates=new WeakMap();
+/** @type {WeakSet<AeroPlayCanvasRenderer>} */
+const projectionReadyRenderers=new WeakSet();
 const debugMovementIntents=Object.freeze(["forward","back","left","right","down","up"]);
 const debugSpeedModes=Object.freeze(["normal","boost"]);
 const debugMouseCaptureModes=Object.freeze(["pointer","fallback"]);
@@ -39,7 +41,8 @@ const DEBUG_TOUCH_TAP_MAX_MOVE_PX=12;
 const DEBUG_POSITION_BOUNDS=Object.freeze({x:40,yMin:-8,yMax:32,zMin:-72,zMax:32});
 const PRODUCTION_CAMERA_MAX_DELTA_MS=100;
 const GRID_COLUMN_PITCH=gameplayWorldGrid.columnX[1]-gameplayWorldGrid.columnX[0],GRID_ROW_PITCH=gameplayWorldGrid.rowY[0]-gameplayWorldGrid.rowY[1];
-const GRID_LEFT=gameplayWorldGrid.columnX[0]-GRID_COLUMN_PITCH/2,GRID_TOP=gameplayWorldGrid.rowY[0]+GRID_ROW_PITCH/2;
+const GRID_LEFT=gameplayWorldGrid.columnX[0]-GRID_COLUMN_PITCH/2,GRID_RIGHT=gameplayWorldGrid.columnX.at(-1)+GRID_COLUMN_PITCH/2,GRID_TOP=gameplayWorldGrid.rowY[0]+GRID_ROW_PITCH/2,GRID_BOTTOM=gameplayWorldGrid.rowY.at(-1)-GRID_ROW_PITCH/2;
+const DEBUG_EQUIPMENT_PLANE_Z=.45,DEBUG_EQUIPMENT_PROJECTION_EPSILON=1e-6;
 
 /** One assembly-owned renderer and PlayCanvas Application per connected game. */
 export class AeroPlayCanvasRenderer {
@@ -62,13 +65,13 @@ export class AeroPlayCanvasRenderer {
     this.debugCaptureCursor=null;this.debugCaptureReleasePending=null;this.debugPointerLockRequest=null;this.debugReleaseListener=null;this.debugReleaseWaiters=[];
     this.gameplayAssetLoader=options.gameplayAssetLoader??new PlayCanvasGameplayAssetPreloader({fetch:options.fetch,baseUrl:options.gameplayAssetBaseUrl});this.gameplayAssetLoadPromise=null;
     this.environmentOwner=options.environmentOwner??new PlayCanvasEnvironmentAssetOwner({fetch:options.fetch,decodeImage:options.environmentDecodeImage,createSphere:options.environmentCreateSphere,locationHref:options.locationHref});this.environmentLoadPromise=null;
-    this.onContextLost=(event)=>{event.preventDefault();this.resetProductionCameraParallax();this.contextLost=true;this.state="context_lost";this.atlasRestorePending=Boolean(this.iconAtlasData);this.iconTexture?.destroy();this.iconTexture=null;this.destroyInstantiatedPools();this.environmentOwner.handleContextLost();this.gameplayAssetLoader.handleContextLost();};
-    this.onContextRestored=()=>{if(this.destroyed||!this.app)return;this.resetProductionCameraParallax();this.contextLost=false;this.contextRestoreCount+=1;this.state="ready";this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app);this.environmentLoadPromise=this.environmentOwner.restore(this.app);};
+    this.onContextLost=(event)=>{event.preventDefault();this.resetProductionCameraParallax();this.contextLost=true;projectionReadyRenderers.delete(this);this.state="context_lost";this.atlasRestorePending=Boolean(this.iconAtlasData);this.iconTexture?.destroy();this.iconTexture=null;this.destroyInstantiatedPools();this.environmentOwner.handleContextLost();this.gameplayAssetLoader.handleContextLost();};
+    this.onContextRestored=()=>{if(this.destroyed||!this.app)return;this.resetProductionCameraParallax();this.contextLost=false;projectionReadyRenderers.delete(this);this.contextRestoreCount+=1;this.state="ready";this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app);this.environmentLoadPromise=this.environmentOwner.restore(this.app);};
   }
   attach(canvas,options=this.contextAttributes){
     if(this.destroyed)return this.describe();
     if(this.canvas===canvas&&this.app)return this.describe();
-    this.detach();this.canvas=canvas;this.contextAttributes=options;
+    this.detach();this.canvas=canvas;this.contextAttributes=options;projectionReadyRenderers.delete(this);
     canvas.addEventListener("webglcontextlost",this.onContextLost);canvas.addEventListener("webglcontextrestored",this.onContextRestored);
     try{
       this.app=new pc.Application(canvas,{graphicsDeviceOptions:{...options,alpha:true}});
@@ -91,7 +94,7 @@ export class AeroPlayCanvasRenderer {
     this.destroyInstantiatedPools();this.destroyHazardGlow();this.environmentOwner.dispose();this.environmentLoadPromise=null;this.gameplayAssetLoader.dispose();this.gameplayAssetLoadPromise=null;for(const material of this.ownedMaterials)material.destroy();this.ownedMaterials.clear();this.materialStates=new WeakMap();
     const app=this.app;this.removeGameplayLayers();this.app=null;this.appStarted=false;this.cameraEntity=null;this.pool=[];this.assetPools=new Map();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.overlayEntities=[];this.iconTexture=null;this.atlasRestorePending=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();this.cursorDiagnostics=Object.freeze({instanceCount:0,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([]),depthTest:true,depthWrite:true});this.equipmentDiagnostics=Object.freeze({instanceCount:0,roles:Object.freeze([]),modes:Object.freeze([]),depthTest:true,depthWrite:false});
     if(app){try{app.destroy();}catch{}}
-    this.canvas=null;this.contextLost=false;this.testPresentationConfig=defaultTestPresentationConfig;this.gameplayVisualExperimentConfig=defaultGameplayVisualExperimentConfig;this.resetProductionCameraParallax();effectiveMarkerPalettes.set(this,null);if(!this.destroyed)this.state="unsupported";return this.describe();
+    this.canvas=null;this.contextLost=false;projectionReadyRenderers.delete(this);this.testPresentationConfig=defaultTestPresentationConfig;this.gameplayVisualExperimentConfig=defaultGameplayVisualExperimentConfig;this.resetProductionCameraParallax();effectiveMarkerPalettes.set(this,null);if(!this.destroyed)this.state="unsupported";return this.describe();
   }
   resize(size){if(!this.canvas||this.destroyed)return this.describe();this.widthCssPx=finiteNonNegative(size.widthCssPx);this.heightCssPx=finiteNonNegative(size.heightCssPx);const cap=Math.max(1,Math.min(size.maxDevicePixelRatio??this.tuning.dprCap,this.tuning.dprCap));this.devicePixelRatio=Math.max(0.1,Math.min(Number.isFinite(size.devicePixelRatio)?size.devicePixelRatio:1,cap));this.applySize();return this.describe();}
   applySize(){if(!this.canvas)return;const width=Math.max(1,Math.round(this.widthCssPx*this.devicePixelRatio)),height=Math.max(1,Math.round(this.heightCssPx*this.devicePixelRatio));this.canvas.style.width=`${this.widthCssPx}px`;this.canvas.style.height=`${this.heightCssPx}px`;this.canvas.width=width;this.canvas.height=height;if(this.app){this.app.setCanvasFillMode(pc.FILLMODE_NONE,this.widthCssPx,this.heightCssPx);this.app.setCanvasResolution(pc.RESOLUTION_FIXED,width,height);this.app.graphicsDevice.resizeCanvas(width,height);}}
@@ -112,6 +115,33 @@ export class AeroPlayCanvasRenderer {
   setEnvironmentVisible(visible){if(!this.destroyed)this.environmentOwner.setVisible(visible);return this.describe();}
   uploadIconAtlas(atlas){if(this.destroyed)return this.describe();try{this.iconAtlasData=normalizeIconAtlasData(atlas);this.iconEntries=new Map(this.iconAtlasData.entries.map((entry)=>[entry.id,entry]));this.iconAtlasError=null;if(this.app)this.createAtlasTexture();}catch(error){this.iconAtlasData=null;this.iconEntries.clear();this.iconTexture?.destroy();this.iconTexture=null;this.iconAtlasError=error instanceof Error?error.message:"Icon atlas is invalid";}return this.describe();}
   createAtlasTexture(){if(!this.app||!this.iconAtlasData)return;this.iconTexture?.destroy();const atlas=this.iconAtlasData;const texture=new pc.Texture(this.app.graphicsDevice,{name:"aero-icon-atlas",width:atlas.width,height:atlas.height,format:pc.PIXELFORMAT_RGBA8,mipmaps:false,minFilter:pc.FILTER_LINEAR,magFilter:pc.FILTER_LINEAR,addressU:pc.ADDRESS_CLAMP_TO_EDGE,addressV:pc.ADDRESS_CLAMP_TO_EDGE});const pixels=texture.lock();pixels.set(atlas.pixels);texture.unlock();this.iconTexture=texture;}
+  /**
+   * Private synchronous Visual-Test query. Inverts the live camera projection at
+   * the equipment plane without rendering or changing renderer/input state.
+   * @param {number} clientX CSS client X coordinate.
+   * @param {number} clientY CSS client Y coordinate.
+   * @returns {Readonly<{x:number,y:number}>|null}
+   */
+  projectDebugEquipmentAnchor(clientX,clientY){
+    if(!Number.isFinite(clientX)||!Number.isFinite(clientY)||this.destroyed||this.contextLost||this.state!=="running"||!projectionReadyRenderers.has(this))return null;
+    const canvas=this.canvas,app=this.app,cameraEntity=this.cameraEntity,camera=cameraEntity?.camera;
+    if(!canvas||!app||!cameraEntity||!camera||cameraEntity.enabled===false||camera.enabled===false||typeof canvas.getBoundingClientRect!=="function")return null;
+    try{
+      const box=canvas.getBoundingClientRect(),deviceBox=app.graphicsDevice?.clientRect,rect=camera.rect;
+      if(![box.left,box.top,box.width,box.height,deviceBox?.width,deviceBox?.height,rect?.x,rect?.y,rect?.z,rect?.w,camera.nearClip,camera.farClip].every(Number.isFinite)||box.width<=0||box.height<=0||deviceBox.width<=0||deviceBox.height<=0||rect.z<=0||rect.w<=0||rect.x<0||rect.y<0||rect.x+rect.z>1||rect.y+rect.w>1||camera.nearClip<0||camera.farClip<=camera.nearClip)return null;
+      const localCssX=clamp(clientX,box.left,box.left+box.width)-box.left,localCssY=clamp(clientY,box.top,box.top+box.height)-box.top,normalizedX=localCssX/box.width,normalizedY=localCssY/box.height;
+      const viewportLeft=rect.x,viewportRight=rect.x+rect.z,viewportTop=1-rect.y-rect.w,viewportBottom=1-rect.y;
+      if(normalizedX<viewportLeft-DEBUG_EQUIPMENT_PROJECTION_EPSILON||normalizedX>viewportRight+DEBUG_EQUIPMENT_PROJECTION_EPSILON||normalizedY<viewportTop-DEBUG_EQUIPMENT_PROJECTION_EPSILON||normalizedY>viewportBottom+DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
+      const screenX=normalizedX*deviceBox.width,screenY=normalizedY*deviceBox.height,near=camera.screenToWorld(screenX,screenY,camera.nearClip,new pc.Vec3()),far=camera.screenToWorld(screenX,screenY,camera.farClip,new pc.Vec3());
+      if(![near.x,near.y,near.z,far.x,far.y,far.z].every(Number.isFinite))return null;
+      const rayZ=far.z-near.z;if(Math.abs(rayZ)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
+      const rawT=(DEBUG_EQUIPMENT_PLANE_Z-near.z)/rayZ;if(rawT<-DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawT>1+DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
+      const t=clamp(rawT,0,1),rawWorldX=near.x+(far.x-near.x)*t,rawWorldY=near.y+(far.y-near.y)*t;
+      if(!Number.isFinite(rawWorldX)||!Number.isFinite(rawWorldY)||rawWorldX<GRID_LEFT-DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawWorldX>GRID_RIGHT+DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawWorldY<GRID_BOTTOM-DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawWorldY>GRID_TOP+DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
+      const worldX=Math.abs(rawWorldX-GRID_LEFT)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_LEFT:Math.abs(rawWorldX-GRID_RIGHT)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_RIGHT:rawWorldX,worldY=Math.abs(rawWorldY-GRID_BOTTOM)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_BOTTOM:Math.abs(rawWorldY-GRID_TOP)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_TOP:rawWorldY;
+      return Object.freeze({x:(worldX-GRID_LEFT)/(GRID_RIGHT-GRID_LEFT),y:(GRID_TOP-worldY)/(GRID_TOP-GRID_BOTTOM)});
+    }catch{return null;}
+  }
   renderGameplayFrame(frame){return this.renderGameplayScene(frame,null,null,null);}
   renderGameplayFrameWithCursors(frame,cursors,options){return this.renderGameplayScene(frame,cursors,options,null);}
   /**
@@ -784,7 +814,7 @@ export class AeroPlayCanvasRenderer {
   addOverlayDisc(name,x,y,z,scale,color){const entity=this.makeEntity(name,"sphere");entity.setPosition(x,y,z);entity.setLocalScale(scale,scale,scale);this.updateMaterial(entity,color,1,null,false,false);this.overlayEntities.push(entity);}
   addOverlayLine(a,b,surface,color){const ap=gridPositionForNormalized(a.x/surface.viewportWidth,a.y/surface.viewportHeight,0.43),bp=gridPositionForNormalized(b.x/surface.viewportWidth,b.y/surface.viewportHeight,0.43),ax=ap.x,ay=ap.y,bx=bp.x,by=bp.y,dx=bx-ax,dy=by-ay,length=Math.hypot(dx,dy);const entity=this.makeEntity("landmark-line","box");entity.setPosition((ax+bx)/2,(ay+by)/2,0.43);entity.setLocalScale(0.025,length,0.02);entity.setEulerAngles(0,0,-Math.atan2(dx,dy)*180/Math.PI);this.updateMaterial(entity,color,0.9,null,false,false);this.overlayEntities.push(entity);}
   clearOverlayEntities(){for(const entity of this.overlayEntities)this.destroyPrimitiveEntity(entity);this.overlayEntities=[];for(const entity of this.markerPool)entity.enabled=false;for(const entries of this.equipmentPools.values())for(const entity of entries)entity.enabled=false;this.cursorDiagnostics=Object.freeze({instanceCount:0,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([]),depthTest:true,depthWrite:true});this.equipmentDiagnostics=Object.freeze({instanceCount:0,roles:Object.freeze([]),modes:Object.freeze([]),depthTest:true,depthWrite:false,assetMode:"none"});}
-  manualTick(){if(!this.app)return;this.syncEnvironmentAnchor();if(this.atlasRestorePending&&this.iconAtlasData){this.createAtlasTexture();this.atlasRestorePending=false;}const now=globalThis.performance?.now?.()??Date.now();if(!this.appStarted){this.app.renderNextFrame=true;this.app.tick(now);this.app.start();this.appStarted=true;this.app.renderNextFrame=true;this.app.tick(now);}this.app.renderNextFrame=true;this.app.tick(now);}
+  manualTick(){if(!this.app)return;this.syncEnvironmentAnchor();if(this.atlasRestorePending&&this.iconAtlasData){this.createAtlasTexture();this.atlasRestorePending=false;}const now=globalThis.performance?.now?.()??Date.now();if(!this.appStarted){this.app.renderNextFrame=true;this.app.tick(now);this.app.start();this.appStarted=true;this.app.renderNextFrame=true;this.app.tick(now);}this.app.renderNextFrame=true;this.app.tick(now);projectionReadyRenderers.add(this);}
   applyClearColor(){const rgba=colorTokenToRgba(this.background.colors[0],[0,0,0,0]);this.cameraEntity.camera.clearColor=new pc.Color(rgba[0],rgba[1],rgba[2],this.background.kind==="solid"?rgba[3]:0);}
   getCapabilities(){const degradations=[];if(!this.app)degradations.push("playcanvas_unavailable");const assets=this.gameplayAssetLoader.describe();if(assets.state==="fallback")degradations.push(`gameplay_assets_fallback:${assets.fallbackReason??"unknown"}`);if(assets.state==="error")degradations.push("gameplay_assets_error");return Object.freeze({serviceId:aeroPlayCanvasRendererServiceId,playcanvas:Boolean(this.app),engineVersion:"2.21.4",exactContainerResize:true,dprAware:true,contextLossRecovery:true,alphaMaskIcons:Boolean(this.iconTexture),canonicalGameplayAssets:assets.state==="ready",manualRendering:true,secondAnimationFrame:false,liveTuning:true,maxDevicePixelRatio:this.tuning.dprCap,degradations:Object.freeze(degradations)});}
   describe(){const activeIntentCount=new Set([...this.debugKeyboardIntents,...this.debugDomIntents]).size;return Object.freeze({serviceId:aeroPlayCanvasRendererServiceId,state:this.state,supported:Boolean(this.app),attached:Boolean(this.canvas&&this.app),contextLost:this.contextLost,destroyed:this.destroyed,frameCount:this.frameCount,drawCount:this.drawCount,contextRestoreCount:this.contextRestoreCount,viewportWidth:this.canvas?.width??0,viewportHeight:this.canvas?.height??0,widthCssPx:this.widthCssPx,heightCssPx:this.heightCssPx,devicePixelRatio:this.devicePixelRatio,themeId:this.themeId,themeVersion:this.themeVersion,themeHash:this.themeHash,tuningId:this.tuning.id,tuningVersion:this.tuning.version,tuningHash:this.tuning.hash,tuningRequiresRegeneration:false,visualProfile:this.visualProfile,visualProfileIdentity:this.visualProfile.identity,visualProfileSettings:this.visualProfile.settings,visualScalesId:[this.tuning.noteScaleFactor,this.tuning.obstacleScaleFactor,this.tuning.bombScaleFactor,this.tuning.markerScaleFactor].map((v)=>String(v)).join("|"),experimental:true,gameplayAssets:this.gameplayAssetLoader.describe(),environment:this.environmentOwner.describe(),sceneVisuals:this.sceneDiagnostics,cursors:this.cursorDiagnostics,equipment:this.equipmentDiagnostics,iconAtlasReady:Boolean(this.iconTexture),iconAtlasError:this.iconAtlasError,errorMessage:this.errorMessage,debugCameraEnabled:this.debugEnabled,debugListenerCount:this.debugListeners.length,debugCaptureMode:this.debugCaptureMode,debugCameraSpeedMode:this.debugGuiSpeedMode,debugCameraBoostActive:this.debugShiftActive||this.debugGuiSpeedMode==="boost",debugActiveIntentCount:activeIntentCount,pointerLockActive:Boolean(this.canvas&&typeof document!=="undefined"&&document.pointerLockElement===this.canvas),pooledEntityCount:this.pool.length,activeEntityCount:this.activeCount,engine:"playcanvas",engineVersion:"2.21.4",manualRendering:true});}

@@ -1,7 +1,8 @@
 // @ts-check
 
 import * as pc from "playcanvas";
-import { gloveGeometry, saberGeometry } from "@aerobeat/web-contracts/equipment-contracts";
+import { gloveGeometry, judgeToPresentationPoint, saberGeometry } from "@aerobeat/web-contracts/equipment-contracts";
+import { isResolvedEquipmentPose } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
 import { defaultTestPresentationConfig, normalizeTestPresentationConfig } from "./test-presentation-config.js";
 import { defaultGameplayCameraPose, gameplayCameraPoseArtifactFilename, gameplayCameraPoseArtifactMimeType, normalizeGameplayCameraPose, serializeGameplayCameraPose } from "./gameplay-camera-pose.js";
@@ -49,7 +50,7 @@ export class AeroPlayCanvasRenderer {
   constructor(options={}){
     this.serviceId=aeroPlayCanvasRendererServiceId;
     this.contextAttributes=options.contextAttributes??{alpha:true,antialias:true,premultipliedAlpha:true,preserveDrawingBuffer:false};
-    this.canvas=null;this.app=null;this.appStarted=false;this.cameraEntity=null;this.fixedCamera=null;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayHazardGlowLayer=null;this.gameplayColliderOverlayLayer=null;this.pool=[];this.assetPools=new Map();this.assetPoolGeneration=-1;this.aftermathAssetPools=new Map();this.assetMaterials=new WeakMap();this.materialStates=new WeakMap();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.activeCount=0;this.overlayEntities=[];this.entityMaterials=new WeakMap();this.ownedMaterials=new Set();this.sliceVariantMaterials=new Map();this.materialUidCounter=0;this.hazardGlowEntity=null;this.hazardGlowMaterial=null;
+    this.canvas=null;this.app=null;this.appStarted=false;this.cameraEntity=null;this.fixedCamera=null;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayHazardGlowLayer=null;this.gameplayColliderOverlayLayer=null;this.pool=[];this.assetPools=new Map();this.assetPoolGeneration=-1;this.aftermathAssetPools=new Map();this.assetMaterials=new WeakMap();this.materialStates=new WeakMap();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.equipmentPoseRoots=new Map();this.equipmentGlbEntities=new Map();this.equipmentPrimitiveChildren=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.activeCount=0;this.overlayEntities=[];this.entityMaterials=new WeakMap();this.ownedMaterials=new Set();this.sliceVariantMaterials=new Map();this.materialUidCounter=0;this.hazardGlowEntity=null;this.hazardGlowMaterial=null;
     this.iconAtlasData=null;this.iconEntries=new Map();this.iconTexture=null;this.iconAtlasError=null;this.atlasRestorePending=false;
     this.state="unsupported";this.contextLost=false;this.destroyed=false;this.errorMessage=null;this.frameCount=0;this.drawCount=0;this.contextRestoreCount=0;
     this.widthCssPx=0;this.heightCssPx=0;this.devicePixelRatio=1;this.theme=defaultRendererThemeTokens;this.visualProfile=defaultRendererVisualProfile;this.visualScales=null;this.tuning=rendererTuningFromVisualProfile(this.visualProfile);this.testPresentationConfig=defaultTestPresentationConfig;this.gameplayVisualExperimentConfig=defaultGameplayVisualExperimentConfig;this.productionCameraNow=typeof options.now==="function"?options.now:()=>globalThis.performance?.now?.()??Date.now();productionCameraStates.set(this,{offset:{x:0,y:0},lastTimeMs:null});
@@ -92,7 +93,7 @@ export class AeroPlayCanvasRenderer {
     this.setDebugCameraEnabled(false);this.debugCameraAuthoringInputEnabled=true;
     if(this.canvas){this.canvas.removeEventListener("webglcontextlost",this.onContextLost);this.canvas.removeEventListener("webglcontextrestored",this.onContextRestored);}
     this.destroyInstantiatedPools();this.destroyHazardGlow();this.environmentOwner.dispose();this.environmentLoadPromise=null;this.gameplayAssetLoader.dispose();this.gameplayAssetLoadPromise=null;for(const material of this.ownedMaterials)material.destroy();this.ownedMaterials.clear();this.materialStates=new WeakMap();
-    const app=this.app;this.removeGameplayLayers();this.app=null;this.appStarted=false;this.cameraEntity=null;this.pool=[];this.assetPools=new Map();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.overlayEntities=[];this.iconTexture=null;this.atlasRestorePending=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();this.cursorDiagnostics=Object.freeze({instanceCount:0,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([]),depthTest:true,depthWrite:true});this.equipmentDiagnostics=Object.freeze({instanceCount:0,roles:Object.freeze([]),modes:Object.freeze([]),depthTest:true,depthWrite:false});
+    const app=this.app;this.removeGameplayLayers();this.app=null;this.appStarted=false;this.cameraEntity=null;this.pool=[];this.assetPools=new Map();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.equipmentPoseRoots=new Map();this.equipmentGlbEntities=new Map();this.equipmentPrimitiveChildren=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.overlayEntities=[];this.iconTexture=null;this.atlasRestorePending=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();this.cursorDiagnostics=Object.freeze({instanceCount:0,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([]),depthTest:true,depthWrite:true});this.equipmentDiagnostics=Object.freeze({instanceCount:0,roles:Object.freeze([]),modes:Object.freeze([]),depthTest:true,depthWrite:false});
     if(app){try{app.destroy();}catch{}}
     this.canvas=null;this.contextLost=false;projectionReadyRenderers.delete(this);this.testPresentationConfig=defaultTestPresentationConfig;this.gameplayVisualExperimentConfig=defaultGameplayVisualExperimentConfig;this.resetProductionCameraParallax();effectiveMarkerPalettes.set(this,null);if(!this.destroyed)this.state="unsupported";return this.describe();
   }
@@ -145,22 +146,15 @@ export class AeroPlayCanvasRenderer {
   renderGameplayFrame(frame){return this.renderGameplayScene(frame,null,null,null);}
   renderGameplayFrameWithCursors(frame,cursors,options){return this.renderGameplayScene(frame,cursors,options,null);}
   /**
-   * 0.0.61 L-F3 (chgy/hk5q/vths): stage gameplay equipment (flow saber beam /
-   * boxing glove) in the same post-updateSceneObjects order as cursors.
-   * `equipment` records share the cursor staging grid but carry their own
-   * fields: `{role:"left_wrist"|"right_wrist", x, y (finite; off-grid values edge-clamp), mode:
-   * "flow"|"boxing", dimmed?, direction? ({x,y} in JUDGE space, flow only),
-   * scale? (finite number > 0, default 1), rotationZDeg? (finite number,
-   * default 0)}`. `rotationZDeg` rotates the equipment model IN THE STAGING
-   * PLANE around the wrist anchor; `scale` multiplies the model's size.
-   * `cursorOptions`/`equipmentOptions` are the same option records as
-   * `renderGameplayFrameWithCursors` (grid, minConfidence, sizeCssPx).
-   * No records → no staging.
+   * Stages strict collision-authoritative equipment pose records after scene objects and cursors.
+   * Each record carries role, mode, judge-space anchor, positive uniform scale, normalized
+   * orientation quaternion, geometry identity, and locked config identity. Legacy scalar and
+   * heading fields are rejected by the narrow adapter below.
    * @param {import("./gameplay-scene-model.js").AeroGameplayFrame} frame
    * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,confidence:number,dimmed?:boolean}>>|null} cursors
    * @param {unknown} cursorOptions
-   * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>,scale?:number,rotationZDeg?:number}>>|null} equipment
-   * @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} equipmentOptions
+   * @param {ReadonlyArray<unknown>|null} equipment
+   * @param {unknown} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
   renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel(frame,this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,cursorOptions,false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
@@ -174,57 +168,51 @@ export class AeroPlayCanvasRenderer {
     const effectivePalette=effectiveMarkerPalettes.get(this);for(const role of cursorRoles){const cursor=accepted.get(role);if(!cursor)continue;const position=gridPositionForNormalized(cursor.x,cursor.y,0.45),color=role==="nose"?"#F4C20D":role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor);let entity=null;if(mode==="ready")entity=this.acquireMarkerEntity(roles.length);else if(mode==="fallback")entity=this.acquireFallbackMarker(roles.length);if(!entity)continue;const worldScale=this.worldScaleForCssPx(sizeCssPx,position,mode==="ready"?.18:1);entity.enabled=true;entity.name=`cursor-${role}`;entity.setPosition(position.x,position.y,position.z);entity.setLocalScale(worldScale,worldScale,worldScale);entity.setEulerAngles(0,0,0);const cursorAlpha=cursor.dimmed===true?CURSOR_LOST_DIM_ALPHA:1;if(mode==="ready")this.applyAssetAppearance(entity,"athlete-marker/sphere-v1",color,cursorAlpha,false);else this.updateMaterial(entity,color,cursorAlpha,null,false,true);roles.push(role);markerScales.push(worldScale);}
     this.cursorDiagnostics=Object.freeze({instanceCount:roles.length,assetId:"athlete-marker/sphere-v1",roles:Object.freeze([...roles]),depthTest:true,depthWrite:true,sourceMode:mode,sizeCssPx,worldScales:Object.freeze(markerScales)});return Object.freeze({cursorCount:roles.length,roles:Object.freeze(roles)});
   }
-  /** 0.0.61 L-F3: standalone equipment staging (mirrors renderGameplayCursors). @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>,scale?:number,rotationZDeg?:number}>>} equipment @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} options */
+  /** Standalone strict resolved-equipment staging. @param {ReadonlyArray<unknown>} equipment @param {unknown} options */
   renderGameplayEquipment(equipment,options){const result=this.stageGameplayEquipment(equipment,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),equipmentCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.equipmentCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
   /**
-   * 0.0.61 L-F3 (chgy/hk5q/vths): stage athlete equipment at the athlete plane
-   * Z=0.45, in the same post-updateSceneObjects order as cursors.
-   *
-   * Records: `{role:"left_wrist"|"right_wrist", x, y, mode:"flow"|"boxing",
-   * dimmed?:boolean, direction?:{x,y}, scale?:number, rotationZDeg?:number}`
-   * with x/y normalized 0..1 against `options.grid` (same mapping as cursors)
-   * and `direction` in JUDGE space (flow sabers only; see
-   * @aerobeat/web-contracts/equipment-contracts). `rotationZDeg` rotates the
-   * equipment model IN THE STAGING PLANE around the wrist anchor; `scale`
-   * multiplies the model's size (both default 0/1 when absent).
-   * 0.0.61 L-F6: each role owns a dedicated pool (key "<assetId>:<role>"),
-   * so a two-handed frame in the SAME mode stages two independent entity
-   * pairs instead of the second role renaming and repositioning the first
-   * role's entities (the shared-pool clobber bug). Pool count implication:
-   * at most 2 roles × 2 assets × 2 entries = 8 pooled equipment entities;
-   * the ≤4-records input cap still applies.
-   * flow → saber beam (capsule primitives, emissive per-hand tint +
-   * brighter core), boxing → glove box (per-hand tinted body + white
-   * structural accent, offset +0.05 WU toward the grid, i.e. toward the
-   * athlete camera). Geometry comes from the frozen contract constants so
-   * visible equipment matches the detection volumes ("what you see is
-   * what hits"). Dimmed records render at CURSOR_LOST_DIM_ALPHA; colors
-   * resolve from the same effective song-palette seam as cursors.
-   * Empty/absent records stage nothing — marker hiding
-   * (equipmentMarkerVisibility) stays the assembly's job.
-   * Diagnostics (this.equipmentDiagnostics / status.equipment) are derived
-   * from the entities actually ENABLED in the pools after the staging
-   * pass, never from the accepted record count, so a record that failed
-   * to stage is not reported as staged.
-   * @param {ReadonlyArray<Readonly<{role:string,x:number,y:number,mode:string,dimmed?:boolean,direction?:Readonly<{x:number,y:number}>,scale?:number,rotationZDeg?:number}>>} equipment
-   * @param {Readonly<{grid:Readonly<{x:number,y:number,width:number,height:number}>}>} options
+   * One bounded pose root per role owns anchor, positive uniform scale, and final quaternion.
+   * Axis-corrected GLB or canonical local fallback children plus the shared local-Y glow inherit
+   * that exact world matrix. Accepted input is intentionally centralized in
+   * adaptResolvedEquipmentRecord so the shared-contract export can replace it atomically.
+   * @param {ReadonlyArray<unknown>} equipment
+   * @param {unknown} _options
    * @param {boolean} clear
    */
-  stageGameplayEquipment(equipment,options,clear){normalizeCursorGrid(options?.grid);if(!Array.isArray(equipment)||equipment.length>4)throw new TypeError("Gameplay equipment cannot exceed 4 records");const accepted=new Map();for(const record of equipment){if(!plainData(record)||!(function(){const k=Object.keys(record);const hd="dimmed" in record,hf="direction" in record,hs="scale" in record,hr="rotationZDeg" in record;const cnt=(hd?1:0)+(hf?1:0)+(hs?1:0)+(hr?1:0);const od=!hd||typeof record.dimmed==="boolean";const ofd=!hf||plainData(record.direction);const os=!hs||(typeof record.scale==="number"&&Number.isFinite(record.scale)&&record.scale>0);const or_=!hr||(typeof record.rotationZDeg==="number"&&Number.isFinite(record.rotationZDeg));const n=k.length;if(n!==4+cnt)return false;return od&&ofd&&os&&or_;})()||!equipmentRoles.includes(record.role)||!equipmentModes.includes(record.mode)||accepted.has(record.role)||![record.x,record.y].every(Number.isFinite))continue;if(record.mode==="flow"&&record.direction!==undefined){if(!(Object.keys(record.direction).length===2&&[record.direction.x,record.direction.y].every(Number.isFinite)))continue;}else if(record.direction!==undefined)continue;accepted.set(record.role,record);}
+  stageGameplayEquipment(equipment,_options,clear){
+    if(!Array.isArray(equipment)||equipment.length>4)throw new TypeError("Gameplay equipment cannot exceed 4 records");
+    const accepted=new Map();
+    for(const record of equipment){
+      const normalized=adaptResolvedEquipmentRecord(record);
+      if(!normalized||accepted.has(normalized.role))continue;
+      accepted.set(normalized.role,normalized);
+    }
     if(!this.app||this.destroyed||this.contextLost)return Object.freeze({equipmentCount:0,roles:Object.freeze([])});
-    if(clear)this.clearOverlayEntities();for(const entries of this.equipmentPools.values())for(const entity of entries)entity.enabled=false;const effectivePalette=effectiveMarkerPalettes.get(this);
-    for(const role of equipmentRoles){const record=accepted.get(role);if(!record)continue;const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor),alpha=record.dimmed===true?CURSOR_LOST_DIM_ALPHA:1,position=gridPositionForNormalized(record.x,record.y,0.45),scale=Number.isFinite(record.scale)?record.scale:1,rotationZDeg=Number.isFinite(record.rotationZDeg)?record.rotationZDeg:0;if(record.mode==="flow")this.stageSaber(role,position,record.direction,color,alpha,scale,rotationZDeg);else this.stageGlove(role,position,color,alpha,scale,rotationZDeg);}
-    // 0.0.61 L-F6: truthful diagnostics — derive instanceCount/roles/modes from the
-    // entities actually ENABLED in the per-role pools after this staging pass, not from
-    // the accepted records (the pre-fix code counted records, which a clobbered/failed
-    // role still "accepted" while only one hand was visible).
-    const staged=new Map();for(const role of equipmentRoles){const lead=this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0]??null;if(lead?.enabled){staged.set(role,"flow");continue;}const body=this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)?.[0]??null;if(body?.enabled)staged.set(role,"boxing");}
+    if(clear)this.clearOverlayEntities();
+    for(const entries of this.equipmentPools.values())for(const entity of entries)entity.enabled=false;
+    const effectivePalette=effectiveMarkerPalettes.get(this);
+    for(const role of equipmentRoles){
+      const record=accepted.get(role);if(!record)continue;
+      const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor);
+      const alpha=1;
+      if(record.mode==="flow")this.stageSaber(role,record,color,alpha);
+      else this.stageGlove(role,record,color,alpha);
+    }
+    const staged=new Map();
+    for(const role of equipmentRoles){
+      const saberEntries=this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)??[];
+      if(saberEntries.slice(1).some((entity)=>entity.enabled)){staged.set(role,"flow");continue;}
+      const gloveEntries=this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)??[];
+      if(gloveEntries.slice(1).some((entity)=>entity.enabled))staged.set(role,"boxing");
+    }
     const roles=equipmentRoles.filter((role)=>staged.has(role)),modes=roles.map((role)=>staged.get(role));
-    const anyEquipmentGlb=roles.some((role)=>(this.assetMaterials.get(this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)?.[0])?.length>0)||(this.assetMaterials.get(this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)?.[0])?.length>0));
+    const anyEquipmentGlb=roles.some((role)=>[...(this.equipmentPools.get(`equipment/flow-saber-v1:${role}`)??[]),...(this.equipmentPools.get(`equipment/boxing-glove-v1:${role}`)??[])].some((entity)=>entity.enabled&&Boolean(this.assetMaterials.get(entity)?.length)));
     const assetMode=anyEquipmentGlb?"glb":(roles.length>0?"primitive":"none");
-    this.equipmentDiagnostics=Object.freeze({instanceCount:roles.length,roles:Object.freeze([...roles]),modes:Object.freeze(modes.map((mode,index)=>`${roles[index]}:${mode}`)),depthTest:true,depthWrite:anyEquipmentGlb,assetMode});return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});}
+    this.equipmentDiagnostics=Object.freeze({instanceCount:roles.length,roles:Object.freeze([...roles]),modes:Object.freeze(modes.map((mode,index)=>`${roles[index]}:${mode}`)),depthTest:true,depthWrite:anyEquipmentGlb,assetMode});
+    return Object.freeze({equipmentCount:roles.length,roles:Object.freeze(roles)});
+  }
   /** 0.0.62 L-C (r2lb r2): flow saber v2 = two-cylinder GLB (hilt + blade + rounded tip)
-    *   from the wrist along the judge-space direction. The GLB extends along LOCAL +Y for
+    *   inheriting one wrist-anchored root. Canonical rendered geometry extends along local +Y for
     *   0.75 WU (== detection capsule length, what-you-see-is-what-hits). Two material slots:
     *     mat/saber_blade → bright EMISSIVE blade + rounded tip, per-hand TINTABLE (carries
     *                       the song-palette color via the effective-palette seam).
@@ -237,54 +225,35 @@ export class AeroPlayCanvasRenderer {
     *   around the blade section only (from hilt tip to blade tip). The glow color is
     *   the blade tint color × gain. The hilt gets NO glow.
     *
-    *   Orientation: the GLB's local +Y axis is aligned to the judge-space direction via
-    *   `eulerZ = 90 - atan2(dirY, dirX)`. The entity sits at the wrist (position.x,
-    *   position.y, 0.45) — the blade extends +Y from the wrist for 0.75 WU.
-    *
-    *   Fallback: when the GLB loader is not "ready", the saber stages from two capsule
-    *   primitives (dark hilt + tinted blade). Diagnostics: assetMode: "glb"|"primitive".
-    *
+    *   The root consumes only the final resolved pose. The shipped local -Z GLB receives
+    *   a fixed child-only -90° Y correction into pose-local +X; fallback and glow remain
+    *   native local-Y cylinders with their own fixed Y-to-X child correction.
     * @param {string} role "left_wrist" | "right_wrist"
-    * @param {{x:number,y:number}} position Wrist position in presentation space.
-    * @param {Readonly<{x:number,y:number}>|null} direction JUDGE-space unit vector.
-    * @param {string} color Per-hand color token (song palette / theme default).
-    * @param {number} alpha 1 (undimmed) or CURSOR_LOST_DIM_ALPHA (0.45, dimmed).
-    * @param {number} scale Multiplier for the saber model size (default 1). Applied
-    *   uniformly to the GLB entity and the glow capsule so they stay consistent.
-    * @param {number} rotationZDeg Additional Z (view-axis) rotation in degrees
-    *   applied to the saber entity around the wrist anchor (default 0). The
-    *   effective direction is the record's direction rotated by this angle
-    *   in-plane around the wrist.
+    * @param {Readonly<{anchor:Readonly<{x:number,y:number,z:number}>,scale:number,orientation:Readonly<{x:number,y:number,z:number,w:number}>}>} pose
+    * @param {string} color Per-hand color token.
+    * @param {number} alpha Dimming multiplier.
     */
-   stageSaber(role,position,direction,color,alpha,scale=1,rotationZDeg=0){
-    const dx=direction?.x??0,dy=direction?.y??0,length=Math.hypot(dx,dy),unitX=length>0?dx/length:0,unitY=length>0?dy/length:-1;
-    // 0.0.63 C2: rotate the effective direction in-plane by rotationZDeg around the wrist.
-    const rotRad=rotationZDeg*Math.PI/180,cosR=Math.cos(rotRad),sinR=Math.sin(rotRad),effX=unitX*cosR-unitY*sinR,effY=unitX*sinR+unitY*cosR;
-    const loaderMode=this.gameplayAssetLoader.describe().state;
-    const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/flow-saber-v1:"+role,"flow-saber/flow-saber-v1"):null;
+   stageSaber(role,pose,color,alpha){
+    const poolKey=`equipment/flow-saber-v1:${role}`,loaderMode=this.gameplayAssetLoader.describe().state;
+    const glbEntity=loaderMode==="ready"?this.acquireEquipmentGlbEntity(poolKey,"flow-saber/flow-saber-v1"):null;
+    if(!glbEntity&&loaderMode==="ready")return;
+    const entries=glbEntity?(this.equipmentPools.get(poolKey)??[]):this.acquireEquipmentPrimitiveChildren(poolKey,["cylinder","cylinder"]);
+    const root=entries[0];if(!root)return;
+    this.applyResolvedEquipmentPose(root,pose);
     if(glbEntity){
-      glbEntity.enabled=true;glbEntity.name=`equipment-${role}`;
-      glbEntity.setPosition(position.x,position.y,0.45);
-      glbEntity.setLocalScale(scale,scale,scale);
-      const radians=Math.atan2(effY,effX);
-      glbEntity.setEulerAngles(0,0,(90-radians*180/Math.PI));
+      glbEntity.enabled=true;glbEntity.name=`equipment-${role}-model`;
+      glbEntity.setLocalPosition(0,0,0);glbEntity.setLocalScale(1,1,1);
+      glbEntity.setLocalEulerAngles(0,-90,0);
       this.applyEquipmentGlbAppearance(glbEntity,"flow-saber/flow-saber-v1",color,alpha);
-      // Stage the additive glow layer around the blade section.
-      this.acquireSaberGlow(role,position,effX,effY,color,alpha,scale);
-      this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:true,assetMode:"glb"});
-      return;
+    }else{
+      const hilt=entries[1],blade=entries[2];if(!hilt||!blade)return;
+      hilt.enabled=true;hilt.name=`equipment-${role}-hilt`;this.applyLocalCylinder(hilt,0.09,0.18,0.03);
+      blade.enabled=true;blade.name=`equipment-${role}-core`;this.applyLocalCylinder(blade,0.465,0.57,0.024);
+      this.updateEquipmentMaterial(hilt,"#2a3038",alpha,0.5,"equipment/flow-saber-v1");
+      this.updateEquipmentMaterial(blade,color,alpha,1,"equipment/flow-saber-v1-core");
     }
-    // Primitive fallback (loader not ready): dark hilt + tinted blade.
-    const entries=this.acquireEquipmentEntries("equipment/flow-saber-v1:"+role,2);const hilt=entries[0],blade=entries[1];if(!hilt||!blade)return;
-    const hiltLen=0.18,bladeLen=0.57,hiltR=0.03,bladeR=0.024,z=0.45;
-    const sHiltLen=hiltLen*scale,sBladeLen=bladeLen*scale,sHiltR=hiltR*scale,sBladeR=bladeR*scale;
-    const hiltMidX=position.x+effX*(sHiltLen/2),hiltMidY=position.y+effY*(sHiltLen/2);
-    const bladeMidX=position.x+effX*(sHiltLen+sBladeLen/2),bladeMidY=position.y+effY*(sHiltLen+sBladeLen/2);
-    hilt.enabled=true;hilt.name=`equipment-${role}`;this.applyEquipmentTransform(hilt,hiltMidX,hiltMidY,z,"capsule",[sHiltLen,sHiltR,effX,effY]);
-    blade.enabled=true;blade.name=`equipment-${role}-core`;this.applyEquipmentTransform(blade,bladeMidX,bladeMidY,z,"capsule",[sBladeLen,sBladeR,effX,effY]);
-    this.updateEquipmentMaterial(hilt,"#2a3038",alpha,0.5,"equipment/flow-saber-v1");
-    this.updateEquipmentMaterial(blade,color,alpha,1,"equipment/flow-saber-v1-core");
-    this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:false,assetMode:"primitive"});
+    this.acquireSaberGlow(poolKey,role,color,alpha);
+    this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:Boolean(glbEntity),assetMode:glbEntity?"glb":"primitive"});
   }
   /** 0.0.62 L-C (r2lb r2): acquire (or lazily create) an additive glow primitive
     *   around the saber's blade section. The glow is a cylinder (additive blend,
@@ -295,19 +264,13 @@ export class AeroPlayCanvasRenderer {
      *   0.0.63 D6: glow start moved 0.15 -> 0.18 (blade base), so the capsule no
      *   longer paints a bright band over the hilt; the hilt is excluded and the
      *   hilt/blade seam reads continuous. Gain stays 1.0. */
-  acquireSaberGlow(role,position,unitX,unitY,color,alpha,scale=1){
+  acquireSaberGlow(poolKey,role,color,alpha){
+    const entries=this.equipmentPools.get(poolKey),root=entries?.[0];if(!entries||!root)return null;
     const glowKey=`equipment/flow-saber-v1-glow:${role}`;
-    let entries=this.equipmentPools.get(glowKey);
-    if(!entries){entries=[];this.equipmentPools.set(glowKey,entries);while(entries.length<1)entries.push(this.makeEntity(`equipment-glow-${entries.length}`,"cylinder"));}
-    const glow=entries[0];if(!glow)return;
-    const hiltLen=0.18,bladeLen=0.57,glowRadius=0.045,glowGain=1.0;
-    // 0.0.63 D6: glow is blade-section only (hilt excluded); 0.18 = BLADE_Y0 per
-    // 0.0.63 D6 sign-off. Capsule start 0.15 -> 0.18: length shrinks 0.63 -> 0.60
-    // (=bladeLen+0.03), center shifts 0.465 -> 0.48, END stays 0.78 unchanged.
-    const glowMidX=position.x+unitX*(hiltLen+bladeLen/2+0.015);
-    const glowMidY=position.y+unitY*(hiltLen+bladeLen/2+0.015);
-    glow.enabled=true;glow.name=`equipment-${role}-glow`;
-    this.applyEquipmentTransform(glow,glowMidX,glowMidY,0.45,"capsule",[(bladeLen+0.03)*scale,glowRadius*scale,unitX,unitY]);
+    let glow=entries.find((entity)=>entity.name===`equipment-${role}-glow`)??null;
+    if(!glow){glow=this.makeDetachedEntity(`equipment-${role}-glow`,"cylinder");root.addChild(glow);entries.push(glow);}
+    const glowGain=1.0;
+    glow.enabled=true;this.applyLocalCylinder(glow,0.48,0.60,0.045);
     const rgba=colorTokenToRgba(color,[1,1,1,1]);
     const gR=rgba[0]*glowGain,gG=rgba[1]*glowGain,gB=rgba[2]*glowGain;
     // Dimming: scale the color/emissive by alpha (additive blend ignores opacity).
@@ -323,17 +286,15 @@ export class AeroPlayCanvasRenderer {
    *   owns a distinct GLB entity (independent material clones via cloneAssetMaterials). */
   acquireEquipmentGlbEntity(assetId,resourceId){
     let entries=this.equipmentPools.get(assetId);
-    if(!entries){entries=[];this.equipmentPools.set(assetId,entries);}
-    while(entries.length<1){
+    if(!entries){const root=this.createEquipmentPoseRoot(assetId);entries=[root];this.equipmentPools.set(assetId,entries);}
+    let entity=this.equipmentGlbEntities.get(assetId)??null;
+    if(!entity){
       const resource=this.gameplayAssetLoader.resourceFor(resourceId);
       if(!resource?.instantiateRenderEntity)return null;
-      const entity=resource.instantiateRenderEntity({castShadows:false,receiveShadows:false});
-      entity.enabled=false;
-      this.cloneAssetMaterials(entity);
-      this.app.root.addChild(entity);
-      entries.push(entity);
+      entity=resource.instantiateRenderEntity({castShadows:false,receiveShadows:false});
+      entity.enabled=false;this.cloneAssetMaterials(entity);entries[0].addChild(entity);entries.push(entity);this.equipmentGlbEntities.set(assetId,entity);
     }
-    return entries[0];
+    return entity;
   }
   /** 0.0.62 L-C (r2lb): apply per-hand appearance to a GLB-backed equipment entity.
    *   mat/saber_core → per-hand tint (diffuse + emissive = hand color, gain 1.0).
@@ -375,47 +336,37 @@ export class AeroPlayCanvasRenderer {
       this.materialStates.set(material,state);
     }
   }
-  /** 0.0.61 L-F3: boxing glove = tinted body box + white structural accent box centered at wrist + 0.05 WU toward the grid (toward the athlete camera, +z at the athlete plane).
-    * @param {number} scale Multiplier for the glove model size (default 1), applied to the
-    *   GLB entity and both primitive boxes. @param {number} rotationZDeg Z (view-axis)
-    *   rotation in degrees around the wrist anchor (default 0). */
-  stageGlove(role,position,color,alpha,scale=1,rotationZDeg=0){
-    const loaderMode=this.gameplayAssetLoader.describe().state;
-    const glbEntity=(loaderMode==="ready")?this.acquireEquipmentGlbEntity("equipment/boxing-glove-v1:"+role,"boxing-glove/boxing-glove-v1"):null;
+  /** Boxing GLB/fallback share one final wrist pose root; the +Z fist offset and right-hand mirror are child-local only. */
+  stageGlove(role,pose,color,alpha){
+    const poolKey=`equipment/boxing-glove-v1:${role}`,loaderMode=this.gameplayAssetLoader.describe().state;
+    const glbEntity=loaderMode==="ready"?this.acquireEquipmentGlbEntity(poolKey,"boxing-glove/boxing-glove-v1"):null;
+    if(!glbEntity&&loaderMode==="ready")return;
+    const entries=glbEntity?(this.equipmentPools.get(poolKey)??[]):this.acquireEquipmentPrimitiveChildren(poolKey,["box","box"]);
+    const root=entries[0];if(!root)return;
+    this.applyResolvedEquipmentPose(root,pose);
     if(glbEntity){
-      glbEntity.enabled=true;glbEntity.name=`equipment-${role}`;
-      glbEntity.setPosition(position.x,position.y,0.45+gloveGeometry.offsetZ);
-      // The GLB is authored left-hand convention (thumb +X); the right hand mirrors.
-      // The glove body material is double-sided (CULLFACE_NONE via the
-      // glove_body_tint role), so the negative-scale winding flip is safe.
-      glbEntity.setLocalScale((role==="right_wrist"?-1:1)*scale,scale,scale);
-      glbEntity.setEulerAngles(0,0,rotationZDeg);
+      glbEntity.enabled=true;glbEntity.name=`equipment-${role}-model`;
+      glbEntity.setLocalPosition(0,0,gloveGeometry.offsetZ);
+      // Mirroring is a visual child operation; the pose root always has positive uniform scale.
+      glbEntity.setLocalScale(role==="right_wrist"?-1:1,1,1);glbEntity.setLocalEulerAngles(0,0,0);
       this.applyEquipmentGlbAppearance(glbEntity,"boxing-glove/boxing-glove-v1",color,alpha);
-      this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:boxing`]),depthTest:true,depthWrite:true,assetMode:"glb"});
-      return;
+    }else{
+      const body=entries[1],accent=entries[2];if(!body||!accent)return;
+      body.enabled=true;body.name=`equipment-${role}-body`;this.applyLocalBox(body,0,0,gloveGeometry.offsetZ,gloveGeometry.x,gloveGeometry.y,gloveGeometry.z,role==="right_wrist");
+      accent.enabled=true;accent.name=`equipment-${role}-accent`;this.applyLocalBox(accent,0,0,gloveGeometry.offsetZ,gloveGeometry.x*0.55,gloveGeometry.y*0.45,gloveGeometry.z*0.55,role==="right_wrist");
+      this.updateEquipmentMaterial(body,color,alpha,1,"equipment/boxing-glove-v1");
+      this.updateEquipmentMaterial(accent,"#F2F5FB",alpha,1,"equipment/boxing-glove-v1-accent");
     }
-    // Primitive fallback (loader not ready): tinted body box + white structural accent.
-    const entries=this.acquireEquipmentEntries("equipment/boxing-glove-v1:"+role,2);const body=entries[0],accent=entries[1];if(!body||!accent)return;
-    const z=0.45+gloveGeometry.offsetZ;
-    body.enabled=true;body.name=`equipment-${role}`;this.applyEquipmentTransform(body,position.x,position.y,z,"box",[gloveGeometry.x*scale,gloveGeometry.y*scale,gloveGeometry.z*scale]);body.setEulerAngles(0,0,rotationZDeg);
-    accent.enabled=true;accent.name=`equipment-${role}-accent`;this.applyEquipmentTransform(accent,position.x,position.y,z,"box",[gloveGeometry.x*0.55*scale,gloveGeometry.y*0.45*scale,gloveGeometry.z*0.55*scale]);accent.setEulerAngles(0,0,rotationZDeg);
-    this.updateEquipmentMaterial(body,color,alpha,1,"equipment/boxing-glove-v1");
-    this.updateEquipmentMaterial(accent,"#F2F5FB",alpha,1,"equipment/boxing-glove-v1-accent");
+    this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:boxing`]),depthTest:true,depthWrite:Boolean(glbEntity),assetMode:glbEntity?"glb":"primitive"});
   }
-  /** 0.0.61 L-F6: pool equipment primitive entities per logical asset id AND role (pool key
-   * format: `"<assetId>:<role>"`, e.g. "equipment/flow-saber-v1:left_wrist"). 0.0.61 L-F3
-   * pooled per asset only, so both hands in the same mode indexed the same two entities and
-   * the second role clobbered the first. Each role now owns distinct entities: left beam +
-   * core, right beam + core, left glove body + accent, right glove body + accent. Cap: the
-   * staging pass accepts ≤4 records but equipmentRoles is 2 entries, so at most
-   * 2 roles × 2 assets × 2 entries = 8 pooled equipment entities can ever exist. Saber
-   * entities are unit cylinders rotated into their beam direction; glove entities are boxes
-   * scaled to the contract half-extents. */
-  acquireEquipmentEntries(assetId,count){let entries=this.equipmentPools.get(assetId);if(!entries){entries=[];this.equipmentPools.set(assetId,entries);while(entries.length<count)entries.push(this.makeEntity(`equipment-${entries.length}`,assetId.startsWith("equipment/flow-saber-v1")?"cylinder":"box"));}return entries;}
-  applyEquipmentTransform(entity,x,y,z,kind,values){
-    if(kind==="capsule"){const [length,radius,unitX,unitY]=values;entity.setPosition(x,y,z);entity.setLocalScale(length,2*radius,2*radius);const radians=Math.atan2(unitY,unitX);entity.setEulerAngles(0,0,(90-radians*180/Math.PI));return;}
-    const [halfX,halfY,halfZ]=values;entity.setPosition(x,y,z);entity.setLocalScale(2*halfX,2*halfY,2*halfZ);entity.setEulerAngles(0,0,0);
-  }
+  /** Two bounded role roots own all mode-specific GLB/fallback children. Resource-mode
+   * transitions may retain one disabled GLB plus fallback children, but maps reuse those
+   * identities and never grow after each role/mode combination has been staged once. */
+  createEquipmentPoseRoot(assetId){const role=equipmentRoles.find((candidate)=>assetId.endsWith(`:${candidate}`));if(!role)throw new TypeError("Equipment pool role is invalid");let root=this.equipmentPoseRoots.get(role);if(!root){root=new pc.Entity(`equipment-${role}-pose-root`,this.app);root.enabled=false;this.app.root.addChild(root);this.equipmentPoseRoots.set(role,root);}return root;}
+  acquireEquipmentPrimitiveChildren(assetId,types){let entries=this.equipmentPools.get(assetId);if(!entries){entries=[this.createEquipmentPoseRoot(assetId)];this.equipmentPools.set(assetId,entries);}let children=this.equipmentPrimitiveChildren.get(assetId);if(!children){children=types.map((type,index)=>{const child=this.makeDetachedEntity(`equipment-${index}`,type);entries[0].addChild(child);entries.push(child);return child;});this.equipmentPrimitiveChildren.set(assetId,children);}return[entries[0],...children];}
+  applyResolvedEquipmentPose(root,pose){const presentation=judgeToPresentationPoint(pose.anchor);root.enabled=true;root.setPosition(presentation.x,presentation.y,pose.anchor.z);root.setLocalScale(pose.scale,pose.scale,pose.scale);root.setLocalRotation(pose.orientation.x,pose.orientation.y,pose.orientation.z,pose.orientation.w);}
+  applyLocalCylinder(entity,midpointX,length,radius){entity.setLocalPosition(midpointX,0,0);entity.setLocalScale(2*radius,length,2*radius);entity.setLocalEulerAngles(0,0,-90);}
+  applyLocalBox(entity,x,y,z,halfX,halfY,halfZ,mirrorX=false){entity.setLocalPosition(x,y,z);entity.setLocalScale((mirrorX?-1:1)*2*halfX,2*halfY,2*halfZ);entity.setLocalEulerAngles(0,0,0);}
   /**
    * 0.0.61 L-F3: lighting-independent equipment material (emissive-dominant,
    * marker-family treatment). gain>1 pushes a brighter beam core. Flow saber
@@ -797,7 +748,8 @@ export class AeroPlayCanvasRenderer {
   clearSceneObjects(){for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();}
   destroyPrimitiveEntity(entity){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
   destroyMarkerPool(){for(const entity of this.markerPool){const records=this.assetMaterials.get(entity)??[];for(const record of records)if(record.materialOwned)record.material.destroy();if(records.length)entity.destroy();else this.destroyPrimitiveEntity(entity);}this.markerPool=[];this.markerPoolMode="none";}
-  destroyInstantiatedPools(){for(const entries of this.assetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.assetPools.clear();for(const entries of this.aftermathAssetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.aftermathAssetPools.clear();for(const entries of this.equipmentPools.values())for(const entity of entries){if(this.assetMaterials.get(entity)?.length){for(const record of this.assetMaterials.get(entity))if(record.materialOwned)record.material.destroy();entity.destroy();}else this.destroyPrimitiveEntity(entity);}this.equipmentPools.clear();this.destroyMarkerPool();for(const entry of this.feedbackPool){this.destroyPrimitiveEntity(entry.quad);entry.root.destroy();}this.feedbackPool=[];for(const texture of this.feedbackTextures.values())texture.destroy();this.feedbackTextures.clear();this.assetPoolGeneration=-1;for(const variant of this.sliceVariantMaterials.values())if(this.ownedMaterials.delete(variant))variant.destroy();this.sliceVariantMaterials.clear();this.materialStates=new WeakMap();this.destroyColliderOverlayPools();}
+  destroyEquipmentPools(){for(const entries of this.equipmentPools.values())for(const entity of entries.slice(1)){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();}for(const root of this.equipmentPoseRoots.values())root.destroy();this.equipmentPools.clear();this.equipmentPoseRoots.clear();this.equipmentGlbEntities.clear();this.equipmentPrimitiveChildren.clear();}
+  destroyInstantiatedPools(){for(const entries of this.assetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.assetPools.clear();for(const entries of this.aftermathAssetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.aftermathAssetPools.clear();this.destroyEquipmentPools();this.destroyMarkerPool();for(const entry of this.feedbackPool){this.destroyPrimitiveEntity(entry.quad);entry.root.destroy();}this.feedbackPool=[];for(const texture of this.feedbackTextures.values())texture.destroy();this.feedbackTextures.clear();this.assetPoolGeneration=-1;for(const variant of this.sliceVariantMaterials.values())if(this.ownedMaterials.delete(variant))variant.destroy();this.sliceVariantMaterials.clear();this.materialStates=new WeakMap();this.destroyColliderOverlayPools();}
   /** 0.0.53 W2: destroy the collider-overlay entity pools (primitives + cone meshes). Cone meshes are owned and destroyed alongside their materials. */
   destroyColliderOverlayPools(){
     for(const entity of this.colliderOverlayPrimitivePool??[]){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
@@ -833,6 +785,7 @@ function applyAxialDeadzone(value,deadzone){const magnitude=Math.abs(value);retu
 function moveToward(from,to,maxDelta){return from+clamp(to-from,-maxDelta,maxDelta);}
 function gridPositionForNormalized(x,y,z=0){return{x:GRID_LEFT+clamp(x,0,1)*gameplayWorldGrid.columns*GRID_COLUMN_PITCH,y:GRID_TOP-clamp(y,0,1)*gameplayWorldGrid.rows*GRID_ROW_PITCH,z};}
 function normalizeCursorGrid(value){if(!plainData(value)||![value.x,value.y,value.width,value.height].every(Number.isFinite)||value.width<=0||value.height<=0||value.x<0||value.y<0||value.x+value.width>1||value.y+value.height>1)throw new TypeError("Gameplay cursor grid is required");return value;}
+function adaptResolvedEquipmentRecord(value){return isResolvedEquipmentPose(value)?value:null;}
 function plainData(value){return value!==null&&typeof value==="object"&&!Array.isArray(value)&&Object.getPrototypeOf(value)===Object.prototype&&Object.values(Object.getOwnPropertyDescriptors(value)).every((entry)=>"value"in entry);}
 function isOpaqueUppercaseColor(value){return typeof value==="string"&&/^#[0-9A-F]{6}$/u.test(value);}
 function finiteNonNegative(value){return Number.isFinite(value)?Math.max(0,value):0;}

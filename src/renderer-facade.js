@@ -131,17 +131,17 @@ export class AeroPlayCanvasRenderer {
     try{
       const box=canvas.getBoundingClientRect(),deviceBox=app.graphicsDevice?.clientRect,rect=camera.rect;
       if(![box.left,box.top,box.width,box.height,deviceBox?.width,deviceBox?.height,rect?.x,rect?.y,rect?.z,rect?.w,camera.nearClip,camera.farClip].every(Number.isFinite)||box.width<=0||box.height<=0||deviceBox.width<=0||deviceBox.height<=0||rect.z<=0||rect.w<=0||rect.x<0||rect.y<0||rect.x+rect.z>1||rect.y+rect.w>1||camera.nearClip<0||camera.farClip<=camera.nearClip)return null;
-      const localCssX=clamp(clientX,box.left,box.left+box.width)-box.left,localCssY=clamp(clientY,box.top,box.top+box.height)-box.top,normalizedX=localCssX/box.width,normalizedY=localCssY/box.height;
+      const localCssX=clientX-box.left,localCssY=clientY-box.top,normalizedX=localCssX/box.width,normalizedY=localCssY/box.height;
       const viewportLeft=rect.x,viewportRight=rect.x+rect.z,viewportTop=1-rect.y-rect.w,viewportBottom=1-rect.y;
       if(normalizedX<viewportLeft-DEBUG_EQUIPMENT_PROJECTION_EPSILON||normalizedX>viewportRight+DEBUG_EQUIPMENT_PROJECTION_EPSILON||normalizedY<viewportTop-DEBUG_EQUIPMENT_PROJECTION_EPSILON||normalizedY>viewportBottom+DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
       const screenX=normalizedX*deviceBox.width,screenY=normalizedY*deviceBox.height,near=camera.screenToWorld(screenX,screenY,camera.nearClip,new pc.Vec3()),far=camera.screenToWorld(screenX,screenY,camera.farClip,new pc.Vec3());
       if(![near.x,near.y,near.z,far.x,far.y,far.z].every(Number.isFinite))return null;
       const rayZ=far.z-near.z;if(Math.abs(rayZ)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
-      const rawT=(DEBUG_EQUIPMENT_PLANE_Z-near.z)/rayZ;if(rawT<-DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawT>1+DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
-      const t=clamp(rawT,0,1),rawWorldX=near.x+(far.x-near.x)*t,rawWorldY=near.y+(far.y-near.y)*t;
-      if(!Number.isFinite(rawWorldX)||!Number.isFinite(rawWorldY)||rawWorldX<GRID_LEFT-DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawWorldX>GRID_RIGHT+DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawWorldY<GRID_BOTTOM-DEBUG_EQUIPMENT_PROJECTION_EPSILON||rawWorldY>GRID_TOP+DEBUG_EQUIPMENT_PROJECTION_EPSILON)return null;
-      const worldX=Math.abs(rawWorldX-GRID_LEFT)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_LEFT:Math.abs(rawWorldX-GRID_RIGHT)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_RIGHT:rawWorldX,worldY=Math.abs(rawWorldY-GRID_BOTTOM)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_BOTTOM:Math.abs(rawWorldY-GRID_TOP)<=DEBUG_EQUIPMENT_PROJECTION_EPSILON?GRID_TOP:rawWorldY;
-      return Object.freeze({x:(worldX-GRID_LEFT)/(GRID_RIGHT-GRID_LEFT),y:(GRID_TOP-worldY)/(GRID_TOP-GRID_BOTTOM)});
+      const t=(DEBUG_EQUIPMENT_PLANE_Z-near.z)/rayZ;if(!Number.isFinite(t)||t<0)return null;
+      const worldX=near.x+(far.x-near.x)*t,worldY=near.y+(far.y-near.y)*t;
+      if(!Number.isFinite(worldX)||!Number.isFinite(worldY))return null;
+      const x=(worldX-GRID_LEFT)/(GRID_RIGHT-GRID_LEFT),y=(GRID_TOP-worldY)/(GRID_TOP-GRID_BOTTOM);
+      return Number.isFinite(x)&&Number.isFinite(y)?Object.freeze({x,y}):null;
     }catch{return null;}
   }
   renderGameplayFrame(frame){return this.renderGameplayScene(frame,null,null,null);}

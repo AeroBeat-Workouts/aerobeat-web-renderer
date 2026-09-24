@@ -218,13 +218,12 @@ export class AeroPlayCanvasRenderer {
     *     mat/saber_blade → bright EMISSIVE blade + rounded tip, per-hand TINTABLE (carries
     *                       the song-palette color via the effective-palette seam).
     *     mat/saber_hilt  → dark gunmetal structural hilt (NOT tintable, no emissive glow).
-    *   MATERIAL CONSTRAINTS: OPAQUE normal blend, depthWrite ON, depthTest ON.
-    *   Dimming: blade dims via opacity (0.45). The in-engine additive glow dims via
-    *   color/emissive scaling (× 0.45) — PlayCanvas additive blend ignores alpha.
+    *   MATERIAL CONSTRAINTS: the core is opaque normal blend with depth write/test.
+    *   The halo is one shader-driven cylinder surface with depth test/write on/off,
+    *   SRC_ALPHA,ONE composition, and bounded radial/endpoint attenuation.
     *
-    *   In-engine glow: a primitive cylinder (additive blend, depthWrite OFF) staged
-    *   around the blade section only (from hilt tip to blade tip). The glow color is
-    *   the blade tint color × gain. The hilt gets NO glow.
+    *   The halo stays around the blade section only (from hilt tip to blade tip),
+    *   derives its hue from the blade tint, and never covers the hilt.
     *
     *   The root consumes only the final resolved pose. The shipped local -Z GLB receives
     *   a fixed child-only -90° Y correction into pose-local +X; fallback and glow remain
@@ -256,30 +255,30 @@ export class AeroPlayCanvasRenderer {
     this.acquireSaberGlow(poolKey,role,color,alpha);
     this.equipmentDiagnostics=Object.freeze({instanceCount:1,roles:Object.freeze([role]),modes:Object.freeze([`${role}:flow`]),depthTest:true,depthWrite:Boolean(glbEntity),assetMode:glbEntity?"glb":"primitive"});
   }
-  /** 0.0.62 L-C (r2lb r2): acquire (or lazily create) an additive glow primitive
-    *   around the saber's blade section. The glow is a cylinder (additive blend,
-    *   depthWrite OFF) positioned from the hilt tip to the blade tip. Its color
-    *   is the blade tint × gain. Dimming: color × alpha (NOT opacity — additive
-    *   blend ignores alpha). 0.0.62 r2b: gain 0.6 -> 1.0 (bright-Aero halo
-     *   visibility, sweep-measured, Derrick-approved).
-     *   0.0.63 D6: glow start moved 0.15 -> 0.18 (blade base), so the capsule no
-     *   longer paints a bright band over the hilt; the hilt is excluded and the
-     *   hilt/blade seam reads continuous. Gain stays 1.0. */
+  /** Acquire the single-surface saber halo. The custom response attenuates toward
+    *   the cylinder silhouette and both endpoints, then uses SRC_ALPHA,ONE so
+    *   alpha controls additive energy. A normal-facing gate rejects the back
+    *   surface, preventing the former double contribution. Root, blade, and cylinder geometry remain
+    *   canonical; only the halo material response changes. */
   acquireSaberGlow(poolKey,role,color,alpha){
     const entries=this.equipmentPools.get(poolKey),root=entries?.[0];if(!entries||!root)return null;
-    const glowKey=`equipment/flow-saber-v1-glow:${role}`;
     let glow=entries.find((entity)=>entity.name===`equipment-${role}-glow`)??null;
-    if(!glow){glow=this.makeDetachedEntity(`equipment-${role}-glow`,"cylinder");root.addChild(glow);entries.push(glow);}
-    const glowGain=1.0;
+    if(!glow){
+      glow=this.makeDetachedEntity(`equipment-${role}-glow`,"cylinder");root.addChild(glow);entries.push(glow);
+      const previous=this.entityMaterials.get(glow);
+      const material=new pc.ShaderMaterial({
+        uniqueName:`aero-saber-halo-${role}`,
+        attributes:{a_position:pc.SEMANTIC_POSITION,a_normal:pc.SEMANTIC_NORMAL},
+        vertexGLSL:"attribute vec3 a_position;attribute vec3 a_normal;uniform mat4 matrix_model;uniform mat4 matrix_viewProjection;uniform mat3 matrix_normal;varying vec3 vAeroHaloWorld;varying vec3 vAeroHaloNormal;varying float vAeroHaloAxis;varying vec2 vAeroHaloCross;varying float vAeroHaloCap;void main(){vec4 world=matrix_model*vec4(a_position,1.0);vAeroHaloWorld=world.xyz;vAeroHaloNormal=normalize(matrix_normal*a_normal);vAeroHaloAxis=abs(a_position.y)*2.0;vAeroHaloCross=a_position.xz*2.0;vAeroHaloCap=abs(a_normal.y);gl_Position=matrix_viewProjection*world;}",
+        fragmentGLSL:"precision highp float;uniform vec3 view_position;uniform vec3 u_haloColor;uniform float u_haloGain;varying vec3 vAeroHaloWorld;varying vec3 vAeroHaloNormal;varying float vAeroHaloAxis;varying vec2 vAeroHaloCross;varying float vAeroHaloCap;void main(){vec3 viewDir=normalize(view_position-vAeroHaloWorld);float normalFacing=dot(normalize(vAeroHaloNormal),viewDir);float facing=pow(max(normalFacing,0.0),0.72);float endpoint=1.0-smoothstep(0.72,1.0,vAeroHaloAxis);float side=facing*endpoint;float cap=(1.0-smoothstep(0.08,1.0,length(vAeroHaloCross)))*0.55*step(0.0001,normalFacing);float energy=u_haloGain*mix(side,cap,smoothstep(0.5,0.9,vAeroHaloCap));gl_FragColor=vec4(u_haloColor,energy);}"
+      });
+      material.blendType=pc.BLEND_ADDITIVEALPHA;material.depthTest=true;material.depthWrite=false;material.cull=pc.CULLFACE_NONE;
+      for(const component of glow.findComponents("render"))for(const meshInstance of component.meshInstances)meshInstance.material=material;
+      if(previous&&this.ownedMaterials.delete(previous))previous.destroy();this.ownedMaterials.add(material);this.entityMaterials.set(glow,material);
+    }
     glow.enabled=true;this.applyLocalCylinder(glow,0.48,0.60,0.045);
-    const rgba=colorTokenToRgba(color,[1,1,1,1]);
-    const gR=rgba[0]*glowGain,gG=rgba[1]*glowGain,gB=rgba[2]*glowGain;
-    // Dimming: scale the color/emissive by alpha (additive blend ignores opacity).
-    const dimR=gR*alpha,dimG=gG*alpha,dimB=gB*alpha;
-    const material=this.entityMaterials.get(glow);if(!material)return;
-    const state={kind:glowKey,diffuseR:dimR,diffuseG:dimG,diffuseB:dimB,emissiveR:dimR,emissiveG:dimG,emissiveB:dimB,opacity:1,blendType:pc.BLEND_ADDITIVE,depthTest:true,depthWrite:false,useLighting:false,cull:pc.CULLFACE_NONE,diffuseMap:null,emissiveMap:null,opacityMap:null,diffuseMapChannel:material.diffuseMapChannel,emissiveMapChannel:material.emissiveMapChannel,opacityMapChannel:material.opacityMapChannel};
-    if(materialStateIsUnchanged(material,this.materialStates.get(material),state))return;
-    material.diffuse.set(state.diffuseR,state.diffuseG,state.diffuseB);material.emissive.set(state.emissiveR,state.emissiveG,state.emissiveB);material.opacity=state.opacity;material.blendType=state.blendType;material.depthTest=state.depthTest;material.depthWrite=state.depthWrite;material.useLighting=state.useLighting;material.cull=state.cull;material.diffuseMap=null;material.emissiveMap=null;material.opacityMap=null;material.update();this.materialStates.set(material,state);
+    const rgba=colorTokenToRgba(color,[1,1,1,1]),material=this.entityMaterials.get(glow);if(!material)return glow;
+    material.setParameter("u_haloColor",new Float32Array([rgba[0],rgba[1],rgba[2]]));material.setParameter("u_haloGain",Math.min(1,Math.max(0,alpha))*.42);material.update();
     return glow;
   }
   /** 0.0.62 L-C (r2lb): acquire (or lazily create) a GLB-backed equipment entity for the flow saber.

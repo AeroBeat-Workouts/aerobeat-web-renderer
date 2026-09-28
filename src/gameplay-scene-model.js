@@ -3,6 +3,7 @@
 import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-contracts/obstacle-contracts";
 import { isPrivateNoteAppearance } from "@aerobeat/web-contracts/note-palette-contracts";
 import { boxingColliderRowY } from "@aerobeat/web-contracts/gameplay-contracts";
+import { colliderSettingsDefaults, normalizeColliderSettings, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
 import { defaultTestPresentationConfig, testPresentationBounceOffsetY, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
@@ -136,9 +137,13 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const reach=normalizeFrameRowReach(frame.rowReach);
   const colliderOverlay=normalizeColliderOverlay(frame);
   const window=timingWindow(frame);
-  const colliderSettings=normalizeColliderSettings(frame.colliderSettings);
-  const startZ=window.afterMs*tuning.worldUnitsPerMs*colliderSettings.colliderDepthBackward;
-  const endZ=-window.beforeMs*tuning.worldUnitsPerMs*colliderSettings.colliderDepthForward;
+  const colliderMode=frame.presentation==="flow"?"flow":"boxing";
+  const colliderSettings=frame.colliderSettings===undefined?colliderSettingsDefaults[colliderMode]:normalizeColliderSettings(frame.colliderSettings);
+  const colliderWidth=frame.presentation==="flow"?4:2*BOXING_LANE_WIDTH+presentationConfig.boxingLaneSeparationWorldUnits;
+  const colliderHeight=frame.presentation==="flow"?3:BOXING_LANE_HEIGHT;
+  const colliderBounds=resolveColliderBounds({mode:colliderMode,center:{x:0,y:1,z:0},halfWidth:colliderWidth/2,halfHeight:colliderHeight/2,settings:colliderSettings,timingWindowMs:180,speedWuPerMs:tuning.worldUnitsPerMs});
+  const startZ=frame.colliderSettings===undefined?window.afterMs*tuning.worldUnitsPerMs:colliderBounds.maxZ;
+  const endZ=frame.colliderSettings===undefined?-window.beforeMs*tuning.worldUnitsPerMs:colliderBounds.minZ;
   const activeHalf=Math.min(0.12,Math.max(0,Math.abs(endZ-startZ)/12));
   const segments=Object.freeze([
     zone("late",startZ,activeHalf,"#e5484d",0.48),
@@ -151,9 +156,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   addTrack(objects);
   if(frame.colliderSettings===undefined)addTimingTiles(objects,frame,segments,tuning,presentationConfig,reach);
   if(colliderSettings.colliderVisible){
-    const width=(frame.presentation==="flow"?4:2*BOXING_LANE_WIDTH+presentationConfig.boxingLaneSeparationWorldUnits)*colliderSettings.colliderScale;
-    const height=(frame.presentation==="flow"?3:BOXING_LANE_HEIGHT)*colliderSettings.colliderScale;
-    objects.push(sceneObject("equipment-collider-volume","collider_volume","neutral",null,{x:0,y:1,z:(startZ+endZ)/2},{x:width,y:height,z:startZ-endZ},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,"#7fcfea"));
+    objects.push(sceneObject("equipment-collider-volume","collider_volume","neutral",null,{x:(colliderBounds.minX+colliderBounds.maxX)/2,y:(colliderBounds.minY+colliderBounds.maxY)/2,z:(colliderBounds.minZ+colliderBounds.maxZ)/2},{x:colliderBounds.maxX-colliderBounds.minX,y:colliderBounds.maxY-colliderBounds.minY,z:colliderBounds.maxZ-colliderBounds.minZ},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,"#7fcfea"));
   }
   addPresentationFloor(objects,frame,reach);
   for(const cell of validateCellList(frame.safeCells??[],"Safe cells"))addCellState(objects,cell,"safe",reach,frame.presentation==="boxing_collider");
@@ -453,15 +456,6 @@ function targetRole(target){return target.kind==="guard"?"guard":target.kind==="
 function targetState(target,nowMs,interval,window){if(target.judgement==="hit")return"hit";if(target.judgement==="miss")return"miss";if(nowMs>interval.endMs+window.afterMs)return"spent";if(nowMs>=interval.startMs-window.beforeMs&&nowMs<=interval.endMs+window.afterMs)return"active";return"pending";}
 /** @param {AeroRenderableTarget} target */
 function obstacleInterval(target){const startMs=Number(target.intervalStartMs??target.beatCenterMs),endMs=Number(target.intervalEndMs??target.endMs??startMs);if(target.intervalEndMs!==undefined&&target.endMs!==undefined&&target.intervalEndMs!==target.endMs)throw new TypeError("Flow obstacle end bounds conflict");if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs<=startMs||endMs>86_400_000)throw new TypeError("Flow obstacle interval is invalid");return Object.freeze({startMs,endMs});}
-/** Optional assembly-owned collider visualization. Multipliers extend each timing face independently. */
-function normalizeColliderSettings(value){
-  if(value===undefined)return Object.freeze({colliderVisible:false,colliderScale:1,colliderDepthForward:1,colliderDepthBackward:1});
-  if(value===null||typeof value!=="object"||Array.isArray(value)||(Object.getPrototypeOf(value)!==Object.prototype&&Object.getPrototypeOf(value)!==null)||Reflect.ownKeys(value).length!==4||!Reflect.ownKeys(value).every((key)=>["colliderVisible","colliderScale","colliderDepthForward","colliderDepthBackward"].some((name)=>name===key)))throw new TypeError("Collider settings are invalid");
-  const read=(key)=>{const property=Object.getOwnPropertyDescriptor(value,key);if(!property||!property.enumerable||!("value" in property))throw new TypeError("Collider settings are invalid");return property.value;};
-  const colliderVisible=read("colliderVisible"),colliderScale=read("colliderScale"),colliderDepthForward=read("colliderDepthForward"),colliderDepthBackward=read("colliderDepthBackward");
-  if(typeof colliderVisible!=="boolean"||![colliderScale,colliderDepthForward,colliderDepthBackward].every((n)=>typeof n==="number"&&Number.isFinite(n)&&n>=.1&&n<=10))throw new TypeError("Collider settings are invalid");
-  return Object.freeze({colliderVisible,colliderScale,colliderDepthForward,colliderDepthBackward});
-}
 function timingWindow(frame){const required=frame.presentation==="boxing_lanes";const before=frame.timingWindowBeforeMs??(required?NaN:defaultGameplayTimingWindow.beforeMs),after=frame.timingWindowAfterMs??(required?NaN:defaultGameplayTimingWindow.afterMs);if(![before,after].every((v)=>Number.isFinite(v)&&v>=0&&v<=10_000))throw new TypeError("Authoritative timing window is invalid");return Object.freeze({beforeMs:Number(before),afterMs:Number(after)});}
 /** @param {"early"|"active"|"late"} name @param {number} startZ @param {number} endZ @param {string} color @param {number} alpha */
 function zone(name,startZ,endZ,color,alpha){return Object.freeze({name,startZ:Math.min(startZ,endZ),endZ:Math.max(startZ,endZ),color,alpha});}

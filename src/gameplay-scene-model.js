@@ -576,7 +576,7 @@ export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
   const rotationZRad=phase+tumbleRate*tSec;
   return Object.freeze({x,y,z,rotationZRad,alpha,settleMs,settled:false});
 }
-/** Build bounded aftermath scene objects (Flow slice and guard pair each produce two). Guard positions come from the matching live target when available; a culled target requires producer-carried guard spacing. @param {AeroAftermathEntry} entry @param {number} nowMs @param {AeroRendererTuning} [tuning] @param {readonly {x:number,y:number}[]|undefined} [guardPositions] @returns {AeroGameplaySceneObject[]} */
+/** Build bounded aftermath scene objects (Flow slice and guard pair each produce two). Guard positions come from the matching live target when available; after cull legacy entries fall back to default center-cell spacing unless the producer carries explicit spacing. @param {AeroAftermathEntry} entry @param {number} nowMs @param {AeroRendererTuning} [tuning] @param {readonly {x:number,y:number}[]|undefined} [guardPositions] @returns {AeroGameplaySceneObject[]} */
 export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardPositions=undefined){
   const elapsedMs=nowMs-entry.hitCommitMs;
   if(elapsedMs<0||!Number.isFinite(elapsedMs))return[];
@@ -606,10 +606,9 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardP
   const pose=aftermathPose(entry,elapsedMs,tuning);
   if(pose===null)return[];
   if(entry.family==="guard"){
-    // A projected target supplies the exact lane/cell positions; after it is culled,
-    // only an explicit producer-carried half-spacing can preserve those positions.
-    const separation=entry.guardSeparationWU;
-    if(guardPositions===undefined&&separation===undefined)throw new TypeError("Culled guard aftermath requires guardSeparationWU");
+    // The live target supplies exact positions; after cull, preserve a producer-carried
+    // half-spacing or fall back to the legacy center-cell pair rather than breaking play.
+    const separation=entry.guardSeparationWU??0.5;
     if(guardPositions!==undefined&&(guardPositions.length!==2||guardPositions.some((position)=>!Number.isFinite(position.x)||!Number.isFinite(position.y))))throw new TypeError("Guard aftermath requires two finite target positions");
     return /** @type {AeroGameplaySceneObject[]} */(["left","right"].map((hand,index)=>{
       const target=guardPositions?.[index];

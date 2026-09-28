@@ -199,7 +199,8 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   const noSpacing = { ...entry }; delete noSpacing.guardSeparationWU;
   const projected = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1100, targets: [target], aftermath: [noSpacing] }).objects.filter((o) => o.kind === "aftermath");
   assert.deepEqual(projected.map((o) => o.position.x), [-0.5, 0.5], "visible guard target supplies exact corpse X without optional spacing");
-  assert.throws(() => buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1100, targets: [], aftermath: [noSpacing] }), /Culled guard aftermath requires guardSeparationWU/);
+  const legacyRetained = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1500, targets: [], aftermath: [noSpacing] }).objects.filter((o) => o.kind === "aftermath");
+  assert.deepEqual(legacyRetained.map((o) => o.position.x), [-0.5, 0.5], "legacy guard corpses remain renderable after the target culls");
   const retained = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1500, targets: [], aftermath: [entry] }).objects.filter((o) => o.kind === "aftermath");
   assert.deepEqual(retained.map((o) => o.position.x), [-0.5, 0.5], "producer spacing preserves corpses after target cull");
   const lanesTarget = { ...target, cells: [] };

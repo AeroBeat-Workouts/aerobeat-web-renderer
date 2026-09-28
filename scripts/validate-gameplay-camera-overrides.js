@@ -1,7 +1,9 @@
 // @ts-check
 import assert from "node:assert/strict";
-import { createAeroPlayCanvasRenderer } from "../src/index.js";
-import { defaultGameplayCameraPose, normalizeGameplayCameraPose, serializeGameplayCameraPose } from "../src/gameplay-camera-pose.js";
+import { createAeroPlayCanvasRenderer, defaultGameplayCameraPose, gameplayCameraPoseBounds, normalizeGameplayCameraPose } from "../src/index.js";
+import { serializeGameplayCameraPose } from "../src/gameplay-camera-pose.js";
+
+assert.equal(gameplayCameraPoseBounds.position.x[1],40,"published camera bounds match the source authority");
 
 const renderer=createAeroPlayCanvasRenderer();
 const canonicalBytes=serializeGameplayCameraPose(defaultGameplayCameraPose);

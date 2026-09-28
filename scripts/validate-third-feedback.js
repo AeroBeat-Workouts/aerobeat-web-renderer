@@ -45,9 +45,7 @@ for(const presentation of presentations){
     assert.equal(sample.icon?.appearanceColor,MISS,`${presentation} committed miss is gray`);
     approximate(sample.icon?.position.z??NaN,expectedZ,`${presentation} miss icon speed at ${elapsedMs}`);
     approximate(sample.shadow?.position.z??NaN,expectedZ,`${presentation} miss shadow speed at ${elapsedMs}`);
-    approximate(sample.label?.position.z??NaN,expectedZ,`${presentation} Miss label speed at ${elapsedMs}`);
-    assert.ok((sample.label?.position.y??-Infinity)>(sample.icon?.position.y??Infinity),`${presentation} Miss label is above target`);
-    assert.ok((sample.label?.position.y??Infinity)-(sample.icon?.position.y??-Infinity)<=1,`${presentation} Miss label clearance is bounded`);
+    assert.deepEqual(sample.label?.position,{x:-1.5,y:1.5,z:1.5},`${presentation} left Miss stays at its fixed world spot`);
     assert.equal(sample.label?.feedback?.animation,"shake");
     zSamples.push(sample.icon?.position.z??NaN);
   }
@@ -80,7 +78,7 @@ assert.deepEqual(centers(object=>object.targetId==="lane-guard"&&object.kind==="
 assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="obstacle"),[-.9,.9]);
 assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="shadow"),[-.9,.9]);
 const guard=parts(laneModel,"lane-guard"),guardIcons=laneModel.objects.filter(entry=>entry.targetId==="lane-guard"&&entry.kind==="icon");
-assert.ok(guardIcons.length===2&&guard.label.position.y>Math.max(...guardIcons.map(entry=>entry.position.y)),"dual-guard Miss label is above both targets");
-assert.equal(guard.label.position.z,guardIcons[0].position.z,"dual-guard Miss label shares moving Z");
+assert.equal(guardIcons.length,2);
+assert.deepEqual(guard.label.position,{x:-1.5,y:1.5,z:1.5},"dual-guard Miss label uses one fixed world spot");
 
 console.log("Third-feedback defaults, boundary motion, authored color, lane geometry, and label anchoring validation passed.");

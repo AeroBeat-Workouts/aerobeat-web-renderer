@@ -211,8 +211,8 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   });
 }
 
-/** Three deterministic canonical segments cover the present and visible future without stretching authored lane lines. @param {AeroGameplaySceneObject[]} objects */
-function addTrack(objects,extension){for(let index=0;index<3;index+=1){const z=-12-index*24+(index===0?extension:0);objects.push(sceneObject(`track-${index}`,"track","neutral",null,{x:0,y:gameplayWorldGrid.floorY-0.08,z},{x:1,y:1,z:1},null,ASSET.track,0,1,null,false,false,null,null,z,20,null,null,null));}}
+/** Three continuous canonical segments cover the present and visible future without stretching authored lane lines. @param {AeroGameplaySceneObject[]} objects */
+function addTrack(objects,extension){for(let index=0;index<3;index+=1){const z=index===0?(extension-24)/2:-12-index*24;const length=24+(index===0?extension:0);objects.push(sceneObject(`track-${index}`,"track","neutral",null,{x:0,y:gameplayWorldGrid.floorY-0.08,z},{x:1,y:1,z:1},null,ASSET.track,0,1,null,false,false,null,null,z,length,null,null,null));}}
 /** @typedef {Readonly<{topRowReachWU:number,bottomRowReachWU:number}>} AeroFrameRowReach */
 /** Row-reach fractions for the `boxing_collider` presentation: reach rows 0/1/2 render at the shared `boxingColliderRowY` world Y. */
 function normalizeFrameRowReach(value){

@@ -185,6 +185,23 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.ok(aftermaths.length >= 1, "aftermath object present");
 }
 
+// A guard hit leaves one independently placed shield corpse for each hand.
+{
+  const target = { id: "pair", kind: "guard", hand: "both", family: "guard", cell: null, cells: [5, 6], lane: null, beatCenterMs: 1000, judgement: "hit", feedbackProgress: 1 };
+  const entry = { targetId: "pair", hitCommitMs: 1000, family: "guard", hand: "both", mode: "bonk", spawn: { x: 0, y: 1, z: 0 }, seed: 17, guardSeparationWU: 0.5 };
+  const model = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1100, targets: [target], aftermath: [entry] });
+  const corpses = model.objects.filter((o) => o.targetId === "pair" && o.kind === "aftermath");
+  assert.deepEqual(corpses.map((o) => o.id), ["pair:aftermath:left", "pair:aftermath:right"]);
+  assert.deepEqual(corpses.map((o) => o.role), ["left", "right"]);
+  assert.ok(corpses.every((o) => o.assetId === "guard/outlined-shield-v1" && o.aftermath.sliceSign === null));
+  assert.equal(corpses[1].position.x - corpses[0].position.x, 1);
+  assert.equal(model.objects.filter((o) => o.targetId === "pair" && o.kind === "icon").length, 0);
+  const { feedbackProgress: _hitProgress, ...liveTarget } = target;
+  const live = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [{ ...liveTarget, judgement: "pending" }] }).objects.filter((o) => o.targetId === "pair" && o.kind === "icon");
+  assert.deepEqual(live.map((o) => [o.role, o.guardPairIndex, o.assetId]), [["left", 0, "guard/outlined-shield-v1"], ["right", 1, "guard/outlined-shield-v1"]]);
+  assert.throws(() => buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1100, targets: [], aftermath: [{ ...entry, guardSeparationWU: 3 }] }), TypeError);
+}
+
 // Flow slice: two halves with distinct offsets.
 {
   const entry = { targetId: "fs", hitCommitMs: 0, family: "flow", hand: "neutral", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 55 };

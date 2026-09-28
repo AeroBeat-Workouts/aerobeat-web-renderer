@@ -20,7 +20,10 @@ export const equipmentPoseContractsCommit="51c2b42805f5aa008386dc8bc779cfad8542a
 const cursorRoles=Object.freeze(["nose","left_wrist","right_wrist"]);
 const equipmentRoles=Object.freeze(["left_wrist","right_wrist"]);
 const equipmentModes=Object.freeze(["flow","boxing"]);
-const gameplayCameraModes=Object.freeze(["flow","boxing_spatial_grid","boxing_lanes"]);
+const gameplayCameraModes=Object.freeze(["flow","boxing"]);
+const boxingCameraPresentations=Object.freeze(["boxing_collider","boxing_spatial_grid","boxing_lanes"]);
+/** @param {string|null} presentation */
+function gameplayCameraModeForPresentation(presentation){return boxingCameraPresentations.includes(presentation)?"boxing":presentation;}
 // 0.0.60 F4: per-anchor dim for markers frozen by a tracking loss. The marker
 // renders at this reduced alpha while its anchor is degraded; undimmed markers
 // keep the historical alpha of 1 (byte-identical to the pre-F4 path).
@@ -119,7 +122,7 @@ export class AeroPlayCanvasRenderer {
     const next={...this.gameplayCameraPoses};
     if(normalized===null)delete next[mode];else next[mode]=normalized;
     this.gameplayCameraPoses=Object.freeze(next);
-    if(!this.debugEnabled&&this.activeGameplayCameraMode===mode)this.applyProductionCameraPose();
+    if(!this.debugEnabled&&gameplayCameraModeForPresentation(this.activeGameplayCameraMode)===mode)this.applyProductionCameraPose();
     return this.describe();
   }
   getSnapshot(){return this.describe();}
@@ -495,7 +498,7 @@ export class AeroPlayCanvasRenderer {
   applyPose(pose){if(!this.cameraEntity)return;const position=pose.position,rotation=pose.rotationEulerDegrees,projection=pose.projection;this.cameraEntity.setPosition(position.x,position.y,position.z);this.cameraEntity.setEulerAngles(rotation.xPitch,rotation.yYaw,rotation.zRoll);this.cameraEntity.camera.fov=projection.verticalFovDegrees;this.cameraEntity.camera.nearClip=projection.nearClip;this.cameraEntity.camera.farClip=projection.farClip;this.syncEnvironmentAnchor();}
   syncEnvironmentAnchor(){const position=this.cameraEntity?.getPosition();if(position)this.environmentOwner.setCameraPosition(position);}
   applyDebugPose(){if(!this.cameraEntity)return;this.applyPose(normalizeGameplayCameraPose({schema:defaultGameplayCameraPose.schema,version:defaultGameplayCameraPose.version,coordinateSystem:{...defaultGameplayCameraPose.coordinateSystem},position:{...this.debugPosition},rotationEulerDegrees:{xPitch:this.debugPitch*180/Math.PI,yYaw:this.debugYaw*180/Math.PI,zRoll:0},projection:{...this.debugProjection}}));}
-  applyProductionCameraPose(){if(!this.cameraEntity)return;const camera=this.gameplayCameraPoses[/** @type {string} */(this.activeGameplayCameraMode)]??defaultGameplayCameraPose,offset=productionCameraStates.get(this)?.offset??{x:0,y:0};this.applyPose({...camera,position:{x:camera.position.x+offset.x,y:camera.position.y+offset.y,z:camera.position.z}});}
+  applyProductionCameraPose(){if(!this.cameraEntity)return;const camera=this.gameplayCameraPoses[/** @type {string} */(gameplayCameraModeForPresentation(this.activeGameplayCameraMode))]??defaultGameplayCameraPose,offset=productionCameraStates.get(this)?.offset??{x:0,y:0};this.applyPose({...camera,position:{x:camera.position.x+offset.x,y:camera.position.y+offset.y,z:camera.position.z}});}
   applyCamera(model){if(!this.cameraEntity)return;if(this.debugEnabled){this.applyDebugPose();return;}this.applyProductionCameraPose();}
   createGameplayLayers(){
     if(!this.app||!this.cameraEntity?.camera)return;const composition=this.app.scene.layers,world=composition.getLayerById(pc.LAYERID_WORLD);if(!world)throw new Error("PlayCanvas World layer is unavailable");

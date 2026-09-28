@@ -163,7 +163,11 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
     if(result.objects.length===0&&result.feedback.length===0)culled.push(target.id);
     else{objects.push(...result.objects);feedback.push(...result.feedback);}
   }
-  for(const entry of frame.aftermath??[])objects.push(...aftermathObjects(entry,frame.nowMs,tuning));
+  for(const entry of frame.aftermath??[]){
+    const guardTarget=entry.family==="guard"?sorted.find((target)=>target.id===entry.targetId&&target.kind==="guard"):undefined;
+    const guardPositions=guardTarget?targetPositions(frame,guardTarget,presentationConfig,reach):undefined;
+    objects.push(...aftermathObjects(entry,frame.nowMs,tuning,guardPositions));
+  }
   const overlayObjects=colliderOverlayObjects(frame,sorted,colliderOverlay);
   objects.push(...overlayObjects);
   const retainedFeedback=feedback.sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id)).slice(-MAX_FEEDBACK).sort((a,b)=>(b.feedback?.elapsedMs??0)-(a.feedback?.elapsedMs??0)||a.id.localeCompare(b.id));
@@ -572,8 +576,8 @@ export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
   const rotationZRad=phase+tumbleRate*tSec;
   return Object.freeze({x,y,z,rotationZRad,alpha,settleMs,settled:false});
 }
-/** Build the bounded scene objects for one aftermath entry (Flow slice → two clip-plane halves, everything else one icon entity). Deterministic in (entry, nowMs, tuning). @param {AeroAftermathEntry} entry @param {number} nowMs @param {AeroRendererTuning} [tuning] @returns {AeroGameplaySceneObject[]} */
-export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning){
+/** Build bounded aftermath scene objects (Flow slice and guard pair each produce two). Guard positions come from the matching live target when available; a culled target requires producer-carried guard spacing. @param {AeroAftermathEntry} entry @param {number} nowMs @param {AeroRendererTuning} [tuning] @param {readonly {x:number,y:number}[]|undefined} [guardPositions] @returns {AeroGameplaySceneObject[]} */
+export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardPositions=undefined){
   const elapsedMs=nowMs-entry.hitCommitMs;
   if(elapsedMs<0||!Number.isFinite(elapsedMs))return[];
   // 0.0.59 B13: for flow + punch corpses the color fallback must come from the NOTE'S
@@ -602,8 +606,17 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning){
   const pose=aftermathPose(entry,elapsedMs,tuning);
   if(pose===null)return[];
   if(entry.family==="guard"){
-    const separation=entry.guardSeparationWU??1;
-    return /** @type {AeroGameplaySceneObject[]} */(["left","right"].map((hand,index)=>aftermathSceneObject(`${entry.targetId}:aftermath:${hand}`,entry,/** @type {AeroVisualRole} */(hand),pose.x+(index===0?-separation:separation),pose.y,pose.z,pose.rotationZRad,pose.alpha,asset,elapsedMs,pose.settleMs,null,0)));
+    // A projected target supplies the exact lane/cell positions; after it is culled,
+    // only an explicit producer-carried half-spacing can preserve those positions.
+    const separation=entry.guardSeparationWU;
+    if(guardPositions===undefined&&separation===undefined)throw new TypeError("Culled guard aftermath requires guardSeparationWU");
+    if(guardPositions!==undefined&&(guardPositions.length!==2||guardPositions.some((position)=>!Number.isFinite(position.x)||!Number.isFinite(position.y))))throw new TypeError("Guard aftermath requires two finite target positions");
+    return /** @type {AeroGameplaySceneObject[]} */(["left","right"].map((hand,index)=>{
+      const target=guardPositions?.[index];
+      const offsetX=target?target.x-entry.spawn.x:(index===0?-Number(separation):Number(separation));
+      const offsetY=target?target.y-entry.spawn.y:0;
+      return aftermathSceneObject(`${entry.targetId}:aftermath:${hand}`,entry,/** @type {AeroVisualRole} */(hand),pose.x+offsetX,pose.y+offsetY,pose.z,pose.rotationZRad,pose.alpha,asset,elapsedMs,pose.settleMs,null,0);
+    }));
   }
   return[aftermathSceneObject(`${entry.targetId}:aftermath:whole`,entry,role,pose.x,pose.y,pose.z,pose.rotationZRad,pose.alpha,asset,elapsedMs,pose.settleMs,null,0)];
 }

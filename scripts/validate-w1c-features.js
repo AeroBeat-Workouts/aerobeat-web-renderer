@@ -196,6 +196,17 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.ok(corpses.every((o) => o.assetId === "guard/outlined-shield-v1" && o.aftermath.sliceSign === null));
   assert.equal(corpses[1].position.x - corpses[0].position.x, 1);
   assert.equal(model.objects.filter((o) => o.targetId === "pair" && o.kind === "icon").length, 0);
+  const noSpacing = { ...entry }; delete noSpacing.guardSeparationWU;
+  const projected = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1100, targets: [target], aftermath: [noSpacing] }).objects.filter((o) => o.kind === "aftermath");
+  assert.deepEqual(projected.map((o) => o.position.x), [-0.5, 0.5], "visible guard target supplies exact corpse X without optional spacing");
+  assert.throws(() => buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1100, targets: [], aftermath: [noSpacing] }), /Culled guard aftermath requires guardSeparationWU/);
+  const retained = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1500, targets: [], aftermath: [entry] }).objects.filter((o) => o.kind === "aftermath");
+  assert.deepEqual(retained.map((o) => o.position.x), [-0.5, 0.5], "producer spacing preserves corpses after target cull");
+  const lanesTarget = { ...target, cells: [] };
+  const lanes = buildGameplaySceneModel({ presentation: "boxing_lanes", nowMs: 1100, timingWindowBeforeMs: 120, timingWindowAfterMs: 240, targets: [lanesTarget], aftermath: [noSpacing] }).objects.filter((o) => o.kind === "aftermath");
+  const lanesLive = buildGameplaySceneModel({ presentation: "boxing_lanes", nowMs: 1000, timingWindowBeforeMs: 120, timingWindowAfterMs: 240, targets: [{ id: "pair", kind: "guard", hand: "both", family: "guard", cell: null, cells: [], lane: null, beatCenterMs: 1000 }] }).objects.filter((o) => o.kind === "icon" && o.targetId === "pair");
+  assert.deepEqual(lanes.map((o) => o.position.x), lanesLive.map((o) => o.position.x), "lane corpses use the exact projected guard pair X");
+  assert.equal(lanes[0].position.y, lanes[1].position.y, "both lane corpses share the same bonk fall from their projected Y");
   const { feedbackProgress: _hitProgress, ...liveTarget } = target;
   const live = buildGameplaySceneModel({ presentation: "boxing_spatial_grid", nowMs: 1000, targets: [{ ...liveTarget, judgement: "pending" }] }).objects.filter((o) => o.targetId === "pair" && o.kind === "icon");
   assert.deepEqual(live.map((o) => [o.role, o.guardPairIndex, o.assetId]), [["left", 0, "guard/outlined-shield-v1"], ["right", 1, "guard/outlined-shield-v1"]]);

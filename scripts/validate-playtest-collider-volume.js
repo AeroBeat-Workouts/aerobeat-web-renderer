@@ -1,7 +1,7 @@
 // @ts-check
 import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
-import { projectEquipmentColliderAnchors } from "../src/renderer-facade.js";
+import { createAeroPlayCanvasRenderer, projectEquipmentColliderAnchors } from "../src/renderer-facade.js";
 import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, gloveObbGeometry, saberCapsuleGeometry } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { colliderSettingsDefaults, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
 
@@ -42,6 +42,27 @@ for(const mode of ["flow","boxing"]){
 assert.equal(colliderSettingsDefaults.flow.colliderDepthForward,1);
 for(const bad of [null,settings(true,0),settings(true,1,.9),settings(true,1,Infinity),{...settings(true),extra:1},{...settings(true),colliderVisible:1}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:[],colliderSettings:bad}),/collider_settings_invalid/);
 for(const bad of [null,{left:{x:0,y:1,z:0}},{left:{x:0,y:1,z:NaN},right:null}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:0,targets:[],colliderSettings:settings(true),equipmentColliderAnchors:bad}),/Equipment collider anchors are invalid/);
+// Exercise the actual collider material path with two different song palettes and modes.
+const renderer=createAeroPlayCanvasRenderer();
+const paletteSymbol=Symbol.for("aerobeat.web-renderer.internal-effective-palette");
+const material={diffuse:{set(...rgb){this.rgb=rgb;}},emissive:{set(...rgb){this.rgb=rgb;}},update(){}};
+const entity={findComponents(){return[{meshInstances:[{material}],layers:[]}];},setPosition(){},setLocalScale(){},setEulerAngles(){}};
+for(const presentation of ["flow","boxing_collider"]){
+  const model=buildGameplaySceneModel({presentation,nowMs:1000,targets:[],colliderSettings:settings(true)});
+  for(const [left,right] of [["#AABBCC","#123456"],["#FF0088","#00DD33"]]){
+    renderer[paletteSymbol](left,right);
+    for(const [index,color] of [left,right].entries()){
+      renderer.applyColliderOverlayAppearance(boxes(model)[index],entity);
+      const rgb=color.match(/[\dA-F]{2}/g).map((channel)=>parseInt(channel,16)/255);
+      assert.deepEqual(material.diffuse.rgb,rgb,`${presentation} ${index===0?"left":"right"} collider follows its equipment color`);
+      assert.deepEqual(material.emissive.rgb,rgb);
+      assert.equal(material.opacity,.16,"collider transparency stays unchanged");
+      assert.equal(material.depthTest,true);
+      assert.equal(material.depthWrite,false);
+    }
+  }
+}
+renderer[paletteSymbol](null,null);
 const miss=(id,hand)=>({id,kind:"flow",hand,family:"flow",cell:5,cells:[],lane:null,beatCenterMs:1000,judgement:"miss",missCommitMs:1181});
 for(const nowMs of [1181,1281,1529]){
   const result=buildGameplaySceneModel({presentation:"flow",nowMs,targets:[miss("left","left"),miss("right","right")]});

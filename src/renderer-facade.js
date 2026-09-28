@@ -551,7 +551,9 @@ export class AeroPlayCanvasRenderer {
   applyColliderOverlayAppearance(object,entity){
     const layerId=this.gameplayColliderOverlayLayer?.id??pc.LAYERID_WORLD;
     for(const component of entity.findComponents?.("render")??[])component.layers=[layerId];
-    const rgba=colorTokenToRgba(object.appearanceColor??(object.kind==="collider_square"?"#9a67ea":"#39c96b"),[1,1,1,1]);
+    const palette=effectiveMarkerPalettes.get(this);
+    const equipmentColor=object.role==="left"?(palette?.left??this.theme.leftHandColor):(palette?.right??this.theme.rightHandColor);
+    const rgba=colorTokenToRgba(object.kind==="collider_volume"?equipmentColor:(object.appearanceColor??(object.kind==="collider_square"?"#9a67ea":"#39c96b")),[1,1,1,1]);
     const material=entity.findComponents?.("render")?.[0]?.meshInstances?.[0]?.material;
     if(!material)return;
     const alpha=object.alpha*rgba[3];

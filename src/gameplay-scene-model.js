@@ -142,7 +142,8 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const window=timingWindow(frame);
   if(frame.visibleWristObstacleRadius!==undefined&&typeof frame.visibleWristObstacleRadius!=="boolean")throw new TypeError("Wrist bomb collider visibility is invalid");
   const colliderSettings=frame.colliderSettings===undefined?colliderSettingsDefaults[frame.presentation==="flow"?"flow":"boxing"]:normalizeSharedColliderSettings(frame.colliderSettings);
-  const visibleWristObstacleRadius=frame.visibleWristObstacleRadius??colliderSettings.visibleWristObstacleRadius;
+  // Normalized six-field settings are authoritative; the optional top-level flag remains a legacy frame fallback.
+  const visibleWristObstacleRadius=colliderSettings.visibleWristObstacleRadius||frame.visibleWristObstacleRadius===true;
   const wristBombColliderScale=colliderSettings.wristBombColliderScale;
   const startZ=window.afterMs*tuning.worldUnitsPerMs*colliderSettings.colliderDepthBackward;
   const endZ=-window.beforeMs*tuning.worldUnitsPerMs*colliderSettings.colliderDepthForward;

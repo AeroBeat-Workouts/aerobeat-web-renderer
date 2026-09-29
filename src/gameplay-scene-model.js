@@ -439,7 +439,16 @@ function assetForTarget(target){if(target.kind==="guard")return ASSET.guard;if(t
 function targetPositions(frame,target,config,reach){
   if(frame.presentation==="boxing_lanes"||frame.presentation==="boxing_collider"){
     const lanes=boxingLanes(config);
-    if(target.kind==="guard"||target.family==="squat")return lanes.map(lane=>({x:lane.x,y:lane.y}));
+    if(target.family==="squat")return lanes.map(lane=>({x:lane.x,y:lane.y}));
+    // Guards carry the authored pair of target cells. Honor its spacing in both
+    // Boxing presentations rather than replacing it with fixed lane centers.
+    if(target.kind==="guard"){
+      if(target.cells.length<2)return lanes.map(lane=>({x:lane.x,y:lane.y}));
+      const cells=target.cells.slice(0,2);
+      const pair=cells.map(worldPositionForCell);
+      if(!pair[0]||!pair[1]||pair[0].y!==pair[1].y||pair[0].x===pair[1].x)throw new TypeError("Guard cells must be a same-height left/right pair");
+      return pair.map((position)=>({x:position.x,y:frame.presentation==="boxing_collider"?presentationRowY(reach,gridRowFromWorldY(position.y)):lanes[0].y})).sort((a,b)=>a.x-b.x);
+    }
     // Boxing collider: cell-anchored targets render at their reach-row Y; lane-anchored targets use lanes.
     // 0.0.54 P2 fix: real assembly punch targets carry `cell` set + `cells: []` (session-render-
     // projection line 204), so the effective cell list must fall back to `cell` — mapping

@@ -21,7 +21,7 @@ for(const scale of [0,.5,1,2]){
   }
   assert.equal(model.objects.some((object)=>object.kind==="collider_volume"),false,"wrist visualization is independent of equipment volumes");
   assert.deepEqual(bombs(buildGameplaySceneModel({...frame,colliderSettings:settings(scale,true)})).map((object)=>object.id),markers.map((object)=>object.id),"assembly's nested visibility produces the same wrist scene");
-  assert.equal(bombs(buildGameplaySceneModel({...frame,colliderSettings:settings(scale,true),visibleWristObstacleRadius:false})).length,0,"explicit top-level visibility overrides nested setting");
+  assert.deepEqual(bombs(buildGameplaySceneModel({...frame,colliderSettings:settings(scale,true),visibleWristObstacleRadius:false})).map((object)=>object.id),markers.map((object)=>object.id),"normalized settings visibility takes precedence over the legacy top-level false flag");
 }
 assert.equal(bombs(buildGameplaySceneModel({...frame,equipmentColliderAnchors:undefined,visibleWristObstacleRadius:true})).length,0,"no wrist evidence means no invented wrist spheres");
 assert.equal(bombs(buildGameplaySceneModel({...frame,equipmentColliderAnchors:{left:null,right:null},visibleWristObstacleRadius:true})).length,0,"two missing hands produce no wrist spheres");

@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
 import { createAeroPlayCanvasRenderer, projectEquipmentColliderAnchors } from "../src/renderer-facade.js";
 import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, gloveObbGeometry, saberCapsuleGeometry } from "@aerobeat/web-contracts/equipment-pose-contracts";
-import { colliderSettingsDefaults, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
+import { colliderSettingsDefaults, normalizeColliderSettings, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
 
 const settings=(colliderVisible,colliderScale=1,colliderDepthForward=1,colliderDepthBackward=1)=>({colliderVisible,colliderScale,colliderDepthForward,colliderDepthBackward});
 const boxes=(model)=>model.objects.filter((object)=>object.kind==="collider_volume");
+assert.deepEqual(normalizeColliderSettings(settings(false)),{...settings(false),visibleWristObstacleRadius:false,wristBombColliderScale:1},"legacy four-field renderer callers receive both new defaults");
+assert.deepEqual(normalizeColliderSettings({...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5}),{...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5},"six-field renderer callers preserve explicit wrist settings");
 for(const presentation of ["flow","boxing_collider","boxing_lanes"]){
   const frame={presentation,nowMs:1000,targets:[],timingWindowBeforeMs:120,timingWindowAfterMs:240,colliderSettings:settings(false,1,2,3)};
   const hidden=buildGameplaySceneModel(frame);
@@ -23,7 +25,7 @@ for(const presentation of ["flow","boxing_collider","boxing_lanes"]){
   const tracked=buildGameplaySceneModel({...frame,colliderSettings:settings(true,1.5,2,3),equipmentColliderAnchors:anchors});
   for(const [index,hand] of ["left","right"].entries()){
     const box=boxes(tracked)[index],center=anchors[hand],halfExtent=presentation==="flow"?.375:.45;
-    const expected=resolveColliderBounds({mode:presentation==="flow"?"flow":"boxing",center,halfWidth:halfExtent,halfHeight:halfExtent,settings:settings(true,1.5,2,3)});
+    const expected=resolveColliderBounds({mode:presentation==="flow"?"flow":"boxing",center,halfWidth:halfExtent,halfHeight:halfExtent,settings:normalizeColliderSettings(settings(true,1.5,2,3))});
     assert.ok(Math.abs(box.position.x-center.x)<1e-12&&Math.abs(box.position.y-center.y)<1e-12&&Math.abs(box.position.z-(expected.minZ+expected.maxZ)/2)<1e-12);
     assert.deepEqual(box.scale,{x:expected.maxX-expected.minX,y:expected.maxY-expected.minY,z:expected.maxZ-expected.minZ});
   }

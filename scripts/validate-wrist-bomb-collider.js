@@ -29,6 +29,9 @@ const leftOnly=bombs(buildGameplaySceneModel({...frame,equipmentColliderAnchors:
 assert.equal(leftOnly.length,1,"missing right wrist produces no right sphere");
 assert.equal(leftOnly[0].role,"left");
 assert.deepEqual(leftOnly[0].position,anchors.left);
+const facade=createAeroPlayCanvasRenderer();
+const hiddenEquipment=facade.renderGameplayFrameWithCursorsAndEquipment({...frame,colliderSettings:settings(1,true)},[],{},[],{});
+assert.deepEqual(Object.fromEntries(bombs(hiddenEquipment.model).map((object)=>[object.role,object.position])),anchors,"explicit tracked wrists survive hidden equipment meshes");
 const rightOnly=bombs(buildGameplaySceneModel({...frame,equipmentColliderAnchors:{left:null,right:anchors.right},visibleWristObstacleRadius:true}));
 assert.equal(rightOnly.length,1,"missing left wrist produces no left sphere");
 assert.equal(rightOnly[0].role,"right");

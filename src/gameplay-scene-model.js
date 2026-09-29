@@ -159,9 +159,11 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   if(frame.colliderSettings===undefined)addTimingTiles(objects,frame,segments,tuning,presentationConfig,reach);
   const anchors=colliderSettings.colliderVisible||visibleWristObstacleRadius?normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors):{left:null,right:null};
   if(visibleWristObstacleRadius&&wristBombColliderScale>0){
-    for(const [hand,fallbackX] of [["left",-1.5],["right",1.5]]){
-      const anchor=anchors[hand]??{x:fallbackX,y:1.5,z:0};
-      const diameter=0.24*wristBombColliderScale;
+    for(const hand of ["left","right"]){
+      const anchor=anchors[hand];
+      if(anchor===null)continue;
+      // PlayCanvas sphere primitives have unit diameter. Match gameplay's wrist bomb radius (0.12 WU at scale 1).
+      const diameter=2*0.12*wristBombColliderScale;
       objects.push(sceneObject(`wrist-bomb-collider-${hand}`,"wrist_bomb_collider",hand,null,{...anchor},{x:diameter,y:diameter,z:diameter},null,null,0,.3,null,false,true,null,null,anchor.z,44,null,null,null,null,"#39c96b"));
     }
   }

@@ -36,6 +36,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@aerobeat/web-gameplay": "file:../aerobeat-web-gameplay",
     "@aerobeat/web-hash": "file:../aerobeat-web-hash",
     "playcanvas": "^2.21.4"
   }

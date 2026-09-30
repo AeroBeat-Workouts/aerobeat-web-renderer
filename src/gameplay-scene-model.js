@@ -4,7 +4,7 @@ import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-co
 import { isPrivateNoteAppearance } from "@aerobeat/web-contracts/note-palette-contracts";
 import { boxingColliderRowY } from "@aerobeat/web-contracts/gameplay-contracts";
 import { colliderSettingsDefaults, normalizeColliderSettings as normalizeSharedColliderSettings, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
-import { equipmentEulerDegreesToQuaternion, multiplyEquipmentQuaternions, slerpEquipmentQuaternionShortest } from "@aerobeat/web-contracts/equipment-pose-contracts";
+import { magneticSaberOrientation as gameplayMagneticSaberOrientation, normalizeMagneticAttractionSettings } from "@aerobeat/web-gameplay/equipment-pose-collision.js";
 import { judgeToPresentationPoint } from "@aerobeat/web-contracts/equipment-contracts";
 import { defaultTestPresentationConfig, testPresentationBounceOffsetY, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
@@ -511,30 +511,19 @@ function zone(name,startZ,endZ,color,alpha){return Object.freeze({name,startZ:Ma
 function sceneObject(id,kind,role,targetId,position,scale,iconId,assetId,rotationZRad,alpha,state,_unused0062,transparent,intervalStartMs,intervalEndMs,sortDepth,renderOrder,guardPairKey,guardPairIndex,removal,feedback=null,appearanceColor=null,aftermath=null){return Object.freeze({id,kind,role,targetId,position:Object.freeze(position),scale:Object.freeze(scale),rotationZRad,alpha,iconId,assetId,appearanceColor,state,transparent,intervalStartMs,intervalEndMs,sortDepth,renderOrder,guardPairKey,guardPairIndex,removal,feedback,aftermath});}
 /** Arrow identity points +Y; rotate only around local Z to the authoritative direction. @param {import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection} direction */
 function directionRotation(direction){const rotations=new Map([["up",0],["up-right",-Math.PI/4],["right",-Math.PI/2],["down-right",-Math.PI*3/4],["down",Math.PI],["down-left",Math.PI*3/4],["left",Math.PI/2],["up-left",Math.PI/4]]);const rotation=rotations.get(direction);if(rotation===undefined)throw new TypeError("Gameplay direction is unsupported");return rotation;}
-// The canonical saber extends along pose-local +X. Authoritative Flow directions
-// map to XY headings; the world-Z correction aligns the blade with that heading.
-const magneticDirectionAngles=Object.freeze({up:Math.PI/2,"up-right":Math.PI/4,right:0,"down-right":-Math.PI/4,down:-Math.PI/2,"down-left":-Math.PI*3/4,left:Math.PI,"up-left":Math.PI*3/4});
-/** Exact, presentation-only settings. Omission leaves the original pose unchanged. @param {unknown} value @returns {AeroMagneticAttractionSettings|null} */
-export function normalizeMagneticAttractionSettings(value){
-  if(value===undefined)return null;
-  if(value===null||typeof value!=="object"||Array.isArray(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value)))throw new TypeError("Magnetic attraction settings are invalid");
-  const bounds={range:2,minStrength:1,maxStrength:1,backFaceBias:1};
-  if(Reflect.ownKeys(value).length!==4)throw new TypeError("Magnetic attraction settings are invalid");
-  /** @type {Record<string,number>} */ const normalized={};
-  for(const [key,max] of Object.entries(bounds)){
-    const descriptor=Object.getOwnPropertyDescriptor(value,key),entry=descriptor?.value;
-    if(!descriptor?.enumerable||!Object.hasOwn(descriptor,"value")||typeof entry!=="number"||!Number.isFinite(entry)||entry<0||entry>max)throw new TypeError("Magnetic attraction settings are invalid");
-    normalized[key]=entry;
-  }
-  return Object.freeze({range:normalized.range,minStrength:normalized.minStrength,maxStrength:normalized.maxStrength,backFaceBias:normalized.backFaceBias});
-}
 /**
- * Compute a new display quaternion without modifying the shared collision pose.
- * The strongest weighted same-hand target is chosen deterministically; other beats
- * never combine into a roll tug-of-war. Back-face means the half-space behind the
- * saber tip (negative projection onto its local +X blade axis). At the range edge
- * the per-frame nudge is minStrength; at the beat center it is maxStrength
- * (or minStrength when the user sets max below min).
+ * Magnetic-attraction settings normalize to the gameplay-authoritative shape.
+ * Kept as a renderer re-export so the render-frame seam and renderer tests keep
+ * importing the shared normalizer (single source of truth in `@aerobeat/web-gameplay`).
+ * @param {unknown} value @returns {AeroMagneticAttractionSettings|null}
+ */
+export { normalizeMagneticAttractionSettings };
+/**
+ * The renderer draws the AUTHORITATIVE magnetic-assisted orientation — the exact
+ * quaternion the gameplay collision path evaluates — so what-you-see is
+ * what-hits. The blend math lives in `@aerobeat/web-gameplay`; this wrapper only
+ * adapts the presentation `frame` (targets + nowMs) into the shared judge-space
+ * target list the shared helper consumes.
  * @param {import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose} pose
  * @param {AeroGameplayFrame} frame
  * @param {AeroMagneticAttractionSettings|null} settings
@@ -543,27 +532,16 @@ export function normalizeMagneticAttractionSettings(value){
  */
 export function magneticSaberOrientation(pose,frame,settings,tuning=defaultRendererTuning,presentationConfig=defaultTestPresentationConfig){
   if(pose.mode!=="flow"||frame.presentation!=="flow"||!settings||settings.range===0)return pose.orientation;
-  const hand=pose.role==="left_wrist"?"left":"right",origin=judgeToPresentationPoint(pose.anchor),window=timingWindow(frame),reach=normalizeFrameRowReach(frame.rowReach);
-  const axisX=1-2*(pose.orientation.y**2+pose.orientation.z**2),axisY=2*(pose.orientation.x*pose.orientation.y+pose.orientation.w*pose.orientation.z);
-  /** @type {{target:AeroRenderableTarget,weight:number}|null} */ let strongest=null;
+  const window=timingWindow(frame),reach=normalizeFrameRowReach(frame.rowReach);
+  /** @type {ReadonlyArray<Readonly<{hand:"left"|"right",direction:string,x:number,y:number,z:number,id:string,judgement?:string}>>} */ const targets=[];
   for(const target of frame.targets){
-    if(target.kind!=="flow"||target.hand!==hand||target.requiresDirection===false||!target.direction||target.judgement==="hit"||target.judgement==="miss"||!Object.hasOwn(magneticDirectionAngles,target.direction))continue;
+    if(target.kind!=="flow"||target.hand!=="left"&&target.hand!=="right"||target.requiresDirection===false||!target.direction||target.judgement==="hit"||target.judgement==="miss")continue;
     if(!Number.isFinite(target.beatCenterMs)||target.cell===null||worldPositionForCell(target.cell)===null)continue;
     if(targetState(target,frame.nowMs,{startMs:target.beatCenterMs,endMs:target.beatCenterMs},window)==="spent")continue;
     const beat=iconRenderPosition(frame,target,tuning,presentationConfig,reach);
-    const dx=beat.x-origin.x,dy=beat.y-origin.y,dz=beat.z-pose.anchor.z,distance=Math.hypot(dx,dy,dz);
-    if(distance>settings.range)continue;
-    const proximity=1-distance/settings.range,backFaceWeight=distance===0?0:Math.max(0,-(dx*axisX+dy*axisY)/distance);
-    const strength=settings.minStrength+(Math.max(settings.minStrength,settings.maxStrength)-settings.minStrength)*proximity;
-    const weight=Math.min(1,strength*(1+settings.backFaceBias*backFaceWeight));
-    if(weight>0&&(!strongest||weight>strongest.weight||weight===strongest.weight&&target.id<strongest.target.id))strongest={target,weight};
+    targets.push(Object.freeze({hand:target.hand,direction:target.direction,x:beat.x+1.5,y:beat.y,z:beat.z,id:target.id}));
   }
-  if(!strongest)return pose.orientation;
-  const heading=magneticDirectionAngles[strongest.target.direction];
-  // World-Z adjustment preserves the wrist's own XYZ tilt rather than flattening it.
-  const currentHeading=Math.atan2(axisY,axisX),correction=equipmentEulerDegreesToQuaternion({x:0,y:0,z:(heading-currentHeading)*180/Math.PI});
-  const goal=multiplyEquipmentQuaternions(correction,pose.orientation);
-  return slerpEquipmentQuaternionShortest(pose.orientation,goal,strongest.weight);
+  return gameplayMagneticSaberOrientation(pose,frame.nowMs,targets,settings);
 }
 /** @param {readonly number[]} cells @param {string} label */
 function validateCellList(cells,label){if(!Array.isArray(cells)||cells.length>12||new Set(cells).size!==cells.length||cells.some((cell)=>worldPositionForCell(cell)===null))throw new TypeError(`${label} are invalid`);return cells;}

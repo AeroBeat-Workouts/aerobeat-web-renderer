@@ -12,7 +12,7 @@ import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 import { gameplayAssetMaterialRole } from "./gameplay-assets.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid, magneticSaberOrientation, normalizeMagneticAttractionSettings } from "./gameplay-scene-model.js";
+import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid, normalizeMagneticAttractionSettings } from "./gameplay-scene-model.js";
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
@@ -213,7 +213,12 @@ export class AeroPlayCanvasRenderer {
       const record=accepted.get(role);if(!record)continue;
       const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor);
       const alpha=1;
-      if(record.mode==="flow")this.stageSaber(role,record,color,alpha,frame&&magneticSettings?magneticSaberOrientation(record,frame,magneticSettings,this.tuning,this.testPresentationConfig):record.orientation);
+      // 0.0.85: draw the AUTHORITATIVE assisted orientation published by gameplay
+      // (the same value the collision path evaluated). Never re-derive the blend
+      // here: a second implementation could disagree and the saber would look
+      // assisted while the collider was not.
+      const assisted=frame&&frame.assistedSaberOrientations?frame.assistedSaberOrientations[role]:null;
+      if(record.mode==="flow")this.stageSaber(role,record,color,alpha,assisted??record.orientation);
       else this.stageGlove(role,record,color,alpha);
     }
     const staged=new Map();

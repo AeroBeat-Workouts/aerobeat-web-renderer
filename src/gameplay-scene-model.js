@@ -518,31 +518,6 @@ function directionRotation(direction){const rotations=new Map([["up",0],["up-rig
  * @param {unknown} value @returns {AeroMagneticAttractionSettings|null}
  */
 export { normalizeMagneticAttractionSettings };
-/**
- * The renderer draws the AUTHORITATIVE magnetic-assisted orientation — the exact
- * quaternion the gameplay collision path evaluates — so what-you-see is
- * what-hits. The blend math lives in `@aerobeat/web-gameplay`; this wrapper only
- * adapts the presentation `frame` (targets + nowMs) into the shared judge-space
- * target list the shared helper consumes.
- * @param {import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose} pose
- * @param {AeroGameplayFrame} frame
- * @param {AeroMagneticAttractionSettings|null} settings
- * @param {AeroRendererTuning} [tuning]
- * @param {typeof defaultTestPresentationConfig} [presentationConfig]
- */
-export function magneticSaberOrientation(pose,frame,settings,tuning=defaultRendererTuning,presentationConfig=defaultTestPresentationConfig){
-  if(pose.mode!=="flow"||frame.presentation!=="flow"||!settings||settings.range===0)return pose.orientation;
-  const window=timingWindow(frame),reach=normalizeFrameRowReach(frame.rowReach);
-  /** @type {ReadonlyArray<Readonly<{hand:"left"|"right",direction:string,x:number,y:number,z:number,id:string,judgement?:string}>>} */ const targets=[];
-  for(const target of frame.targets){
-    if(target.kind!=="flow"||target.hand!=="left"&&target.hand!=="right"||target.requiresDirection===false||!target.direction||target.judgement==="hit"||target.judgement==="miss")continue;
-    if(!Number.isFinite(target.beatCenterMs)||target.cell===null||worldPositionForCell(target.cell)===null)continue;
-    if(targetState(target,frame.nowMs,{startMs:target.beatCenterMs,endMs:target.beatCenterMs},window)==="spent")continue;
-    const beat=iconRenderPosition(frame,target,tuning,presentationConfig,reach);
-    targets.push(Object.freeze({hand:target.hand,direction:target.direction,x:beat.x+1.5,y:beat.y,z:beat.z,id:target.id}));
-  }
-  return gameplayMagneticSaberOrientation(pose,frame.nowMs,targets,settings);
-}
 /** @param {readonly number[]} cells @param {string} label */
 function validateCellList(cells,label){if(!Array.isArray(cells)||cells.length>12||new Set(cells).size!==cells.length||cells.some((cell)=>worldPositionForCell(cell)===null))throw new TypeError(`${label} are invalid`);return cells;}
 /** @param {unknown} value @returns {value is AeroGameplayPresentation} */

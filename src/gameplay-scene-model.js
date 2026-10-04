@@ -291,19 +291,19 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
     if(frame.presentation==="boxing_lanes"||frame.presentation==="boxing_collider"){
       // 0.0.61 L-F8 (2dh7/htc8): a weave wall must render at the PRESENTATION X of its
       // AUTHORED grid column (columnX space: column 0 → -1.5 … column 3 → +1.5) — the same
-      // space as the punch icons and the presentation-independent collision. The previous
-      // mapping placed the wall on the weave-DIRECTION lane (weave_left → lane "left"), which
-      // names the dodge side, drawing the wall on the SAFE side of its own blocked column.
-      // Squats keep the per-lane full-height duplication (both semantic lanes).
-      const configuredLanes=boxingLanes(presentationConfig),weaveLane=Object.freeze({x:geometry.x+(geometry.width-1)/2-1.5,y:BOXING_LANE_CENTER_Y,width:geometry.width-.06*obstacleScale}),lanes=target.family==="squat"?configuredLanes:[weaveLane];
-      if(lanes.length!==(target.family==="squat"?2:1))throw new TypeError("Boxing lane obstacle placement is invalid");
-      const objects=[];
-      for(const [index,lane] of lanes.entries()){
-        const suffix=lanes.length===1?"":`:${index}`;
-        objects.push(sceneObject(`${target.id}:wall${suffix}`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:lane.width/GAMEPLAY_CELL_SIZE,y:BOXING_LANE_HEIGHT/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null));
-        objects.push(sceneObject(`${target.id}:shadow${suffix}`,"shadow","neutral",target.id,{x:lane.x,y:gameplayWorldGrid.floorY+.018,z:center},{x:lane.width,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR));
-      }
-      return{objects,feedback:[]};
+      // space as the punch icons and the presentation-independent collision.
+      // 0.0.90 fix (htsg): the wall's VERTICAL extent now follows the obstacle's gameplay
+      // geometry (top-left 4x3 grid) instead of a full-height lane wall for every obstacle:
+      //   - squat (geometry y=0, height=1): the TOP ROW only, full-width bar — duck under it.
+      //   - weave (geometry height=3): the WHOLE lane on the blocked side, full lane height.
+      const lanes=target.family==="squat"
+        ?[Object.freeze({x:0,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})]
+        :[Object.freeze({x:geometry.x+(geometry.width-1)/2-1.5,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})];
+      if(lanes.length!==1)throw new TypeError("Boxing lane obstacle placement is invalid");
+      const lane=lanes[0],laneWidthScale=lane.width/GAMEPLAY_CELL_SIZE;
+      const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:laneWidthScale,y:(lane.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null);
+      const shadow=sceneObject(`${target.id}:shadow`,"shadow","neutral",target.id,{x:lane.x,y:gameplayWorldGrid.floorY+.018,z:center},{x:lane.width,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR);
+      return{objects:[wall,shadow],feedback:[]};
     }
     const centerX=geometry.x+(geometry.width-1)/2-1.5;
     const centerY=2-geometry.y-(geometry.height-1)/2;

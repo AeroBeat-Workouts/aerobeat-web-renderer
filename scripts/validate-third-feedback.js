@@ -75,8 +75,8 @@ const laneModel=buildGameplaySceneModel({presentation:"boxing_lanes",nowMs:COMMI
 const centers=entry=>[...new Set(laneModel.objects.filter(entry).map(object=>object.position.x))].sort((a,b)=>a-b);
 assert.deepEqual(centers(object=>object.kind==="timing"),[-.9,.9]);
 assert.deepEqual(centers(object=>object.targetId==="lane-guard"&&object.kind==="icon"),[-.9,.9]);
-assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="obstacle"),[-.9,.9]);
-assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="shadow"),[-.9,.9]);
+assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="obstacle"),[0]);
+assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="shadow"),[0]);
 const guard=parts(laneModel,"lane-guard"),guardIcons=laneModel.objects.filter(entry=>entry.targetId==="lane-guard"&&entry.kind==="icon");
 assert.equal(guardIcons.length,2);
 assert.deepEqual(guard.label.position,{x:-1.5,y:1.5,z:1.5},"dual-guard Miss label uses one fixed world spot");

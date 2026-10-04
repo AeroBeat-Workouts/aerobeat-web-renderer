@@ -12,7 +12,7 @@ import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 import { gameplayAssetMaterialRole } from "./gameplay-assets.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid, normalizeMagneticAttractionSettings } from "./gameplay-scene-model.js";
+import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
@@ -173,7 +173,7 @@ export class AeroPlayCanvasRenderer {
    * @param {unknown} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
-  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const magneticSettings=normalizeMagneticAttractionSettings(frame.magneticAttraction);const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false,frame,magneticSettings));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
+  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
   clear(options={}){if(!this.app||this.destroyed)return{status:this.describe()};const color=options.color??[0,0,0,0];this.cameraEntity.camera.clearColor=new pc.Color(...color);this.clearSceneObjects();this.clearOverlayEntities();this.manualTick();this.frameCount+=1;this.state="running";return{status:this.describe()};}
   renderFrame(options={}){return this.clear(options);}
   renderGameplayCursors(cursors,options){const result=this.stageGameplayCursors(cursors,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),cursorCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.cursorCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
@@ -194,10 +194,8 @@ export class AeroPlayCanvasRenderer {
    * @param {ReadonlyArray<unknown>} equipment
    * @param {unknown} _options
    * @param {boolean} clear
-   * @param {import("./gameplay-scene-model.js").AeroGameplayFrame|null} [frame]
-   * @param {import("./gameplay-scene-model.js").AeroMagneticAttractionSettings|null} [magneticSettings]
    */
-  stageGameplayEquipment(equipment,_options,clear,frame=null,magneticSettings=null){
+  stageGameplayEquipment(equipment,_options,clear){
     if(!Array.isArray(equipment)||equipment.length>4)throw new TypeError("Gameplay equipment cannot exceed 4 records");
     const accepted=new Map();
     for(const record of equipment){
@@ -213,12 +211,7 @@ export class AeroPlayCanvasRenderer {
       const record=accepted.get(role);if(!record)continue;
       const color=role==="left_wrist"?(effectivePalette?.left??this.theme.leftHandColor):(effectivePalette?.right??this.theme.rightHandColor);
       const alpha=1;
-      // 0.0.85: draw the AUTHORITATIVE assisted orientation published by gameplay
-      // (the same value the collision path evaluated). Never re-derive the blend
-      // here: a second implementation could disagree and the saber would look
-      // assisted while the collider was not.
-      const assisted=frame&&frame.assistedSaberOrientations?frame.assistedSaberOrientations[role]:null;
-      if(record.mode==="flow")this.stageSaber(role,record,color,alpha,assisted??record.orientation);
+      if(record.mode==="flow")this.stageSaber(role,record,color,alpha);
       else this.stageGlove(role,record,color,alpha);
     }
     const staged=new Map();
@@ -254,16 +247,15 @@ export class AeroPlayCanvasRenderer {
     * @param {Readonly<{anchor:Readonly<{x:number,y:number,z:number}>,scale:number,orientation:Readonly<{x:number,y:number,z:number,w:number}>}>} pose
     * @param {string} color Per-hand color token.
     * @param {number} alpha Dimming multiplier.
-    * @param {Readonly<{x:number,y:number,z:number,w:number}>} [displayOrientation] Renderer-only rotation; pose remains collision authoritative.
     */
-   stageSaber(role,pose,color,alpha,displayOrientation=pose.orientation){
+   stageSaber(role,pose,color,alpha){
     const poolKey=`equipment/flow-saber-v1:${role}`,loaderMode=this.gameplayAssetLoader.describe().state;
     const glbEntity=loaderMode==="ready"?this.acquireEquipmentGlbEntity(poolKey,"flow-saber/flow-saber-v1"):null;
     if(!glbEntity&&loaderMode==="ready")return;
     const entries=glbEntity?(this.equipmentPools.get(poolKey)??[]):this.acquireEquipmentPrimitiveChildren(poolKey,["cylinder","cylinder"]);
     const root=entries[0];if(!root)return;
     this.applyResolvedEquipmentPose(root,pose);
-    root.setLocalRotation(displayOrientation.x,displayOrientation.y,displayOrientation.z,displayOrientation.w);
+    root.setLocalRotation(pose.orientation.x,pose.orientation.y,pose.orientation.z,pose.orientation.w);
     if(glbEntity){
       glbEntity.enabled=true;glbEntity.name=`equipment-${role}-model`;
       glbEntity.setLocalPosition(0,0,0);glbEntity.setLocalScale(1,1,1);

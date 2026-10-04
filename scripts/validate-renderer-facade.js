@@ -160,3 +160,30 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
   camera.rect={x:0,y:0,z:1,w:1};renderer.destroyed=true;assert.equal(renderer.projectDebugEquipmentAnchor(60,70),null,"destroyed lifecycle must fail closed");
   console.log("Private debug-equipment projection facade validation passed.");
 }
+
+// 0.0.90 (htsg): renderScale scales backing-store resolution only.
+{
+  const { renderer } = makeMotionRenderer();
+  renderer.canvas = { style: {}, width: 0, height: 0 };
+  renderer.resize({ widthCssPx: 800, heightCssPx: 400, devicePixelRatio: 2 });
+  assert.equal(renderer.canvas.width, 1600, "scale 1.0: backing store = css × dpr");
+  assert.equal(renderer.canvas.height, 800);
+  assert.equal(renderer.renderScale, 1, "default renderScale is 1.0");
+  assert.equal(renderer.devicePixelRatio, 2, "default effective DPR is dpr");
+  renderer.resize({ widthCssPx: 800, heightCssPx: 400, devicePixelRatio: 2, renderScale: 0.5 });
+  assert.equal(renderer.renderScale, 0.5);
+  assert.equal(renderer.devicePixelRatio, 1, "effective DPR = dpr × renderScale");
+  assert.equal(renderer.canvas.width, 800, "scale 0.5: backing store halved");
+  assert.equal(renderer.canvas.height, 400);
+  assert.equal(renderer.canvas.style.width, "800px", "CSS width unchanged");
+  assert.equal(renderer.canvas.style.height, "400px", "CSS height unchanged");
+  renderer.resize({ widthCssPx: 800, heightCssPx: 400, devicePixelRatio: 2, renderScale: 0.1 });
+  assert.equal(renderer.devicePixelRatio, 0.5, "renderScale floors at 0.25 × dpr");
+  renderer.resize({ widthCssPx: 800, heightCssPx: 400, devicePixelRatio: 2, renderScale: 2 });
+  assert.equal(renderer.renderScale, 1, "renderScale caps at 1.0");
+  renderer.resize({ widthCssPx: 800, heightCssPx: 400, devicePixelRatio: 2, renderScale: 1 });
+  assert.equal(renderer.devicePixelRatio, 2, "restored to dpr at scale 1.0");
+  const desc = renderer.describe();
+  assert.equal(desc.renderScale, 1, "describe() exposes renderScale");
+  console.log("0.0.90 renderScale: backing-store-only scaling (CSS/world geometry untouched) passed.");
+}

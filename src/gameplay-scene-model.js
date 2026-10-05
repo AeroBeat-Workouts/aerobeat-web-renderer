@@ -298,7 +298,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
       //   - weave (geometry height=3): the WHOLE lane on the blocked side, full lane height.
       const lanes=target.family==="squat"
         ?[Object.freeze({x:0,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})]
-        :[Object.freeze({x:geometry.x+(geometry.width-1)/2-1.5,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})];
+        :[Object.freeze({x:geometry.x+(geometry.width-1)/2>=0.5?1:-1,y:2-geometry.y-(geometry.height-1)/2,width:2-.06*obstacleScale,height:geometry.height})];
       if(lanes.length!==1)throw new TypeError("Boxing lane obstacle placement is invalid");
       const lane=lanes[0],laneWidthScale=lane.width/GAMEPLAY_CELL_SIZE;
       const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:laneWidthScale,y:(lane.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null);

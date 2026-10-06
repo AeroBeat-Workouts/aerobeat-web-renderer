@@ -18,7 +18,7 @@ import { buildGameplaySceneModel } from "../src/index.js";
 
 const CELL = 0.94;
 const geometry = (x, y, width, height) => ({ schema: "aerobeat/obstacle_gameplay_geometry", version: 1, coordinateSpace: "aerobeat_top_left_grid", x, y, width, height });
-const squat = { id: "squatter", kind: "obstacle", hand: "neutral", family: "squat", cell: null, cells: [0, 1, 2, 3], gameplayGeometry: geometry(0, 0, 4, 1), lane: null, beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
+const squat = { id: "squatter", kind: "obstacle", hand: "neutral", family: "squat", cell: null, cells: [0, 1, 2, 3], gameplayGeometry: geometry(0, -3, 4, 4.5), lane: null, beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
 const weaveLeft = { id: "weave-left", kind: "obstacle", hand: "left", family: "weave", cell: null, cells: [3, 7, 11], gameplayGeometry: geometry(3, 0, 1, 3), lane: "left", beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
 const weaveRight = { id: "weave-right", kind: "obstacle", hand: "right", family: "weave", cell: null, cells: [0, 4, 8], gameplayGeometry: geometry(0, 0, 1, 3), lane: "right", beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
 
@@ -28,9 +28,12 @@ for (const presentation of ["boxing_lanes", "boxing_collider"]) {
 
   const squatWalls = walls(squat);
   assert.equal(squatWalls.length, 1, `${presentation}: squat renders exactly one bar`);
-  assert.deepEqual({ x: squatWalls[0].position.x, y: squatWalls[0].position.y }, { x: 0, y: 2 }, `${presentation}: squat bar is centered on the grid at the top row`);
+  // 0.0.95: squat geometry is {x:0, y:-3, width:4, height:4.5} — the bar spans
+  // from above the grid (y=-3) down to y=1.5, centered at y=3.25 in world space
+  // (2 - (-3) - (4.5-1)/2 = 3.25).
+  assert.deepEqual({ x: squatWalls[0].position.x, y: squatWalls[0].position.y }, { x: 0, y: 3.25 }, `${presentation}: squat bar is centered on the grid at the 4.5-row extent`);
   assert.ok(Math.abs(squatWalls[0].scale.x - (4 - 0.06) / CELL) < 1e-9, `${presentation}: squat bar spans the full grid width (4 columns)`);
-  assert.ok(Math.abs(squatWalls[0].scale.y - (1 - 0.06) / CELL) < 1e-9, `${presentation}: squat bar is exactly one grid row tall`);
+  assert.ok(Math.abs(squatWalls[0].scale.y - (4.5 - 0.06) / CELL) < 1e-9, `${presentation}: squat bar is 4.5 grid rows tall`);
 
   const weaveL = walls(weaveLeft);
   assert.equal(weaveL.length, 1, `${presentation}: weave_left renders exactly one wall`);

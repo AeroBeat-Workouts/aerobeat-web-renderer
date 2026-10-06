@@ -543,7 +543,7 @@ export function equipmentShadowObjects(frame,anchors){
       // Saber: floor rectangle along the blade's projected direction.
       const direction=normalizeEquipmentShadowDirection(frame.equipmentShadowDirections?.[hand]);
       const angle=Math.atan2(direction.z,direction.x);
-      objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:EQUIPMENT_SABER_SHADOW_LENGTH_WU,y:.012,z:EQUIPMENT_SABER_SHADOW_WIDTH_WU},null,null,angle*180/Math.PI,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
+      objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:EQUIPMENT_SABER_SHADOW_LENGTH_WU,y:.012,z:EQUIPMENT_SABER_SHADOW_WIDTH_WU},null,null,angle,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
     }else{
       // Glove: circular/elliptical floor blob.
       objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:2*EQUIPMENT_GLOVE_SHADOW_RADIUS_WU,y:.012,z:2*EQUIPMENT_GLOVE_SHADOW_RADIUS_WU},null,null,0,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));

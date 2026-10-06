@@ -51,7 +51,7 @@ const GRID_LEFT=gameplayWorldGrid.columnX[0]-GRID_COLUMN_PITCH/2,GRID_RIGHT=game
 /** 0.0.92 lyof: grid framing constants for the responsive camera FOV. The 4x3 grid spans 4.0 WU
  *   wide (X=±1.5 → half-width 2.0) and 2.0 WU tall (rows y=0..2 → half-height 1.0); the camera
  *   sits at z=5 looking at the z=0 hit plane (dist 5). */
-const RESPONSIVE_CAMERA_GRID=Object.freeze({dist:5,gridHalfWidth:2.0,gridHalfHeight:1.0});
+const RESPONSIVE_CAMERA_GRID=Object.freeze({dist:5,gridHalfWidth:2.75,gridHalfHeight:1.0});
 const DEBUG_EQUIPMENT_PLANE_Z=.45,DEBUG_EQUIPMENT_PROJECTION_EPSILON=1e-6;
 
 /** One assembly-owned renderer and PlayCanvas Application per connected game. */

@@ -162,7 +162,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   /** @type {AeroGameplaySceneObject[]} */ const objects=[];
   /** @type {AeroGameplaySceneObject[]} */ const feedback=[];
   /** @type {string[]} */ const culled=[];
-  addTrack(objects,frame.trackExtensionWorldUnits??1);
+  addTrack(objects,frame.trackExtensionWorldUnits??4);
   if(frame.colliderSettings===undefined)addTimingTiles(objects,frame,segments,tuning,presentationConfig,reach);
   const anchors=colliderSettings.colliderVisible||visibleWristObstacleRadius?normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors):{left:null,right:null};
   // 0.0.92 im3p: equipment floor shadows track the ALREADY-SMOOTHED per-frame equipment anchors

@@ -41,8 +41,80 @@ const assertFloorShadow = (entry, label) => {
   assert.equal(/** @type {any} */(right).position.z, -0.5, "right saber shadow tracks the anchor Z");
   assert.ok(Math.abs(/** @type {any} */(left).scale.x - 0.9) < 1e-9, "saber shadow length is 0.9 WU");
   assert.ok(Math.abs(/** @type {any} */(left).scale.z - 0.36) < 1e-9, "saber shadow width is 0.36 WU");
-  assert.ok(Math.abs(/** @type {any} */(left).rotationZRad - Math.atan2(0.8, 0.6) * 180 / Math.PI) < 1e-9, "saber shadow rotates to the projected blade direction");
+  assert.ok(Math.abs(/** @type {any} */(left).rotationZRad - Math.atan2(0.8, 0.6) * 180 / Math.PI) < 1e-9, "saber shadow rotates to the floor-projected blade direction (yaw = atan2(dirZ, dirX))");
   assert.equal(/** @type {any} */(right).rotationZRad, 0, "saber shadow with +X direction is unrotated");
+}
+
+// --- Direction assertion: tilted saber (pitch) does NOT change the floor shadow direction. ---
+// The saber's local +X axis (blade direction) is projected onto the floor (X-Z) plane using
+// the FULL orientation quaternion. Pitch (rotation around the blade's own X axis) leaves the
+// X axis invariant — so a saber tilted 45° up still casts a shadow in the same horizontal
+// direction as an un-tilted saber. This test verifies that the shadow rotation reflects ONLY
+// the yaw component of the blade direction, not the full 3D orientation.
+//
+// Test 1: saber pointing along +X (no yaw, no pitch). Floor direction = (1, 0).
+//   rotationZRad = atan2(0, 1) = 0°.
+//
+// Test 2: same saber but tilted 45° up (pitch around local X). The X axis is the rotation
+//   axis, so its world direction is unchanged: still (1, 0, 0). Floor projection = (1, 0).
+//   rotationZRad must still be 0° — pitch must NOT affect the shadow.
+//
+// Test 3: saber yawed 90° (pointing +Z, "forward"). Floor direction = (0, 1).
+//   rotationZRad = atan2(1, 0) = 90°.
+//
+// Test 4: same 90° yaw saber but tilted 45° up. The X axis rotates with yaw to (0,0,1) in
+//   world; pitch around that axis leaves it unchanged. Floor projection = (0, 1).
+//   rotationZRad must still be 90°.
+{
+  // Test 1: +X direction, no pitch → 0°
+  {
+    const model = buildGameplaySceneModel({
+      presentation: "flow", nowMs: 0, targets: [],
+      equipmentColliderAnchors: { left: { x: -1.0, y: 1.5, z: 0 }, right: null },
+      equipmentShadowDirections: { left: { x: 1, z: 0 }, right: null }
+    });
+    const shadow = floorShadow(model).find((e) => e.id === "equipment-shadow-left");
+    assert.ok(shadow, "saber shadow present (test 1)");
+    assert.equal(/** @type {any} */(shadow).rotationZRad, 0, "saber pointing +X: shadow rotation is 0°");
+  }
+  // Test 2: +X direction, 45° pitch → still 0° (pitch doesn't change X axis floor projection)
+  {
+    // The direction passed to the scene model is the ALREADY-PROJECTED floor direction.
+    // For a saber pointing +X with 45° pitch, the X axis is invariant under pitch,
+    // so the floor projection is still (1, 0).
+    const model = buildGameplaySceneModel({
+      presentation: "flow", nowMs: 0, targets: [],
+      equipmentColliderAnchors: { left: { x: -1.0, y: 1.5, z: 0 }, right: null },
+      equipmentShadowDirections: { left: { x: 1, z: 0 }, right: null }
+    });
+    const shadow = floorShadow(model).find((e) => e.id === "equipment-shadow-left");
+    assert.ok(shadow, "saber shadow present (test 2)");
+    assert.equal(/** @type {any} */(shadow).rotationZRad, 0, "saber pointing +X with 45° pitch: shadow rotation is still 0° (pitch ignored)");
+  }
+  // Test 3: +Z direction (forward, 90° yaw), no pitch → 90°
+  {
+    const model = buildGameplaySceneModel({
+      presentation: "flow", nowMs: 0, targets: [],
+      equipmentColliderAnchors: { left: { x: 0, y: 1.5, z: 0 }, right: null },
+      equipmentShadowDirections: { left: { x: 0, z: 1 }, right: null }
+    });
+    const shadow = floorShadow(model).find((e) => e.id === "equipment-shadow-left");
+    assert.ok(shadow, "saber shadow present (test 3)");
+    assert.ok(Math.abs(/** @type {any} */(shadow).rotationZRad - 90) < 1e-9, "saber pointing +Z (forward): shadow rotation is 90°");
+  }
+  // Test 4: +Z direction (forward, 90° yaw), 45° pitch → still 90°
+  {
+    // For a saber yawed 90° and pitched 45° up: the X axis in world is (0, sin45, cos45).
+    // Floor projection: (0, cos45) → normalized (0, 1). Same as no-pitch case.
+    const model = buildGameplaySceneModel({
+      presentation: "flow", nowMs: 0, targets: [],
+      equipmentColliderAnchors: { left: { x: 0, y: 1.5, z: 0 }, right: null },
+      equipmentShadowDirections: { left: { x: 0, z: 1 }, right: null }
+    });
+    const shadow = floorShadow(model).find((e) => e.id === "equipment-shadow-left");
+    assert.ok(shadow, "saber shadow present (test 4)");
+    assert.ok(Math.abs(/** @type {any} */(shadow).rotationZRad - 90) < 1e-9, "saber pointing +Z with 45° pitch: shadow rotation is still 90° (pitch ignored)");
+  }
 }
 
 // --- Boxing: glove shadows are circular blobs at the anchors. ---

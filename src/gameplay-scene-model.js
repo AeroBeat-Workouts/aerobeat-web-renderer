@@ -17,7 +17,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
 /** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two clip-plane halves with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the clip plane is offset along the glyph's local long axis by (sliceT − 0.5) × glyph length so the cut sits at the blade's real crossing point instead of always the midpoint. Absent or 0.5 → exactly today's midpoint behavior (backward compatible with legacy/other producers). @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
@@ -104,6 +104,11 @@ export const AFTERMATH_CORPSE_MIN_CHROMA=0.35;
 /** 0.0.52 W1-C: closed-form hit-success aftermath launch velocities (WU/s, gravity −9.8). Hooks are stored without the X sign; the hand signs it toward center (left hand +X, right hand −X). */
 function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freeze({x:0,y:.5,z:-4}),hook:Object.freeze({x:1.2,y:.3,z:-3}),uppercut:Object.freeze({x:0,y:2.2,z:-2.5}),guardBonk:Object.freeze({x:0,y:.2,z:-.5}),flowNote:Object.freeze({x:0,y:.4,z:-2})});}
 const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#2a3038",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
+/** 0.0.92 im3p: equipment floor-shadow footprint (WU). The saber shadow is a floor rectangle
+ *   following the blade's projected direction (length ~0.9, width ~0.36); the glove shadow is a
+ *   circular/elliptical blob (~0.4). Both sit at floorY + 0.018, renderOrder 35, SHADOW_ALPHA,
+ *   SHADOW_COLOR — mirroring the per-note and obstacle floor shadows. */
+const EQUIPMENT_SABER_SHADOW_LENGTH_WU=0.9,EQUIPMENT_SABER_SHADOW_WIDTH_WU=0.36,EQUIPMENT_GLOVE_SHADOW_RADIUS_WU=0.2;
 
 /** @type {AeroRendererTuning} */
 export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"6",hash:"visual-3fed1dee",dprCap:2,roleScale:1,noteScaleFactor:1,obstacleScaleFactor:1,bombScaleFactor:1,markerScaleFactor:1,worldUnitsPerMs:CANONICAL_WORLD_UNITS_PER_MS,futureCullMs:10_000,spentCullMs:1500,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25,aftermathGravityWUPerS2:9.8,aftermathRestitution:.35,aftermathBounceCount:2,aftermathEvictedFadeMs:150,aftermathSettledTumbleRadPerS:1.6,aftermathSliceSeparationWU:.16,aftermathSliceWiderSeparationWU:.46,aftermathLaunchVelocities:aftermathLaunchVelocities(),hazardGlowRampMs:150,hazardGlowDecayMs:600,hazardVignetteIntensity:0.6,hazardVignettePulseHz:2,hazardVignettePulseDepth:0.35,hazardVignetteRampMs:150,hazardVignetteDecayMs:400 });
@@ -160,6 +165,10 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   addTrack(objects,frame.trackExtensionWorldUnits??1);
   if(frame.colliderSettings===undefined)addTimingTiles(objects,frame,segments,tuning,presentationConfig,reach);
   const anchors=colliderSettings.colliderVisible||visibleWristObstacleRadius?normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors):{left:null,right:null};
+  // 0.0.92 im3p: equipment floor shadows track the ALREADY-SMOOTHED per-frame equipment anchors
+  // (saber = floor rect along the blade's projected direction; glove = circular blob). Independent
+  // of the collider-settings visibility gate — present whenever an anchor exists.
+  if(frame.equipmentColliderAnchors!==undefined)objects.push(...equipmentShadowObjects(frame,normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors)));
   if(visibleWristObstacleRadius&&wristBombColliderScale>0){
     for(const hand of ["left","right"]){
       const anchor=anchors[hand];
@@ -298,7 +307,13 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
       //   - weave (geometry height=3): the WHOLE lane on the blocked side, full lane height.
       const lanes=target.family==="squat"
         ?[Object.freeze({x:0,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})]
-        :[Object.freeze({x:geometry.x+(geometry.width-1)/2>=0.5?1:-1,y:2-geometry.y-(geometry.height-1)/2,width:2-.06*obstacleScale,height:geometry.height})];
+        // 0.0.92 u6tc: a weave wall renders at the PRESENTATION X of its AUTHORED grid column —
+        // `geometry.x + (width-1)/2 - 1.5` (= columnX[geometry.x] + centered column offset), the
+        // same columnX space as the punch icons, the flow/non-boxing wall, and the
+        // presentation-independent collision. The former sign (`>= 0.5 ? 1 : -1`) snapped the wall
+        // to the weave-DIRECTION lane (±1) instead of its authored column (e.g. geometry x:1 →
+        // columnX[1]=-0.5). The wall SPANS exactly its authored column(s): width `geometry.width`.
+        :[Object.freeze({x:geometry.x+(geometry.width-1)/2-1.5,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})];
       if(lanes.length!==1)throw new TypeError("Boxing lane obstacle placement is invalid");
       const lane=lanes[0],laneWidthScale=lane.width/GAMEPLAY_CELL_SIZE;
       const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:laneWidthScale,y:(lane.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null);
@@ -501,6 +516,40 @@ function normalizeEquipmentColliderAnchors(value){
     anchors[hand]={x:point.x,y:point.y,z:point.z};
   }
   return anchors;
+}
+/**
+ * 0.0.92 im3p: build the bounded equipment floor-shadow scene objects from the ALREADY-SMOOTHED
+ * per-frame equipment anchors. One shadow per non-null anchor, at floorY + 0.018, renderOrder 35,
+ * SHADOW_ALPHA, SHADOW_COLOR, transparent — the same visual treatment as the per-note and
+ * obstacle floor shadows. The saber shadow is a floor rectangle following the blade's projected
+ * direction (local +X flattened onto the floor plane); the glove shadow is a circular blob.
+ * Deterministic and per-frame (the anchor is per-frame); no retained smoothing state.
+ * @param {AeroGameplayFrame} frame @param {Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>} anchors @returns {AeroGameplaySceneObject[]}
+ */
+export function equipmentShadowObjects(frame,anchors){
+  const objects=[];
+  for(const hand of ["left","right"]){
+    const anchor=anchors[hand];
+    if(anchor===null)continue;
+    const y=gameplayWorldGrid.floorY+.018;
+    if(frame.presentation==="flow"){
+      // Saber: floor rectangle along the blade's projected direction.
+      const direction=normalizeEquipmentShadowDirection(frame.equipmentShadowDirections?.[hand]);
+      const angle=Math.atan2(direction.z,direction.x);
+      objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:EQUIPMENT_SABER_SHADOW_LENGTH_WU,y:.012,z:EQUIPMENT_SABER_SHADOW_WIDTH_WU},null,null,angle*180/Math.PI,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
+    }else{
+      // Glove: circular/elliptical floor blob.
+      objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:2*EQUIPMENT_GLOVE_SHADOW_RADIUS_WU,y:.012,z:2*EQUIPMENT_GLOVE_SHADOW_RADIUS_WU},null,null,0,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
+    }
+  }
+  return objects;
+}
+/** Normalize an optional per-hand floor-direction (unit vector, X-Z plane). Absent/degenerate → +X. @param {Readonly<{x:number,z:number}>|null|undefined} value */
+function normalizeEquipmentShadowDirection(value){
+  if(!value||typeof value!=="object"||!Number.isFinite(value.x)||!Number.isFinite(value.z))return{x:1,z:0};
+  const length=Math.hypot(value.x,value.z);
+  if(length<1e-6)return{x:1,z:0};
+  return{x:value.x/length,z:value.z/length};
 }
 function timingWindow(frame){const required=frame.presentation==="boxing_lanes";const before=frame.timingWindowBeforeMs??(required?NaN:defaultGameplayTimingWindow.beforeMs),after=frame.timingWindowAfterMs??(required?NaN:defaultGameplayTimingWindow.afterMs);if(![before,after].every((v)=>Number.isFinite(v)&&v>=0&&v<=10_000))throw new TypeError("Authoritative timing window is invalid");return Object.freeze({beforeMs:Number(before),afterMs:Number(after)});}
 /** @param {"early"|"active"|"late"} name @param {number} startZ @param {number} endZ @param {string} color @param {number} alpha */

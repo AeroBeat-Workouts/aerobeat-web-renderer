@@ -6,10 +6,14 @@
 //   - squat  → top row only, a full-width bar (4 columns x 1 row).
 //   - weave  → the FULL TWO-COLUMN LANE on the blocked side (2 columns wide,
 //              centered on the lane center ±1.0, full lane height).
-// 0.0.91 (F6a): the weave wall no longer spans just its single authored
-// column — it covers both columns of the blocked lane. 0.0.91 (F6b): the
-// floor shadow under every boxing obstacle must be present at floor level,
-// match the wall's footprint, and carry non-zero alpha.
+// 0.0.92 (u6tc): the weave wall renders at the PRESENTATION X of its AUTHORED
+// grid column (geometry x → columnX[x] + centered column offset), spanning
+// exactly that authored column — the same columnX space as the punch icons,
+// the flow/non-boxing wall, and the presentation-independent collision. (The
+// 0.0.91 "full two-column blocked-lane" centering was the defect this corrects:
+// it snapped the wall to the weave-DIRECTION lane ±1.0 instead of its authored
+// column.) 0.0.91 (F6b): the floor shadow under every boxing obstacle must be
+// present at floor level, match the wall's footprint, and carry non-zero alpha.
 import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
 
@@ -31,15 +35,15 @@ for (const presentation of ["boxing_lanes", "boxing_collider"]) {
 
   const weaveL = walls(weaveLeft);
   assert.equal(weaveL.length, 1, `${presentation}: weave_left renders exactly one wall`);
-  assert.equal(weaveL[0].position.x, 1, `${presentation}: weave_left (blocked column 3) renders at the RIGHT lane center x=+1.0`);
-  assert.ok(Math.abs(weaveL[0].scale.x - (2 - 0.06) / CELL) < 1e-9, `${presentation}: weave_left spans the full two-column right lane`);
+  assert.equal(weaveL[0].position.x, 1.5, `${presentation}: weave_left (authored column 3) renders at the authored column presentation X columnX[3]=+1.5`);
+  assert.ok(Math.abs(weaveL[0].scale.x - (1 - 0.06) / CELL) < 1e-9, `${presentation}: weave_left spans exactly its authored single column`);
   assert.ok(Math.abs(weaveL[0].scale.y - (3 - 0.06) / CELL) < 1e-9, `${presentation}: weave_left keeps the full lane height (3 rows)`);
   assert.equal(weaveL[0].position.y, 1, `${presentation}: weave_left keeps the lane center Y`);
 
   const weaveR = walls(weaveRight);
   assert.equal(weaveR.length, 1, `${presentation}: weave_right renders exactly one wall`);
-  assert.equal(weaveR[0].position.x, -1, `${presentation}: weave_right (blocked column 0) renders at the LEFT lane center x=-1.0`);
-  assert.ok(Math.abs(weaveR[0].scale.x - (2 - 0.06) / CELL) < 1e-9, `${presentation}: weave_right spans the full two-column left lane`);
+  assert.equal(weaveR[0].position.x, -1.5, `${presentation}: weave_right (authored column 0) renders at the authored column presentation X columnX[0]=-1.5`);
+  assert.ok(Math.abs(weaveR[0].scale.x - (1 - 0.06) / CELL) < 1e-9, `${presentation}: weave_right spans exactly its authored single column`);
   assert.ok(Math.abs(weaveR[0].scale.y - (3 - 0.06) / CELL) < 1e-9, `${presentation}: weave_right keeps the full lane height (3 rows)`);
   assert.equal(weaveR[0].position.y, 1, `${presentation}: weave_right keeps the lane center Y`);
 
@@ -55,8 +59,8 @@ for (const presentation of ["boxing_lanes", "boxing_collider"]) {
     assert.ok(targetShadows[0].alpha > 0, `${presentation}: ${target.id} shadow has non-zero alpha`);
   };
   assertShadow(squat, 0, 4 - 0.06);
-  assertShadow(weaveLeft, 1, 2 - 0.06);
-  assertShadow(weaveRight, -1, 2 - 0.06);
+  assertShadow(weaveLeft, 1.5, 1 - 0.06);
+  assertShadow(weaveRight, -1.5, 1 - 0.06);
 }
 
 console.log("Boxing obstacle shapes: squat top-row full-width bar + weave full-lane walls (unit) passed.");

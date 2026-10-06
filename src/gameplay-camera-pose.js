@@ -59,6 +59,36 @@ export function normalizeGameplayCameraPose(value) {
   });
 }
 
+/**
+ * 0.0.92 lyof: responsive vertical FOV (degrees) for a given viewport aspect ratio, so the whole
+ * play grid fits the visible volume. The camera looks down −Z from distance `dist`; PlayCanvas
+ * sizes the frustum by VERTICAL fov, so visible height = 2·dist·tan(fov/2) and visible width =
+ * height × aspect. We pick the fov such that BOTH the grid width (2·gridHalfWidth) AND the grid
+ * row height (2·gridHalfHeight) fit:
+ *   fov = max( 2·atan(gridHalfWidth / (aspect·dist)),  2·atan(gridHalfHeight / dist) )  (radians)
+ * A landscape guard keeps the default framing byte-identical: when the aspect already fits the
+ * grid width at `defaultFovDegrees` (computed fov <= default), the default is returned unchanged.
+ * The result is clamped to the pose's `verticalFovDegrees` bounds.
+ * @param {number} aspectCssPx viewport width / height CSS-pixel ratio (> 0)
+ * @param {{dist:number,gridHalfWidth:number,gridHalfHeight:number}} grid grid framing constants (WU)
+ * @param {number} defaultFovDegrees the canonical default vertical fov (landscape guard reference)
+ * @param {readonly number[]} fovBounds the pose verticalFovDegrees bounds
+ * @returns {number}
+ */
+export function responsiveGameplayCameraFovDegrees(aspectCssPx, grid, defaultFovDegrees, fovBounds) {
+  if (typeof aspectCssPx !== "number" || !Number.isFinite(aspectCssPx) || aspectCssPx <= 0) throw new TypeError("responsive camera aspect must be a positive finite number");
+  const { dist, gridHalfWidth, gridHalfHeight } = grid;
+  for (const value of [dist, gridHalfWidth, gridHalfHeight, defaultFovDegrees]) if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) throw new TypeError("responsive camera grid constants must be positive finite numbers");
+  const halfWidthFov = 2 * Math.atan(gridHalfWidth / (aspectCssPx * dist));
+  const halfHeightFov = 2 * Math.atan(gridHalfHeight / dist);
+  const computedRad = Math.max(halfWidthFov, halfHeightFov);
+  const computedDeg = computedRad * 180 / Math.PI;
+  const landscapeGuard = computedDeg <= defaultFovDegrees ? defaultFovDegrees : computedDeg;
+  return canonicalNumber(clampTo(landscapeGuard, fovBounds[0], fovBounds[1]), "responsive verticalFovDegrees");
+}
+/** @param {number} value @param {number} min @param {number} max */
+function clampTo(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
 /** Serialize canonical v1 data with fixed property order, two spaces, LF, and a trailing newline. @param {unknown} value */
 export function serializeGameplayCameraPose(value) { return `${JSON.stringify(normalizeGameplayCameraPose(value), null, 2)}\n`; }
 

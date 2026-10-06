@@ -5,7 +5,7 @@ import { gloveGeometry, judgeToPresentationPoint, saberGeometry } from "@aerobea
 import { isResolvedEquipmentPose } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { isThemeDescriptor } from "@aerobeat/web-contracts/theme-contracts";
 import { defaultTestPresentationConfig, normalizeTestPresentationConfig } from "./test-presentation-config.js";
-import { defaultGameplayCameraPose, gameplayCameraPoseArtifactFilename, gameplayCameraPoseArtifactMimeType, normalizeGameplayCameraPose, serializeGameplayCameraPose } from "./gameplay-camera-pose.js";
+import { defaultGameplayCameraPose, gameplayCameraPoseArtifactFilename, gameplayCameraPoseArtifactMimeType, gameplayCameraPoseBounds, normalizeGameplayCameraPose, responsiveGameplayCameraFovDegrees, serializeGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimentConfig } from "./gameplay-visual-experiment-config.js";
 import { PlayCanvasEnvironmentAssetOwner } from "./environment-asset-owner.js";
 import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
@@ -48,6 +48,10 @@ const DEBUG_POSITION_BOUNDS=Object.freeze({x:40,yMin:-8,yMax:32,zMin:-72,zMax:32
 const PRODUCTION_CAMERA_MAX_DELTA_MS=100;
 const GRID_COLUMN_PITCH=gameplayWorldGrid.columnX[1]-gameplayWorldGrid.columnX[0],GRID_ROW_PITCH=gameplayWorldGrid.rowY[0]-gameplayWorldGrid.rowY[1];
 const GRID_LEFT=gameplayWorldGrid.columnX[0]-GRID_COLUMN_PITCH/2,GRID_RIGHT=gameplayWorldGrid.columnX.at(-1)+GRID_COLUMN_PITCH/2,GRID_TOP=gameplayWorldGrid.rowY[0]+GRID_ROW_PITCH/2,GRID_BOTTOM=gameplayWorldGrid.rowY.at(-1)-GRID_ROW_PITCH/2;
+/** 0.0.92 lyof: grid framing constants for the responsive camera FOV. The 4x3 grid spans 4.0 WU
+ *   wide (X=±1.5 → half-width 2.0) and 2.0 WU tall (rows y=0..2 → half-height 1.0); the camera
+ *   sits at z=5 looking at the z=0 hit plane (dist 5). */
+const RESPONSIVE_CAMERA_GRID=Object.freeze({dist:5,gridHalfWidth:2.0,gridHalfHeight:1.0});
 const DEBUG_EQUIPMENT_PLANE_Z=.45,DEBUG_EQUIPMENT_PROJECTION_EPSILON=1e-6;
 
 /** One assembly-owned renderer and PlayCanvas Application per connected game. */
@@ -176,7 +180,7 @@ export class AeroPlayCanvasRenderer {
    * @param {unknown} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
-  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
+  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
   clear(options={}){if(!this.app||this.destroyed)return{status:this.describe()};const color=options.color??[0,0,0,0];this.cameraEntity.camera.clearColor=new pc.Color(...color);this.clearSceneObjects();this.clearOverlayEntities();this.manualTick();this.frameCount+=1;this.state="running";return{status:this.describe()};}
   renderFrame(options={}){return this.clear(options);}
   renderGameplayCursors(cursors,options){const result=this.stageGameplayCursors(cursors,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),cursorCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.cursorCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
@@ -502,7 +506,15 @@ export class AeroPlayCanvasRenderer {
   applyPose(pose){if(!this.cameraEntity)return;const position=pose.position,rotation=pose.rotationEulerDegrees,projection=pose.projection;this.cameraEntity.setPosition(position.x,position.y,position.z);this.cameraEntity.setEulerAngles(rotation.xPitch,rotation.yYaw,rotation.zRoll);this.cameraEntity.camera.fov=projection.verticalFovDegrees;this.cameraEntity.camera.nearClip=projection.nearClip;this.cameraEntity.camera.farClip=projection.farClip;this.syncEnvironmentAnchor();}
   syncEnvironmentAnchor(){const position=this.cameraEntity?.getPosition();if(position)this.environmentOwner.setCameraPosition(position);}
   applyDebugPose(){if(!this.cameraEntity)return;this.applyPose(normalizeGameplayCameraPose({schema:defaultGameplayCameraPose.schema,version:defaultGameplayCameraPose.version,coordinateSystem:{...defaultGameplayCameraPose.coordinateSystem},position:{...this.debugPosition},rotationEulerDegrees:{xPitch:this.debugPitch*180/Math.PI,yYaw:this.debugYaw*180/Math.PI,zRoll:0},projection:{...this.debugProjection}}));}
-  applyProductionCameraPose(){if(!this.cameraEntity)return;const camera=this.gameplayCameraPoses[/** @type {string} */(gameplayCameraModeForPresentation(this.activeGameplayCameraMode))]??defaultGameplayCameraPose,offset=productionCameraStates.get(this)?.offset??{x:0,y:0};this.applyPose({...camera,position:{x:camera.position.x+offset.x,y:camera.position.y+offset.y,z:camera.position.z}});}
+  applyProductionCameraPose(){if(!this.cameraEntity)return;const camera=this.gameplayCameraPoses[/** @type {string} */(gameplayCameraModeForPresentation(this.activeGameplayCameraMode))]??defaultGameplayCameraPose,offset=productionCameraStates.get(this)?.offset??{x:0,y:0};const verticalFovDegrees=this.responsiveCameraFovDegrees(camera);this.applyPose({...camera,position:{x:camera.position.x+offset.x,y:camera.position.y+offset.y,z:camera.position.z},projection:{...camera.projection,verticalFovDegrees}});}
+  /**
+   * 0.0.92 lyof: responsive vertical FOV for the current viewport aspect ratio. Recomputed on every
+   * frame (and thus every resize) so a dynamically-sized iframe (e.g. mobile portrait) frames the
+   * whole play grid. Landscape guard: when the aspect already fits the grid width at the pose's
+   * default fov, the default is returned byte-identical (no landscape change). Note size is
+   * unaffected (only the fov changes). @param {typeof defaultGameplayCameraPose} camera @returns {number}
+   */
+  responsiveCameraFovDegrees(camera){const width=this.widthCssPx,height=this.heightCssPx;if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)return camera.projection.verticalFovDegrees;const aspect=width/height;return responsiveGameplayCameraFovDegrees(aspect,RESPONSIVE_CAMERA_GRID,camera.projection.verticalFovDegrees,gameplayCameraPoseBounds.projection.verticalFovDegrees);}
   applyCamera(model){if(!this.cameraEntity)return;if(this.debugEnabled){this.applyDebugPose();return;}this.applyProductionCameraPose();}
   createGameplayLayers(){
     if(!this.app||!this.cameraEntity?.camera)return;const composition=this.app.scene.layers,world=composition.getLayerById(pc.LAYERID_WORLD);if(!world)throw new Error("PlayCanvas World layer is unavailable");
@@ -844,6 +856,37 @@ export function projectEquipmentColliderAnchors(equipment,presentation){
     anchors[hand]={x:point.x,y:point.y,z:pose.anchor.z};
   }
   return anchors;
+}
+/**
+ * 0.0.92 im3p: per-hand floor-plane direction for the saber blade shadow. Projects each flow
+ * saber's pose-local +X axis (the blade direction, `saberGeometry`) onto the floor (X-Z) plane
+ * using the pose's world orientation quaternion, then normalizes in the plane. Returns null for
+ * a hand with no flow saber (boxing glove / absent) — the scene model falls back to +X for that
+ * case (glove shadows are circular and ignore direction). Deterministic per frame.
+ * @param {ReadonlyArray<unknown>|null} equipment @param {string} presentation @returns {Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}
+ */
+function equipmentShadowDirectionsForFrame(equipment,presentation){
+  const directions={left:null,right:null};
+  if(!Array.isArray(equipment))return directions;
+  if(presentation!=="flow")return directions;
+  for(const candidate of equipment){
+    const pose=adaptResolvedEquipmentRecord(candidate);
+    if(!pose||pose.mode!=="flow")continue;
+    const hand=pose.role==="left_wrist"?"left":pose.role==="right_wrist"?"right":null;
+    if(!hand||directions[hand])continue;
+    const o=pose.orientation;
+    // Rotate local +X (1,0,0) by the orientation quaternion q=(x,y,z,w).
+    // v' = q * v * q^-1, with v=(1,0,0). Standard formula:
+    //   t = 2 * cross(q.xyz, v) = 2*(y*0 - z*0, z*1 - x*0, x*0 - y*1) = 2*(0, z, -y)
+    //   v' = v + w*t + cross(q.xyz, t)
+    const tX=0,tY=2*o.z,tZ=-2*o.y;
+    const vX=1+o.w*tX+(o.y*tZ-o.z*tY);
+    const vY=o.w*tY+(o.z*tX-o.x*tZ);
+    const vZ=o.w*tZ+(o.x*tY-o.y*tX);
+    const length=Math.hypot(vX,vZ);
+    directions[hand]=length<1e-6?{x:1,z:0}:{x:vX/length,z:vZ/length};
+  }
+  return directions;
 }
 function adaptResolvedEquipmentRecord(value){return isResolvedEquipmentPose(value)?value:null;}
 function plainData(value){return value!==null&&typeof value==="object"&&!Array.isArray(value)&&Object.getPrototypeOf(value)===Object.prototype&&Object.values(Object.getOwnPropertyDescriptors(value)).every((entry)=>"value"in entry);}

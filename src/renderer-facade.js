@@ -89,7 +89,7 @@ export class AeroPlayCanvasRenderer {
       this.app.scene.exposure=1;
       this.cameraEntity=new pc.Entity("aero-athlete-camera",this.app);
       this.cameraEntity.addComponent("camera",{clearColor:new pc.Color(0,0,0,0),clearColorBuffer:true,clearDepthBuffer:true,fov:defaultGameplayCameraPose.projection.verticalFovDegrees,nearClip:defaultGameplayCameraPose.projection.nearClip,farClip:defaultGameplayCameraPose.projection.farClip});
-      this.app.root.addChild(this.cameraEntity);this.createGameplayLayers();try{this.createShadowLight();}catch(e){console.warn("shadow light disabled:",e.message??.e?.toString?.()??e);}this.resetDebugCamera();
+      this.app.root.addChild(this.cameraEntity);this.createGameplayLayers();try{this.createShadowLight();}catch(e){console.warn("shadow light disabled:",String(e));}this.resetDebugCamera();
       if(this.iconAtlasData)this.createAtlasTexture();
       this.app.requestAnimationFrame=()=>{};
       this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app);this.environmentLoadPromise=this.environmentOwner.attach(this.app);

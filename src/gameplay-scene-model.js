@@ -104,11 +104,15 @@ export const AFTERMATH_CORPSE_MIN_CHROMA=0.35;
 /** 0.0.52 W1-C: closed-form hit-success aftermath launch velocities (WU/s, gravity −9.8). Hooks are stored without the X sign; the hand signs it toward center (left hand +X, right hand −X). */
 function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freeze({x:0,y:.5,z:-4}),hook:Object.freeze({x:1.2,y:.3,z:-3}),uppercut:Object.freeze({x:0,y:2.2,z:-2.5}),guardBonk:Object.freeze({x:0,y:.2,z:-.5}),flowNote:Object.freeze({x:0,y:.4,z:-2})});}
 const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#2a3038",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,GOOD_HEIGHT_CSS_PX=44,ALMOST_HEIGHT_CSS_PX=38,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2,SMALL_BOUNCE_AMPLITUDE=.12;
-/** 0.0.92 im3p: equipment floor-shadow footprint (WU). The saber shadow is a floor rectangle
- *   following the blade's projected direction (length ~0.9, width ~0.36); the glove shadow is a
+/** 0.0.92 im3p: equipment floor-shadow footprint (WU). The saber shadow is a proper light
+ *   projection: the blade's XZ axis projected onto the floor, clipped to the playfield bounds.
+ *   The shadow width equals the blade diameter (2 × radius = 0.36 WU). The glove shadow is a
  *   circular/elliptical blob (~0.4). Both sit at floorY + 0.018, renderOrder 35, SHADOW_ALPHA,
  *   SHADOW_COLOR — mirroring the per-note and obstacle floor shadows. */
-const EQUIPMENT_SABER_SHADOW_LENGTH_WU=0.9,EQUIPMENT_SABER_SHADOW_WIDTH_WU=0.36,EQUIPMENT_GLOVE_SHADOW_RADIUS_WU=0.2;
+const EQUIPMENT_SABER_LENGTH_WU=0.75,EQUIPMENT_SABER_RADIUS_WU=0.18,EQUIPMENT_SABER_SHADOW_WIDTH_WU=2*EQUIPMENT_SABER_RADIUS_WU,EQUIPMENT_GLOVE_SHADOW_RADIUS_WU=0.2;
+/** Playfield bounds for shadow clipping: 4 columns × 3 rows of 1-unit cells.
+ *   X spans [-2, 2] (columns at -1.5, -0.5, 0.5, 1.5 ± 0.5), Z spans [-1.5, 1.5] (rows at 2, 1, 0 ± 0.5). */
+const PLAYFIELD_MIN_X=-2,PLAYFIELD_MAX_X=2,PLAYFIELD_MIN_Z=-1.5,PLAYFIELD_MAX_Z=1.5;
 
 /** @type {AeroRendererTuning} */
 export const defaultRendererTuning = Object.freeze({ id:"aero.renderer.prototype.default",version:"6",hash:"visual-3fed1dee",dprCap:2,roleScale:1,noteScaleFactor:1,obstacleScaleFactor:1,bombScaleFactor:1,markerScaleFactor:1,worldUnitsPerMs:CANONICAL_WORLD_UNITS_PER_MS,futureCullMs:10_000,spentCullMs:1500,targetSize:0.9,obstacleHeight:3.9,timingZoneHeight:0.035,feedbackDurationMs:350,hitPulseScale:1.08,greatEndScale:1.25,aftermathGravityWUPerS2:9.8,aftermathRestitution:.35,aftermathBounceCount:2,aftermathEvictedFadeMs:150,aftermathSettledTumbleRadPerS:1.6,aftermathSliceSeparationWU:.16,aftermathSliceWiderSeparationWU:.46,aftermathLaunchVelocities:aftermathLaunchVelocities(),hazardGlowRampMs:150,hazardGlowDecayMs:600,hazardVignetteIntensity:0.6,hazardVignettePulseHz:2,hazardVignettePulseDepth:0.35,hazardVignetteRampMs:150,hazardVignetteDecayMs:400 });
@@ -528,8 +532,18 @@ function normalizeEquipmentColliderAnchors(value){
  * 0.0.92 im3p: build the bounded equipment floor-shadow scene objects from the ALREADY-SMOOTHED
  * per-frame equipment anchors. One shadow per non-null anchor, at floorY + 0.018, renderOrder 35,
  * SHADOW_ALPHA, SHADOW_COLOR, transparent — the same visual treatment as the per-note and
- * obstacle floor shadows. The saber shadow is a floor rectangle following the blade's projected
- * direction (local +X flattened onto the floor plane); the glove shadow is a circular blob.
+ * obstacle floor shadows.
+ *
+ * The saber shadow is a PROPER LIGHT PROJECTION: the blade (a capsule of length 0.75 WU,
+ * radius 0.18 WU) is projected onto the floor plane from a light source directly above
+ * (infinite distance, pointing straight down). The shadow is the XZ footprint of the blade
+ * axis — a line segment from the hilt position to the hilt + blade_length × direction —
+ * with a width equal to the blade diameter (0.36 WU). The segment is clipped to the playfield
+ * bounds; if the saber is entirely off the playfield, no shadow is rendered. When the saber
+ * points straight up (degenerate XZ projection), the shadow is a small circle at the hilt.
+ *
+ * The glove shadow remains a circular blob at the anchor position.
+ *
  * Deterministic and per-frame (the anchor is per-frame); no retained smoothing state.
  * @param {AeroGameplayFrame} frame @param {Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>} anchors @returns {AeroGameplaySceneObject[]}
  */
@@ -541,10 +555,26 @@ export function equipmentShadowObjects(frame,anchors){
     if(anchor.y<gameplayWorldGrid.floorY)continue;
     const y=gameplayWorldGrid.floorY+.018;
     if(frame.presentation==="flow"){
-      // Saber: floor rectangle along the blade's projected direction.
+      // Saber: proper light projection onto the floor plane.
       const direction=normalizeEquipmentShadowDirection(frame.equipmentShadowDirections?.[hand]);
-      const angle=Math.atan2(direction.z,direction.x);
-      objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:EQUIPMENT_SABER_SHADOW_LENGTH_WU,y:.012,z:EQUIPMENT_SABER_SHADOW_WIDTH_WU},null,null,angle,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
+      // Compute the blade's start (hilt) and end in XZ.
+      const startX=anchor.x,startZ=anchor.z;
+      const endX=anchor.x+EQUIPMENT_SABER_LENGTH_WU*direction.x;
+      const endZ=anchor.z+EQUIPMENT_SABER_LENGTH_WU*direction.z;
+      // Clip the line segment to the playfield bounds.
+      const clipped=clipLineToPlayfield(startX,startZ,endX,endZ);
+      if(clipped===null)continue; // Entirely off the playfield — no shadow.
+      const{cx,cz,ex:clippedEndX,ez:clippedEndZ}=clipped;
+      const dx=clippedEndX-cx,dz=clippedEndZ-cz;
+      const length=Math.hypot(dx,dz);
+      if(length<1e-6){
+        // Degenerate: saber pointing straight up — render a small circle at the hilt (clipped).
+        objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:cx,y,z:cz},{x:EQUIPMENT_SABER_SHADOW_WIDTH_WU,y:.012,z:EQUIPMENT_SABER_SHADOW_WIDTH_WU},null,null,0,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
+      }else{
+        // Oriented rectangle along the projected blade axis.
+        const angle=Math.atan2(dz,dx);
+        objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:(cx+clippedEndX)/2,y,z:(cz+clippedEndZ)/2},{x:length,y:.012,z:EQUIPMENT_SABER_SHADOW_WIDTH_WU},null,null,angle,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
+      }
     }else{
       // Glove: circular/elliptical floor blob.
       objects.push(sceneObject(`equipment-shadow-${hand}`,"shadow","neutral",null,{x:anchor.x,y,z:anchor.z},{x:2*EQUIPMENT_GLOVE_SHADOW_RADIUS_WU,y:.012,z:2*EQUIPMENT_GLOVE_SHADOW_RADIUS_WU},null,null,0,SHADOW_ALPHA,null,false,true,null,null,anchor.z,35,null,null,null,null,SHADOW_COLOR));
@@ -558,6 +588,37 @@ function normalizeEquipmentShadowDirection(value){
   const length=Math.hypot(value.x,value.z);
   if(length<1e-6)return{x:1,z:0};
   return{x:value.x/length,z:value.z/length};
+}
+/**
+ * Clip a line segment in the XZ plane to the playfield rectangle [PLAYFIELD_MIN_X, PLAYFIELD_MAX_X] ×
+ * [PLAYFIELD_MIN_Z, PLAYFIELD_MAX_Z] using the Cohen–Sutherland / Liang–Barsky algorithm.
+ * Returns null when the entire segment is outside the playfield.
+ * Returns {cx, cz, ex, ez} — the clipped start and end points — when at least part of the
+ * segment is inside.
+ * @param {number} x0 @param {number} z0 @param {number} x1 @param {number} z1
+ * @returns {{cx:number,cz:number,ex:number,ez:number}|null}
+ */
+function clipLineToPlayfield(x0,z0,x1,z1){
+  const dx=x1-x0,dz=z1-z0;
+  // Liang–Barsky clipping parameters.
+  let t0=0,t1=1;
+  const p=[-dx,dx,-dz,dz];
+  const q=[x0-PLAYFIELD_MIN_X,PLAYFIELD_MAX_X-x0,z0-PLAYFIELD_MIN_Z,PLAYFIELD_MAX_Z-z0];
+  for(let i=0;i<4;i++){
+    if(p[i]===0){
+      if(q[i]<0)return null; // Parallel and outside.
+    }else{
+      const r=q[i]/p[i];
+      if(p[i]<0){
+        if(r>t1)return null; // Exits before entering.
+        if(r>t0)t0=r;
+      }else{
+        if(r<t0)return null; // Enters after exiting.
+        if(r<t1)t1=r;
+      }
+    }
+  }
+  return{cx:x0+t0*dx,cz:z0+t0*dz,ex:x0+t1*dx,ez:z0+t1*dz};
 }
 function timingWindow(frame){const required=frame.presentation==="boxing_lanes";const before=frame.timingWindowBeforeMs??(required?NaN:defaultGameplayTimingWindow.beforeMs),after=frame.timingWindowAfterMs??(required?NaN:defaultGameplayTimingWindow.afterMs);if(![before,after].every((v)=>Number.isFinite(v)&&v>=0&&v<=10_000))throw new TypeError("Authoritative timing window is invalid");return Object.freeze({beforeMs:Number(before),afterMs:Number(after)});}
 /** @param {"early"|"active"|"late"} name @param {number} startZ @param {number} endZ @param {string} color @param {number} alpha */

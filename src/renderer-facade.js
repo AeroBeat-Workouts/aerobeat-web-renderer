@@ -538,19 +538,15 @@ export class AeroPlayCanvasRenderer {
     this.app.root.addChild(entity);
     this.shadowLightEntity=entity;
     // Shadow-receiving floor plane at playfield level (y=-0.72)
-    const geo=new pc.PlaneGeometry(4,3,1,1);
-    const mesh=pc.Mesh.fromGeometry(this.app.graphicsDevice,geo);
-    const mat=new pc.StandardMaterial();
-    mat.name="aero-shadow-floor";mat.useLighting=true;
-    mat.diffuse=new pc.Color(0.25,0.30,0.35);mat.emissive=new pc.Color(0,0,0);
-    mat.opacity=1;mat.blendType=pc.BLEND_NONE;mat.update();
-    const mi=new pc.MeshInstance(mesh,mat);
     const floor=new pc.Entity("aero-shadow-floor",this.app);
-    floor.addComponent("render");
-    floor.render.meshInstances=[mi];
-    floor.render.layers=[pc.LAYERID_WORLD];
+    floor.addComponent("render",{type:"plane"});
     floor.render.castShadows=false;
     floor.render.receiveShadows=true;
+    floor.render.material=new pc.StandardMaterial();
+    floor.render.material.name="aero-shadow-floor-mat";
+    floor.render.material.useLighting=true;
+    floor.render.material.diffuse=new pc.Color(0.3,0.35,0.4);
+    floor.render.material.update();
     floor.setEulerAngles(-90,0,0);
     floor.setPosition(0,-0.72,0);
     this.app.root.addChild(floor);

@@ -169,10 +169,8 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   addTrack(objects,frame.trackExtensionWorldUnits??4);
   if(frame.colliderSettings===undefined)addTimingTiles(objects,frame,segments,tuning,presentationConfig,reach);
   const anchors=colliderSettings.colliderVisible||visibleWristObstacleRadius?normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors):{left:null,right:null};
-  // 0.0.92 im3p: equipment floor shadows track the ALREADY-SMOOTHED per-frame equipment anchors
-  // (saber = floor rect along the blade's projected direction; glove = circular blob). Independent
-  // of the collider-settings visibility gate — present whenever an anchor exists.
-  if(frame.equipmentColliderAnchors!==undefined)objects.push(...equipmentShadowObjects(frame,normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors)));
+  // Equipment shadows are now rendered via a native PCSS directional light (see renderer-facade.js
+  // createShadowLight); no fake shadow mesh objects are emitted to the scene model.
   if(visibleWristObstacleRadius&&wristBombColliderScale>0){
     for(const hand of ["left","right"]){
       const anchor=anchors[hand];

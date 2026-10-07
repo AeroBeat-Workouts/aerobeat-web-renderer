@@ -537,10 +537,25 @@ export class AeroPlayCanvasRenderer {
     entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:1,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:1024,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12});
     this.app.root.addChild(entity);
     this.shadowLightEntity=entity;
+    // Shadow-receiving floor plane at playfield level (y=-0.72)
+    const geo=new pc.PlaneGeometry(4,3,1,1);
+    const mesh=pc.Mesh.fromGeometry(this.app.graphicsDevice,geo);
+    const mat=new pc.StandardMaterial();
+    mat.name="aero-shadow-floor";mat.useLighting=true;
+    mat.diffuse=new pc.Color(0.05,0.08,0.12);mat.emissive=new pc.Color(0,0,0);
+    mat.opacity=1;mat.blendType=pc.BLEND_NONE;mat.update();
+    const mi=new pc.MeshInstance(mesh,mat);
+    const floor=new pc.Entity("aero-shadow-floor",this.app);
+    floor.addComponent("render",{meshInstances:[mi],layers:[pc.LAYERID_WORLD],castShadows:false,receiveShadows:true});
+    floor.setEulerAngles(-90,0,0);
+    floor.setPosition(0,-0.72,0);
+    this.app.root.addChild(floor);
+    this.shadowFloorEntity=floor;
   }
   /** Destroy the shadow light entity if it exists. */
   destroyShadowLight(){
     if(this.shadowLightEntity){this.shadowLightEntity.destroy();this.shadowLightEntity=null;}
+    if(this.shadowFloorEntity){this.shadowFloorEntity.destroy();this.shadowFloorEntity=null;}
   }
   useGameplayLayer(entity,kind){const layerId=kind==="grid"?this.gameplayGridLayer?.id:kind==="guidance"?this.gameplayGuidanceLayer?.id:kind==="target"?this.gameplayTargetLayer?.id:kind==="collider_overlay"?this.gameplayColliderOverlayLayer?.id:pc.LAYERID_WORLD;for(const component of entity.findComponents?.("render")??[])component.layers=[layerId??pc.LAYERID_WORLD];}
   updateSceneObjects(objects,guidance){

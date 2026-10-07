@@ -312,11 +312,12 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
       //   - weave (geometry height=3): the WHOLE lane on the blocked side, full lane height.
       const lanes=target.family==="squat"
         ?[Object.freeze({x:0,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})]
-        // 0.0.92 u6tc: a weave wall spans the FULL two-column lane on the blocked side,
-        // centered at the lane center (left lane cols 0-1 → x=-1.0, right lane cols 2-3 →
-        // x=+1.0). The blocked side is determined by the authored column: geometry.x<2 →
-        // left lane, geometry.x>=2 → right lane. Width spans the full two-column lane.
-        :[Object.freeze({x:geometry.x<2?-1.0:1.0,y:2-geometry.y-(geometry.height-1)/2,width:2-.06*obstacleScale,height:geometry.height})];
+        // 0.0.61 L-F8: a weave wall renders at the PRESENTATION X of its AUTHORED grid
+        // column (columnX space: geometry.x=1 → columnX[1]=-0.5, geometry.x=2 →
+        // columnX[2]=+0.5) and spans exactly that single authored column — not the
+        // weave-direction lane. (Supersedes the 0.0.92 u6tc full-lane span; collision
+        // remains presentation-independent and is unaffected.)
+        :[Object.freeze({x:gameplayWorldGrid.columnX[geometry.x],y:2-geometry.y-(geometry.height-1)/2,width:1-.06*obstacleScale,height:geometry.height})];
       if(lanes.length!==1)throw new TypeError("Boxing lane obstacle placement is invalid");
       const lane=lanes[0],laneWidthScale=lane.width/GAMEPLAY_CELL_SIZE;
       const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:laneWidthScale,y:(lane.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null);

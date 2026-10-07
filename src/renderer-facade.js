@@ -534,19 +534,15 @@ export class AeroPlayCanvasRenderer {
     if(!this.app)return;
     this.destroyShadowLight();
     this.shadowLightEntity=new pc.Entity("shadow-light",this.app);
-    this.shadowLightEntity.addComponent("light",{
-      type:pc.LIGHTTYPE_DIRECTIONAL,
-      color:new pc.Color(1,1,1),
-      intensity:1,
-      castShadows:true,
-      shadowType:pc.SHADOW_PCSS_32F,
-      shadowResolution:2048,
-      shadowBias:0.0005,
-      normalOffsetBias:0.02,
-      shadowDistance:12,
-      penumbraSize:0.3,
-      penumbraFalloff:0.5
-    });
+    const lightComp=this.shadowLightEntity.addComponent("light");
+    lightComp.type=pc.LIGHTTYPE_DIRECTIONAL;
+    lightComp.color=new pc.Color(1,1,1);
+    lightComp.intensity=1;
+    lightComp.castShadows=true;
+    lightComp.shadowType=pc.SHADOW_PCF3_32F;
+    lightComp.shadowResolution=1024;
+    lightComp.shadowBias=0.001;
+    lightComp.shadowDistance=12;
     this.shadowLightEntity.setEulerAngles(-90,0,0);
     this.shadowLightEntity.setPosition(0,5,0);
     this.app.root.addChild(this.shadowLightEntity);

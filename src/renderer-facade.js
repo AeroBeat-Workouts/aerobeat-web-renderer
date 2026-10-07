@@ -542,7 +542,7 @@ export class AeroPlayCanvasRenderer {
     const mesh=pc.Mesh.fromGeometry(this.app.graphicsDevice,geo);
     const mat=new pc.StandardMaterial();
     mat.name="aero-shadow-floor";mat.useLighting=true;
-    mat.diffuse=new pc.Color(0.05,0.08,0.12);mat.emissive=new pc.Color(0,0,0);
+    mat.diffuse=new pc.Color(0.25,0.30,0.35);mat.emissive=new pc.Color(0,0,0);
     mat.opacity=1;mat.blendType=pc.BLEND_NONE;mat.update();
     const mi=new pc.MeshInstance(mesh,mat);
     const floor=new pc.Entity("aero-shadow-floor",this.app);

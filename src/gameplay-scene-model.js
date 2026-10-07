@@ -538,6 +538,7 @@ export function equipmentShadowObjects(frame,anchors){
   for(const hand of ["left","right"]){
     const anchor=anchors[hand];
     if(anchor===null)continue;
+    if(anchor.y<gameplayWorldGrid.floorY)continue;
     const y=gameplayWorldGrid.floorY+.018;
     if(frame.presentation==="flow"){
       // Saber: floor rectangle along the blade's projected direction.

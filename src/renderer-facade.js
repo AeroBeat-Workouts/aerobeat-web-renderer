@@ -533,19 +533,10 @@ export class AeroPlayCanvasRenderer {
   createShadowLight(){
     if(!this.app)return;
     this.destroyShadowLight();
-    this.shadowLightEntity=new pc.Entity("shadow-light",this.app);
-    const lightComp=this.shadowLightEntity.addComponent("light");
-    lightComp.type=pc.LIGHTTYPE_DIRECTIONAL;
-    lightComp.color=new pc.Color(1,1,1);
-    lightComp.intensity=1;
-    lightComp.castShadows=true;
-    lightComp.shadowType=pc.SHADOW_PCF3_32F;
-    lightComp.shadowResolution=1024;
-    lightComp.shadowBias=0.001;
-    lightComp.shadowDistance=12;
-    this.shadowLightEntity.setEulerAngles(-90,0,0);
-    this.shadowLightEntity.setPosition(0,5,0);
-    this.app.root.addChild(this.shadowLightEntity);
+    const entity=new pc.Entity("shadow-light",this.app);
+    entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:1,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:1024,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12});
+    this.app.root.addChild(entity);
+    this.shadowLightEntity=entity;
   }
   /** Destroy the shadow light entity if it exists. */
   destroyShadowLight(){

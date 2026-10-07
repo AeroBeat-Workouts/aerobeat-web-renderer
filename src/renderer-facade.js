@@ -402,6 +402,12 @@ export class AeroPlayCanvasRenderer {
     const next=Boolean(enabled)&&!this.destroyed&&Boolean(this.canvas)&&Boolean(this.app);if(this.debugEnabled===next)return this.describe();
     if(!next){this.clearDebugInteractionState(true);this.debugEnabled=false;this.debugCameraAuthoringInputEnabled=true;this.removeDebugListeners();this.resetProductionCameraParallax();this.resetDebugCamera();return this.describe();}
     this.removeDebugListeners();this.clearDebugInteractionState(true);this.resetProductionCameraParallax();this.debugEnabled=true;this.debugCameraAuthoringInputEnabled=true;
+    // 0.0.96: initialize the debug camera to the current production camera pose for the
+    // active mode so Test mode starts at the same position/rotation as Play mode.
+    // Without this, the debug camera retains its previous state (or constructor defaults),
+    // causing a visible mismatch when entering Test mode.
+    const activePose=this.gameplayCameraPoses[gameplayCameraModeForPresentation(this.activeGameplayCameraMode)]??defaultGameplayCameraPose;
+    this.debugPosition={...activePose.position};this.debugPitch=activePose.rotationEulerDegrees.xPitch*Math.PI/180;this.debugYaw=activePose.rotationEulerDegrees.yYaw*Math.PI/180;this.debugProjection={...activePose.projection};this.debugLastFrameTimeMs=null;
     const canvas=this.canvas;const on=(target,type,listener,options)=>{target.addEventListener(type,listener,options);this.debugListeners.push(()=>target.removeEventListener(type,listener,options));};
     on(canvas,"contextmenu",(event)=>{if(this.debugCameraAuthoringInputEnabled)event.preventDefault();});
     on(canvas,"mousedown",(event)=>{if(event.button!==2||!this.debugCameraAuthoringInputEnabled)return;event.preventDefault();if(this.debugCaptureReleasePending)return;if(this.debugCaptureMode!=="none")this.exitDebugCapture(true);else this.enterDebugPointerCapture();});

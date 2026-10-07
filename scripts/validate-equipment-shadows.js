@@ -41,7 +41,7 @@ const assertFloorShadow = (entry, label) => {
   assert.equal(/** @type {any} */(right).position.z, -0.5, "right saber shadow tracks the anchor Z");
   assert.ok(Math.abs(/** @type {any} */(left).scale.x - 0.9) < 1e-9, "saber shadow length is 0.9 WU");
   assert.ok(Math.abs(/** @type {any} */(left).scale.z - 0.36) < 1e-9, "saber shadow width is 0.36 WU");
-  assert.ok(Math.abs(/** @type {any} */(left).rotationZRad - Math.atan2(0.8, 0.6) * 180 / Math.PI) < 1e-9, "saber shadow rotates to the floor-projected blade direction (yaw = atan2(dirZ, dirX))");
+  assert.ok(Math.abs(/** @type {any} */(left).rotationZRad - Math.atan2(0.8, 0.6)) < 1e-9, "saber shadow rotates to the floor-projected blade direction (yaw = atan2(dirZ, dirX))");
   assert.equal(/** @type {any} */(right).rotationZRad, 0, "saber shadow with +X direction is unrotated");
 }
 
@@ -100,7 +100,7 @@ const assertFloorShadow = (entry, label) => {
     });
     const shadow = floorShadow(model).find((e) => e.id === "equipment-shadow-left");
     assert.ok(shadow, "saber shadow present (test 3)");
-    assert.ok(Math.abs(/** @type {any} */(shadow).rotationZRad - 90) < 1e-9, "saber pointing +Z (forward): shadow rotation is 90°");
+    assert.ok(Math.abs(/** @type {any} */(shadow).rotationZRad - Math.PI / 2) < 1e-9, "saber pointing +Z (forward): shadow rotation is 90°");
   }
   // Test 4: +Z direction (forward, 90° yaw), 45° pitch → still 90°
   {
@@ -113,7 +113,7 @@ const assertFloorShadow = (entry, label) => {
     });
     const shadow = floorShadow(model).find((e) => e.id === "equipment-shadow-left");
     assert.ok(shadow, "saber shadow present (test 4)");
-    assert.ok(Math.abs(/** @type {any} */(shadow).rotationZRad - 90) < 1e-9, "saber pointing +Z with 45° pitch: shadow rotation is still 90° (pitch ignored)");
+    assert.ok(Math.abs(/** @type {any} */(shadow).rotationZRad - Math.PI / 2) < 1e-9, "saber pointing +Z with 45° pitch: shadow rotation is still 90° (pitch ignored)");
   }
 }
 

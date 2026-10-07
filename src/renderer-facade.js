@@ -546,7 +546,11 @@ export class AeroPlayCanvasRenderer {
     mat.opacity=1;mat.blendType=pc.BLEND_NONE;mat.update();
     const mi=new pc.MeshInstance(mesh,mat);
     const floor=new pc.Entity("aero-shadow-floor",this.app);
-    floor.addComponent("render",{meshInstances:[mi],layers:[pc.LAYERID_WORLD],castShadows:false,receiveShadows:true});
+    floor.addComponent("render");
+    floor.render.meshInstances=[mi];
+    floor.render.layers=[pc.LAYERID_WORLD];
+    floor.render.castShadows=false;
+    floor.render.receiveShadows=true;
     floor.setEulerAngles(-90,0,0);
     floor.setPosition(0,-0.72,0);
     this.app.root.addChild(floor);

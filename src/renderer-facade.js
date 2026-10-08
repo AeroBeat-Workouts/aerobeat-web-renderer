@@ -549,10 +549,8 @@ export class AeroPlayCanvasRenderer {
     floor.render.material.diffuse=new pc.Color(0,0,1);
     floor.render.material.emissive=new pc.Color(0,0,0.5);
     floor.render.material.update();
-    const _q=new pc.Quat();
-    _q.setFromEulerAngles(-Math.PI/2,0,0);
-    floor.setRotation(_q);
-    floor.scale.set(4,2,1);
+    floor.setEulerAngles(-90,0,0);
+    floor.setLocalScale(4,2,1);
     floor.setPosition(0,-0.72,0);
     this.shadowFloorEntity=floor;
   }

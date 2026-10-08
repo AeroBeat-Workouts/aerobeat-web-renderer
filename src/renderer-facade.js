@@ -546,8 +546,8 @@ export class AeroPlayCanvasRenderer {
     floor.render.material=new pc.StandardMaterial();
     floor.render.material.name="aero-shadow-floor-mat";
     floor.render.material.useLighting=true;
-    floor.render.material.diffuse=new pc.Color(1,0,0);
-    floor.render.material.emissive=new pc.Color(0.5,0,0);
+    floor.render.material.diffuse=new pc.Color(0,0,1);
+    floor.render.material.emissive=new pc.Color(0,0,0.5);
     floor.render.material.update();
     const _q=new pc.Quat();
     _q.setFromEulerAngles(-Math.PI/2,0,0);

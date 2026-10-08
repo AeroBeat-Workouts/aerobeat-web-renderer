@@ -552,8 +552,8 @@ export class AeroPlayCanvasRenderer {
     const _q=new pc.Quat();
     _q.setFromEulerAngles(-Math.PI/2,0,0);
     floor.setRotation(_q);
-    floor.scale.set(4,3,1);
-    floor.setPosition(0,-2,0.45);
+    floor.scale.set(4,2,1);
+    floor.setPosition(0,-0.72,0);
     this.shadowFloorEntity=floor;
   }
   /** Destroy the shadow light entity if it exists. */

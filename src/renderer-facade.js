@@ -540,6 +540,7 @@ export class AeroPlayCanvasRenderer {
     // Shadow-receiving floor plane at playfield level (y=-0.72)
     const floor=new pc.Entity("aero-shadow-floor",this.app);
     floor.addComponent("render",{type:"plane"});
+    this.app.root.addChild(floor);
     floor.render.castShadows=false;
     floor.render.receiveShadows=true;
     floor.render.material=new pc.StandardMaterial();
@@ -550,7 +551,6 @@ export class AeroPlayCanvasRenderer {
     floor.setEulerAngles(-90,0,0);
     floor.scale.set(4,3,1);
     floor.setPosition(0,-0.72,0);
-    this.app.root.addChild(floor);
     this.shadowFloorEntity=floor;
   }
   /** Destroy the shadow light entity if it exists. */

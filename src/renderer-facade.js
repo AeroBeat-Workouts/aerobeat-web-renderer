@@ -548,6 +548,7 @@ export class AeroPlayCanvasRenderer {
     floor.render.material.diffuse=new pc.Color(0.3,0.35,0.4);
     floor.render.material.update();
     floor.setEulerAngles(-90,0,0);
+    floor.setScale(4,3,1);
     floor.setPosition(0,-0.72,0);
     this.app.root.addChild(floor);
     this.shadowFloorEntity=floor;

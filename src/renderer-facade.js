@@ -539,7 +539,8 @@ export class AeroPlayCanvasRenderer {
     this.shadowLightEntity=entity;
     // The pinned glass track spans world Y [floorY-.14, floorY-.08]. Place the
     // receiver top .01 below that glass, rather than occluding it from above.
-    // X and Z cover the full 4 × 3 shadow playfield.
+    // The pinned track reaches X ±2.1 (0.1 beyond the logical 4-cell grid).
+    // Match those visible art edges without changing the gameplay grid or Z span.
     const floor=new pc.Entity("aero-shadow-floor",this.app);
     floor.addComponent("render",{type:"box"});
     this.app.root.addChild(floor);
@@ -553,8 +554,8 @@ export class AeroPlayCanvasRenderer {
     floorMaterial.update();
     floor.render.material=floorMaterial;
     this.ownedMaterials.add(floorMaterial);
-    const thickness=.02,receiverTop=gameplayWorldGrid.floorY-.15;
-    floor.setLocalScale(gameplayWorldGrid.columns,thickness,gameplayWorldGrid.rows);
+    const thickness=.02,receiverTop=gameplayWorldGrid.floorY-.15,trackSideOverhang=.1;
+    floor.setLocalScale(gameplayWorldGrid.columns+2*trackSideOverhang,thickness,gameplayWorldGrid.rows);
     floor.setPosition(0,receiverTop-thickness/2,0);
     this.shadowFloorEntity=floor;
   }

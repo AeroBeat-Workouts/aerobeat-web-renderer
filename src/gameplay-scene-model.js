@@ -297,27 +297,9 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
     const center=(z0+z1)/2,depth=Math.abs(z1-z0);
     const pulse=target.contactPulseProgress===undefined?0:1-clamp(Number(target.contactPulseProgress),0,1);
     const wallLiftY=obstacleNormalSpawnMs!==null&&presentationConfig.skyMode==="prelude"&&state!=="hit"&&state!=="miss"?testPresentationSkyOffsetY(frame.nowMs,obstacleSkyStartMs,obstacleNormalSpawnMs,presentationConfig):0;
-    if(frame.presentation==="boxing_lanes"||frame.presentation==="boxing_collider"){
-      // 0.0.61 L-F8 (2dh7/htc8): a weave wall must render at the PRESENTATION X of its
-      // AUTHORED grid column (columnX space: column 0 → -1.5 … column 3 → +1.5) — the same
-      // space as the punch icons and the presentation-independent collision.
-      // 0.0.90 fix (htsg): the wall's VERTICAL extent now follows the obstacle's gameplay
-      // geometry (top-left 4x3 grid) instead of a full-height lane wall for every obstacle:
-      //   - squat (geometry y=0, height=1): the TOP ROW only, full-width bar — duck under it.
-      //   - weave (geometry height=3): the WHOLE lane on the blocked side, full lane height.
-      const lanes=target.family==="squat"
-        ?[Object.freeze({x:0,y:2-geometry.y-(geometry.height-1)/2,width:geometry.width-.06*obstacleScale,height:geometry.height})]
-        // 0.0.61 L-F8: a weave wall renders at the PRESENTATION X of its AUTHORED grid
-        // column (columnX space: geometry.x=1 → columnX[1]=-0.5, geometry.x=2 →
-        // columnX[2]=+0.5) and spans exactly that single authored column — not the
-        // weave-direction lane. (Supersedes the 0.0.92 u6tc full-lane span; collision
-        // remains presentation-independent and is unaffected.)
-        :[Object.freeze({x:gameplayWorldGrid.columnX[geometry.x],y:2-geometry.y-(geometry.height-1)/2,width:1-.06*obstacleScale,height:geometry.height})];
-      if(lanes.length!==1)throw new TypeError("Boxing lane obstacle placement is invalid");
-      const lane=lanes[0],laneWidthScale=lane.width/GAMEPLAY_CELL_SIZE;
-      const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:laneWidthScale,y:(lane.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null);
-      return{objects:[wall],feedback:[]};
-    }
+    // All presentations consume the same normalized top-left-grid footprint. A two-column
+    // weave is centered between its authored columns (x=0 → -1, x=2 → +1), while
+    // the above-grid squat retains its fractional 4.5-row height and center.
     const centerX=geometry.x+(geometry.width-1)/2-1.5;
     const centerY=2-geometry.y-(geometry.height-1)/2;
     const scaleX=(geometry.width-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,scaleY=(geometry.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE;

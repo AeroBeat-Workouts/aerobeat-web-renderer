@@ -1,55 +1,27 @@
 // @ts-check
-//
-// 0.0.90 (htsg): focused oracle for the boxing obstacle presentation shapes.
-// The boxing branch of the scene model must derive the wall's vertical extent
-// from the obstacle's gameplay geometry (top-left 4x3 grid):
-//   - squat  → top row only, a full-width bar (4 columns x 1 row).
-//   - weave  → the AUTHORED grid column at its presentation X (columnX space:
-//              geometry.x=1 → -0.5, geometry.x=2 → +0.5), one column wide,
-//              full lane height. 0.0.95: the 0.0.92 (u6tc) full two-column
-//              lane span is superseded — the wall must render at the authored
-//              column (0.0.61 L-F8), not the weave-direction lane. Collision
-//              remains presentation-independent. Continuous obstacle geometry
-//              remains visible, but no fake ground-shadow object is emitted.
+// Normalized obstacle geometry owns the continuous footprint in both Boxing presentations.
 import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
 
 const CELL = 0.94;
 const geometry = (x, y, width, height) => ({ schema: "aerobeat/obstacle_gameplay_geometry", version: 1, coordinateSpace: "aerobeat_top_left_grid", x, y, width, height });
 const squat = { id: "squatter", kind: "obstacle", hand: "neutral", family: "squat", cell: null, cells: [0, 1, 2, 3], gameplayGeometry: geometry(0, -3, 4, 4.5), lane: null, beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
-const weaveLeft = { id: "weave-left", kind: "obstacle", hand: "left", family: "weave", cell: null, cells: [3, 7, 11], gameplayGeometry: geometry(3, 0, 1, 3), lane: "left", beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
-const weaveRight = { id: "weave-right", kind: "obstacle", hand: "right", family: "weave", cell: null, cells: [0, 4, 8], gameplayGeometry: geometry(0, 0, 1, 3), lane: "right", beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
+const weaveLeft = { id: "weave-left", kind: "obstacle", hand: "left", family: "weave", cell: null, cells: [2, 3, 6, 7, 10, 11], gameplayGeometry: geometry(2, 0, 2, 3), lane: "left", beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
+const weaveRight = { id: "weave-right", kind: "obstacle", hand: "right", family: "weave", cell: null, cells: [0, 1, 4, 5, 8, 9], gameplayGeometry: geometry(0, 0, 2, 3), lane: "right", beatCenterMs: 1200, intervalStartMs: 1200, intervalEndMs: 1800 };
 
-for (const presentation of ["boxing_lanes", "boxing_collider"]) {
-  const walls = (target) => buildGameplaySceneModel({ presentation, nowMs: 1500, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, targets: [target] }).objects.filter((entry) => entry.targetId === target.id && entry.kind === "obstacle");
-  const shadows = (target) => buildGameplaySceneModel({ presentation, nowMs: 1500, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, targets: [target] }).objects.filter((entry) => entry.targetId === target.id && entry.kind === "shadow");
-
-  const squatWalls = walls(squat);
-  assert.equal(squatWalls.length, 1, `${presentation}: squat renders exactly one bar`);
-  // 0.0.95: squat geometry is {x:0, y:-3, width:4, height:4.5} — the bar spans
-  // from above the grid (y=-3) down to y=1.5, centered at y=3.25 in world space
-  // (2 - (-3) - (4.5-1)/2 = 3.25).
-  assert.deepEqual({ x: squatWalls[0].position.x, y: squatWalls[0].position.y }, { x: 0, y: 3.25 }, `${presentation}: squat bar is centered on the grid at the 4.5-row extent`);
-  assert.ok(Math.abs(squatWalls[0].scale.x - (4 - 0.06) / CELL) < 1e-9, `${presentation}: squat bar spans the full grid width (4 columns)`);
-  assert.ok(Math.abs(squatWalls[0].scale.y - (4.5 - 0.06) / CELL) < 1e-9, `${presentation}: squat bar is 4.5 grid rows tall`);
-
-  const weaveL = walls(weaveLeft);
-  assert.equal(weaveL.length, 1, `${presentation}: weave_left renders exactly one wall`);
-  assert.equal(weaveL[0].position.x, 1.5, `${presentation}: weave_left (authored column 3) renders at the authored column presentation X (columnX[3]=+1.5)`);
-  assert.ok(Math.abs(weaveL[0].scale.x - (1 - 0.06) / CELL) < 1e-9, `${presentation}: weave_left spans exactly the authored single column`);
-  assert.ok(Math.abs(weaveL[0].scale.y - (3 - 0.06) / CELL) < 1e-9, `${presentation}: weave_left keeps the full lane height (3 rows)`);
-  assert.equal(weaveL[0].position.y, 1, `${presentation}: weave_left keeps the lane center Y`);
-
-  const weaveR = walls(weaveRight);
-  assert.equal(weaveR.length, 1, `${presentation}: weave_right renders exactly one wall`);
-  assert.equal(weaveR[0].position.x, -1.5, `${presentation}: weave_right (authored column 0) renders at the authored column presentation X (columnX[0]=-1.5)`);
-  assert.ok(Math.abs(weaveR[0].scale.x - (1 - 0.06) / CELL) < 1e-9, `${presentation}: weave_right spans exactly the authored single column`);
-  assert.ok(Math.abs(weaveR[0].scale.y - (3 - 0.06) / CELL) < 1e-9, `${presentation}: weave_right keeps the full lane height (3 rows)`);
-  assert.equal(weaveR[0].position.y, 1, `${presentation}: weave_right keeps the lane center Y`);
-
-  for (const target of [squat, weaveLeft, weaveRight]) {
-    assert.equal(shadows(target).length, 0, `${presentation}: ${target.id} emits no fake ground-shadow object`);
+for (const presentation of ["boxing_lanes", "boxing_collider", "boxing_spatial_grid"]) {
+  for (const [target, expectedX, expectedY, width, height] of [[squat, 0, 3.25, 4, 4.5], [weaveLeft, 1, 1, 2, 3], [weaveRight, -1, 1, 2, 3]]) {
+    const model = buildGameplaySceneModel({ presentation, nowMs: 1500, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, targets: [target] });
+    const walls = model.objects.filter((entry) => entry.targetId === target.id && entry.kind === "obstacle");
+    assert.equal(walls.length, 1, `${presentation}: ${target.id} must render one continuous GLB wall`);
+    const wall = walls[0];
+    assert.equal(wall.assetId, "wall/red-glass-v1");
+    assert.deepEqual({ x: wall.position.x, y: wall.position.y, z: wall.position.z }, { x: expectedX, y: expectedY, z: 0 }, `${presentation}: ${target.id} geometry center and interval midpoint`);
+    assert.ok(Math.abs(wall.scale.x - (width - 0.06) / CELL) < 1e-9, `${presentation}: ${target.id} footprint width ${width}`);
+    assert.ok(Math.abs(wall.scale.y - (height - 0.06) / CELL) < 1e-9, `${presentation}: ${target.id} footprint height ${height}`);
+    assert.ok(Math.abs(wall.scale.z - 3.6) < 1e-9, `${presentation}: ${target.id} exact 600ms interval depth`);
+    assert.deepEqual([wall.intervalStartMs, wall.intervalEndMs], [1200, 1800]);
+    assert.equal(model.objects.filter((entry) => entry.targetId === target.id && entry.kind === "shadow").length, 0, `${presentation}: ${target.id} emits no fake shadow`);
   }
 }
-
-console.log("Boxing obstacle shapes: squat top-row full-width bar + weave full-lane walls (unit) passed.");
+console.log("Boxing obstacle geometry: squat 4.5 rows and side weaves 2 columns across all Boxing presentations passed.");

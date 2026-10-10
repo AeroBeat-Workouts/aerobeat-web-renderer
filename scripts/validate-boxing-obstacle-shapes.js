@@ -9,9 +9,8 @@
 //              full lane height. 0.0.95: the 0.0.92 (u6tc) full two-column
 //              lane span is superseded — the wall must render at the authored
 //              column (0.0.61 L-F8), not the weave-direction lane. Collision
-//              remains presentation-independent. 0.0.91 (F6b):
-// the floor shadow under every boxing obstacle must be present at floor level,
-// match the wall's footprint, and carry non-zero alpha.
+//              remains presentation-independent. Continuous obstacle geometry
+//              remains visible, but no fake ground-shadow object is emitted.
 import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
 
@@ -48,20 +47,9 @@ for (const presentation of ["boxing_lanes", "boxing_collider"]) {
   assert.ok(Math.abs(weaveR[0].scale.y - (3 - 0.06) / CELL) < 1e-9, `${presentation}: weave_right keeps the full lane height (3 rows)`);
   assert.equal(weaveR[0].position.y, 1, `${presentation}: weave_right keeps the lane center Y`);
 
-  // 0.0.91 (F6b): the floor shadow must exist under every obstacle, sit just
-  // above the floor, span the same footprint as its wall (WU), and be visible.
-  const floorY = -0.72;
-  const assertShadow = (target, expectedX, expectedWidthWU) => {
-    const targetShadows = shadows(target);
-    assert.equal(targetShadows.length, 1, `${presentation}: ${target.id} renders exactly one floor shadow`);
-    assert.equal(targetShadows[0].position.x, expectedX, `${presentation}: ${target.id} shadow is centered under the wall (x=${expectedX})`);
-    assert.ok(Math.abs(targetShadows[0].position.y - (floorY + 0.018)) < 1e-9, `${presentation}: ${target.id} shadow sits just above the track floor`);
-    assert.ok(Math.abs(targetShadows[0].scale.x - expectedWidthWU) < 1e-9, `${presentation}: ${target.id} shadow spans the wall footprint (${expectedWidthWU} WU)`);
-    assert.ok(targetShadows[0].alpha > 0, `${presentation}: ${target.id} shadow has non-zero alpha`);
-  };
-  assertShadow(squat, 0, 4 - 0.06);
-  assertShadow(weaveLeft, 1.5, 1 - 0.06);
-  assertShadow(weaveRight, -1.5, 1 - 0.06);
+  for (const target of [squat, weaveLeft, weaveRight]) {
+    assert.equal(shadows(target).length, 0, `${presentation}: ${target.id} emits no fake ground-shadow object`);
+  }
 }
 
 console.log("Boxing obstacle shapes: squat top-row full-width bar + weave full-lane walls (unit) passed.");

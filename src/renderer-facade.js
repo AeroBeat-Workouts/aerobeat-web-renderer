@@ -21,6 +21,7 @@ const cursorRoles=Object.freeze(["nose","left_wrist","right_wrist"]);
 const equipmentRoles=Object.freeze(["left_wrist","right_wrist"]);
 const equipmentModes=Object.freeze(["flow","boxing"]);
 const gameplayCameraModes=Object.freeze(["flow","boxing"]);
+const nativeTargetShadowAssets=new Set(["directional-arrow/rounded-outline-v1","any-note/outlined-circle-v1","guard/outlined-shield-v1","bomb/urchin-v1","wall/red-glass-v1"]);
 const boxingCameraPresentations=Object.freeze(["boxing_collider","boxing_spatial_grid","boxing_lanes"]);
 /** @param {string|null} presentation */
 function gameplayCameraModeForPresentation(presentation){return boxingCameraPresentations.includes(presentation)?"boxing":presentation;}
@@ -529,12 +530,12 @@ export class AeroPlayCanvasRenderer {
     this.createHazardGlowQuad();
   }
   removeGameplayLayers(){const gridLayer=this.gameplayGridLayer,guidanceLayer=this.gameplayGuidanceLayer,targetLayer=this.gameplayTargetLayer,colliderOverlayLayer=this.gameplayColliderOverlayLayer,hazardGlowLayer=this.gameplayHazardGlowLayer,receiverLayer=this.shadowReceiverLayer;this.shadowReceiverLayer=null;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayColliderOverlayLayer=null;this.gameplayHazardGlowLayer=null;if(this.cameraEntity?.camera)this.cameraEntity.camera.layers=this.cameraEntity.camera.layers.filter((id)=>![gridLayer?.id,guidanceLayer?.id,targetLayer?.id,colliderOverlayLayer?.id,hazardGlowLayer?.id,receiverLayer?.id].includes(id));if(gridLayer)this.app?.scene.layers.removeTransparent(gridLayer);if(guidanceLayer)this.app?.scene.layers.removeTransparent(guidanceLayer);if(targetLayer)this.app?.scene.layers.remove(targetLayer);if(colliderOverlayLayer)this.app?.scene.layers.removeTransparent(colliderOverlayLayer);if(hazardGlowLayer)this.app?.scene.layers.removeTransparent(hazardGlowLayer);if(receiverLayer)this.app?.scene.layers.removeTransparent(receiverLayer);}
-  /** Create a directional light pointing down (-Y) with PCF3 shadow mapping for equipment. */
+  /** Create a downward directional light with PCF3 shadows for equipment and live targets. */
   createShadowLight(){
     if(!this.app)return;
     this.destroyShadowLight();
     const entity=new pc.Entity("shadow-light",this.app);
-    entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:2,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:2048,shadowIntensity:.4,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12,layers:[pc.LAYERID_WORLD,this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
+    entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:2,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:2048,shadowIntensity:.4,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12,layers:[pc.LAYERID_WORLD,this.gameplayTargetLayer?.id??pc.LAYERID_WORLD,this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
     this.app.root.addChild(entity);
     this.shadowLightEntity=entity;
     // The pinned glass track spans world Y [floorY-.14, floorY-.08]. Place the
@@ -592,7 +593,7 @@ export class AeroPlayCanvasRenderer {
     this.applyHazardGlow(objects.find((entry)=>entry.kind==="hazard_glow")??null);
     this.activeCount=[...renderedCounts.values()].reduce((sum,value)=>sum+value,0)+primitiveIndex;this.sceneDiagnostics=buildSceneDiagnostics(objects,guidance,mode,loader,renderedCounts,fallbackCount);
   }
-  acquireAssetEntity(assetId,index){let entries=this.assetPools.get(assetId);if(!entries){entries=[];this.assetPools.set(assetId,entries);}while(entries.length<=index){const resource=this.gameplayAssetLoader.resourceFor(assetId);if(!resource?.instantiateRenderEntity)return null;const entity=resource.instantiateRenderEntity({castShadows:false,receiveShadows:false});entity.enabled=false;this.cloneAssetMaterials(entity);this.app.root.addChild(entity);entries.push(entity);}return entries[index];}
+  acquireAssetEntity(assetId,index){let entries=this.assetPools.get(assetId);if(!entries){entries=[];this.assetPools.set(assetId,entries);}while(entries.length<=index){const resource=this.gameplayAssetLoader.resourceFor(assetId);if(!resource?.instantiateRenderEntity)return null;const entity=resource.instantiateRenderEntity({castShadows:nativeTargetShadowAssets.has(assetId),receiveShadows:false});entity.enabled=false;this.cloneAssetMaterials(entity);if(assetId==="wall/red-glass-v1")for(const record of this.assetMaterials.get(entity)??[]){record.material.opacityShadowDither=pc.DITHER_BAYER8;record.material.update();}this.app.root.addChild(entity);entries.push(entity);}return entries[index];}
   /** 0.0.58 B11c: acquire (or lazily create) an aftermath half/whole in a DEDICATED pool isolated from the live-icon `assetPools` slots. The 0.0.57 bug: aftermath halves were indexed into the same per-asset pool as live icons with a separate counter starting at 0, so a live arrow/orb and an aftermath half could map to the SAME pooled entity (index 0) and fight for it mid-frame — the last write to position/material/appearance won, and one or both halves could vanish from the frame (the 0/1/2-halves symptom). The dedicated pool gives every aftermath piece its own entity for the lifetime of the frame; live-icon/B10 material-restore logic is untouched (slice variants created on aftermath entities are never acquired by live icons). */
   acquireAftermathAssetEntity(assetId,index){let entries=this.aftermathAssetPools.get(assetId);if(!entries){entries=[];this.aftermathAssetPools.set(assetId,entries);}while(entries.length<=index){const resource=this.gameplayAssetLoader.resourceFor(assetId);if(!resource?.instantiateRenderEntity)return null;const entity=resource.instantiateRenderEntity({castShadows:false,receiveShadows:false});entity.enabled=false;this.cloneAssetMaterials(entity);this.app.root.addChild(entity);entries.push(entity);}return entries[index];}
   acquirePrimitiveEntity(index){while(this.pool.length<=index)this.pool.push(this.makeEntity(`pooled-${this.pool.length}`,"box"));return this.pool[index];}

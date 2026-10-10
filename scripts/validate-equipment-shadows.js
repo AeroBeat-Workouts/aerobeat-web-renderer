@@ -4,10 +4,8 @@ import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
 
 // Equipment shadows are rendered via a native directional light in the renderer
-// facade (createShadowLight). The scene model no longer emits `kind:"shadow"` objects for
-// equipment. This test verifies that:
-//   1. No equipment shadow objects are present in the scene model.
-//   2. Only continuous obstacles retain their fake ground-shadow objects.
+// facade (createShadowLight). The scene model emits no `kind:"shadow"` objects
+// for equipment, beats, or continuous obstacles.
 
 const floorShadow = (model) => model.objects.filter((entry) => entry.kind === "shadow" && entry.id.startsWith("equipment-shadow"));
 
@@ -48,12 +46,13 @@ const floorShadow = (model) => model.objects.filter((entry) => entry.kind === "s
   assert.deepEqual(a, b, "equipment shadow objects are deterministic (empty) per frame");
 }
 
-// --- Target fake shadows are absent while a continuous obstacle retains its shadow. ---
+// --- Neither beats nor continuous obstacles emit fake shadow objects. ---
 {
   const target = (id, kind, family, cell = 5) => ({ id, kind, family, hand: "left", cell, cells: [], lane: "left", beatCenterMs: 1000 });
   const obstacle = { ...target("wall", "obstacle", "obstacle", null), cells: [0], gameplayGeometry: { schema: "aerobeat/obstacle_gameplay_geometry", version: 1, coordinateSpace: "aerobeat_top_left_grid", x: 0, y: 0, width: 1, height: 1 }, intervalStartMs: 1000, intervalEndMs: 1200 };
   const model = buildGameplaySceneModel({ presentation: "flow", nowMs: 1000, targets: [target("note", "flow", "flow"), target("bomb", "bomb", "bomb"), target("safe", "safe", "safe"), obstacle] });
-  assert.deepEqual(model.objects.filter((entry) => entry.kind === "shadow").map((entry) => entry.targetId), ["wall"], "only the wall retains a fake ground shadow");
+  assert.equal(model.objects.filter((entry) => entry.kind === "shadow").length, 0, "beats and continuous obstacles emit zero fake ground shadows");
+  assert.deepEqual(model.objects.filter((entry) => entry.kind === "obstacle").map((entry) => entry.targetId), ["wall"], "continuous wall geometry remains present");
   assert.deepEqual(model.objects.filter((entry) => entry.kind === "icon").map((entry) => entry.targetId).sort(), ["bomb", "note", "safe"], "removing fake shadows does not remove target icons");
 }
 

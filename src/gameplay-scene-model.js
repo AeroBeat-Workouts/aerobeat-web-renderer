@@ -316,15 +316,13 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
       if(lanes.length!==1)throw new TypeError("Boxing lane obstacle placement is invalid");
       const lane=lanes[0],laneWidthScale=lane.width/GAMEPLAY_CELL_SIZE;
       const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:lane.x,y:lane.y+wallLiftY,z:center},{x:laneWidthScale,y:(lane.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,z:depth},null,ASSET.wall,0,1,null,0,true,interval.startMs,interval.endMs,center,30,null,null,null);
-      const shadow=sceneObject(`${target.id}:shadow`,"shadow","neutral",target.id,{x:lane.x,y:gameplayWorldGrid.floorY+.018,z:center},{x:lane.width,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR);
-      return{objects:[wall,shadow],feedback:[]};
+      return{objects:[wall],feedback:[]};
     }
     const centerX=geometry.x+(geometry.width-1)/2-1.5;
     const centerY=2-geometry.y-(geometry.height-1)/2;
     const scaleX=(geometry.width-.06*obstacleScale)/GAMEPLAY_CELL_SIZE,scaleY=(geometry.height-.06*obstacleScale)/GAMEPLAY_CELL_SIZE;
     const wall=sceneObject(`${target.id}:wall`,"obstacle",role,target.id,{x:centerX,y:centerY+wallLiftY,z:center},{x:scaleX,y:scaleY,z:depth},null,ASSET.wall,0,1,null,pulse,true,interval.startMs,interval.endMs,center,30,null,null,null);
-    const shadow=sceneObject(`${target.id}:shadow`,"shadow","neutral",target.id,{x:centerX,y:gameplayWorldGrid.floorY+.018,z:center},{x:geometry.width-.06,y:.012,z:depth},null,null,0,SHADOW_ALPHA,null,false,true,interval.startMs,interval.endMs,center,35,null,null,null,null,SHADOW_COLOR);
-    return{objects:[wall,shadow],feedback:[]};
+    return{objects:[wall],feedback:[]};
   }
   const positions=targetPositions(frame,target,presentationConfig,reach);
   if(target.bounceStartMs!==undefined&&(!Number.isFinite(target.bounceStartMs)||target.bounceStartMs<0||target.bounceStartMs>target.beatCenterMs))throw new TypeError("Gameplay target bounce start is invalid");

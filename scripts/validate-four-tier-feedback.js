@@ -61,30 +61,51 @@ for (const { tier, text, faceColor, height, animation } of tierExpectations) {
   assert.equal(label.feedback?.faceColor, "#ffffff", "no-tier defaults to white");
 }
 
-// --- 3. Miss state (judgement="miss") always produces Miss regardless of tier field. ---
+// --- 3. A scored near-timing miss displays Almost; true and mismatched misses stay gray/Miss. ---
 {
   const COMMIT_MS = CENTER_MS + 181;
-  const missed = {
-    id: "miss-test",
-    kind: "flow",
-    hand: "left",
-    family: "flow",
-    cell: 5,
-    cells: [],
-    lane: "left",
-    beatCenterMs: CENTER_MS,
-    direction: "right",
-    appearanceColor: APPEARANCE,
-    judgement: "miss",
-    tier: "great",
-    missCommitMs: COMMIT_MS,
+  for (const { tier, text, color, animation, iconColor } of [
+    { tier: "almost", text: "Almost", color: "#ffd60a", animation: "small_bounce", iconColor: APPEARANCE },
+    { tier: "miss", text: "Miss", color: "#e5484d", animation: "shake", iconColor: "#2a3038" },
+    { tier: "great", text: "Miss", color: "#e5484d", animation: "shake", iconColor: "#2a3038" },
+  ]) {
+    const missed = {
+      id: "miss-test",
+      kind: "flow",
+      hand: "left",
+      family: "flow",
+      cell: 5,
+      cells: [],
+      lane: "left",
+      beatCenterMs: CENTER_MS,
+      direction: "right",
+      appearanceColor: APPEARANCE,
+      judgement: "miss",
+      tier,
+      missCommitMs: COMMIT_MS,
+    };
+    const model = buildGameplaySceneModel(frame(COMMIT_MS + 50, missed), undefined, defaultRendererTuning);
+    const label = findLabel(model, "miss-test");
+    const icon = model.objects.find((entry) => entry.targetId === "miss-test" && entry.kind === "icon");
+    assert.ok(label, `${tier}: feedback label is present`);
+    assert.ok(icon, `${tier}: missed target remains visible`);
+    assert.equal(label.feedback?.text, text, `${tier}: correct label`);
+    assert.equal(label.feedback?.faceColor, color, `${tier}: correct label color`);
+    assert.equal(label.feedback?.animation, animation, `${tier}: correct animation`);
+    assert.equal(icon.appearanceColor, iconColor, `${tier}: correct icon tint`);
+    assert.equal(icon.state, "miss", `${tier}: remains a committed miss`);
+    assert.equal(label.feedback?.depthBias, tier === "almost" ? .5 : .01, `${tier}: near-only glyph clears a 200% GLB without disabling depth testing`);
+    assert.deepEqual(label.position, tier === "almost" ? { x: -.5, y: 1, z: 0 } : { x: -1.5, y: 1.5, z: 1.5 }, `${tier}: near label follows the crossing while ordinary Miss uses side anchor`);
+  }
+  const hitLabel = findLabel(buildGameplaySceneModel(frame(CENTER_MS, targetFor("great")), undefined, defaultRendererTuning));
+  assert.deepEqual(hitLabel?.position, { x: -.5, y: 1, z: 0 }, "near miss shares the hit crossing anchor");
+  const guard = {
+    id: "guard-near", kind: "guard", hand: "both", family: "guard", cell: null,
+    cells: [4, 7], lane: null, beatCenterMs: CENTER_MS, judgement: "miss",
+    tier: "almost", missCommitMs: COMMIT_MS,
   };
-  const model = buildGameplaySceneModel(frame(COMMIT_MS + 50, missed), undefined, defaultRendererTuning);
-  const label = findLabel(model, "miss-test");
-  assert.ok(label, "miss: feedback label is present");
-  assert.equal(label.feedback?.text, "Miss", "miss state produces Miss text");
-  assert.equal(label.feedback?.faceColor, "#e5484d", "miss state produces red");
-  assert.equal(label.feedback?.animation, "shake", "miss state produces shake");
+  const guardLabel = findLabel(buildGameplaySceneModel(frame(COMMIT_MS, guard), undefined, defaultRendererTuning), "guard-near");
+  assert.deepEqual(guardLabel?.position, { x: 0, y: 1, z: 0 }, "near guard label uses its crossing midpoint");
 }
 
 // --- 4. Glyph patterns exist for all characters in all four labels. ---

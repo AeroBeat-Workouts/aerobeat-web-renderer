@@ -350,7 +350,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const assetId=assetForTarget(target);
   const rotation=target.direction?directionRotation(target.direction):0;
   const pairKey=target.kind==="guard"?target.id:null;
-  const iconAppearanceColor=state==="miss"?MISS_COLOR:appearanceColor;
+  const iconAppearanceColor=state==="miss"&&target.tier!=="almost"?MISS_COLOR:appearanceColor;
   // 0.0.55 W2 follow-up: `frame.aftermath` now contains the hit target from commit time
   // (the W2 aftermath-persistence fix), so gating the handoff on mere membership would hide
   // the icon at commit instead of after the 80 ms removal window. Gate the hit-state handoff
@@ -361,15 +361,16 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   /** @type {AeroGameplaySceneObject[]} */ const feedbackObjects=[];
   if(resolved&&target.kind!=="obstacle"&&target.kind!=="bomb"&&positions.length&&elapsedMs<tuning.feedbackDurationMs){
     const hit=state==="hit";
-    const tier=hit?normalizeHitTier(target.tier):"miss";
+    const tier=hit?normalizeHitTier(target.tier):target.tier==="almost"?"almost":"miss";
     const tierText=tier==="great"?"Great":tier==="good"?"Good":tier==="almost"?"Almost":"Miss";
     const tierColor=tier==="great"?"#ffffff":tier==="good"?"#6ec6ff":tier==="almost"?"#ffd60a":"#e5484d";
     const tierHeight=tier==="great"?GREAT_HEIGHT_CSS_PX:tier==="good"?GOOD_HEIGHT_CSS_PX:tier==="almost"?ALMOST_HEIGHT_CSS_PX:MISS_HEIGHT_CSS_PX;
     const tierAnimation=tier==="great"?"bounce":tier==="good"?"bounce":tier==="almost"?"small_bounce":"shake";
     const alpha=elapsedMs<=FEEDBACK_HOLD_MS?1:clamp(1-(elapsedMs-FEEDBACK_HOLD_MS)/FEEDBACK_FADE_MS,0,1),motion=feedbackMotion(tierAnimation,elapsedMs,tuning.feedbackDurationMs);
-    const visual=Object.freeze({text:/** @type {"Great"|"Good"|"Almost"|"Miss"} */(tierText),holdMs:FEEDBACK_HOLD_MS,fadeMs:FEEDBACK_FADE_MS,totalMs:tuning.feedbackDurationMs,elapsedMs,alpha,faceColor:tierColor,separationColor:"#171a22",depthBias:0.01,apparentHeightCssPx:tierHeight,offsetX:motion.x,offsetY:motion.y,scale:motion.scale,animation:/** @type {"bounce"|"small_bounce"|"shake"} */(tierAnimation)});
-    const crossingPositions=hit?(target.kind==="guard"?[{x:(positions[0].x+positions[positions.length-1].x)/2,y:positions[0].y}]:positions.slice(0,1)):[{x:target.hand==="right"?1.5:-1.5,y:1.5}];
-    for(const [index,p] of crossingPositions.entries())feedbackObjects.push(sceneObject(`${target.id}:feedback:${index}`,"feedback",role,target.id,{x:p.x,y:p.y,z:hit?0:1.5},{x:1,y:1,z:1},null,null,0,alpha,state,false,true,null,null,hit?0:1.5,40,null,null,removal,visual));
+    const visual=Object.freeze({text:/** @type {"Great"|"Good"|"Almost"|"Miss"} */(tierText),holdMs:FEEDBACK_HOLD_MS,fadeMs:FEEDBACK_FADE_MS,totalMs:tuning.feedbackDurationMs,elapsedMs,alpha,faceColor:tierColor,separationColor:"#171a22",depthBias:state==="miss"&&tier==="almost"?.5:.01,apparentHeightCssPx:tierHeight,offsetX:motion.x,offsetY:motion.y,scale:motion.scale,animation:/** @type {"bounce"|"small_bounce"|"shake"} */(tierAnimation)});
+    const crossingAnchor=hit||(state==="miss"&&tier==="almost");
+    const crossingPositions=crossingAnchor?(target.kind==="guard"?[{x:(positions[0].x+positions[positions.length-1].x)/2,y:positions[0].y}]:positions.slice(0,1)):[{x:target.hand==="right"?1.5:-1.5,y:1.5}];
+    for(const [index,p] of crossingPositions.entries())feedbackObjects.push(sceneObject(`${target.id}:feedback:${index}`,"feedback",role,target.id,{x:p.x,y:p.y,z:crossingAnchor?0:1.5},{x:1,y:1,z:1},null,null,0,alpha,state,false,true,null,null,crossingAnchor?0:1.5,40,null,null,removal,visual));
   }
   return{objects:icons,feedback:feedbackObjects};
 }

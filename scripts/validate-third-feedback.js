@@ -34,7 +34,7 @@ for(const presentation of presentations){
     approximate(sample.icon?.position.z??NaN,(nowMs-CENTER_MS)*SPEED,`${presentation} pending target continues through the inclusive late window`);
     assert.equal(sample.icon?.appearanceColor,APPEARANCE,`${presentation} pending target retains authored appearance`);
     assert.equal(sample.icon?.whiteCore,undefined,`${presentation} pending target carries no white success-core after crossing (0.0.62 Option A)`);
-    approximate(sample.shadow?.position.z??NaN,(nowMs-CENTER_MS)*SPEED,`${presentation} pending shadow tracks the moving target`);
+    assert.equal(sample.shadow,undefined,`${presentation} pending beat emits no fake shadow`);
   }
   const zSamples=[];
   for(const elapsedMs of[0,1,100,349]){
@@ -44,7 +44,7 @@ for(const presentation of presentations){
     assert.equal(sample.icon?.targetId,"same-id",`${presentation} preserves same ID after miss commit`);
     assert.equal(sample.icon?.appearanceColor,MISS,`${presentation} committed miss is gray`);
     approximate(sample.icon?.position.z??NaN,expectedZ,`${presentation} miss icon speed at ${elapsedMs}`);
-    approximate(sample.shadow?.position.z??NaN,expectedZ,`${presentation} miss shadow speed at ${elapsedMs}`);
+    assert.equal(sample.shadow,undefined,`${presentation} committed Miss emits no fake shadow at ${elapsedMs}`);
     assert.deepEqual(sample.label?.position,{x:-1.5,y:1.5,z:1.5},`${presentation} left Miss stays at its fixed world spot`);
     assert.equal(sample.label?.feedback?.animation,"shake");
     zSamples.push(sample.icon?.position.z??NaN);
@@ -56,7 +56,7 @@ for(const presentation of presentations){
     assert.equal(model.objects.some(entry=>entry.targetId==="same-id"),false,`${presentation} miss disappears once at commit+${elapsedMs}`);
   }
   const hitAt=(elapsedMs)=>parts(buildGameplaySceneModel(frame(presentation,CENTER_MS+elapsedMs,{...pending,judgement:/** @type {const} */("hit"),feedbackProgress:elapsedMs/350})));
-  assert.equal(hitAt(0).icon?.position.z,0,`${presentation} hit stays at crossing`);
+  assert.equal(hitAt(0).icon?.position.z,0,`${presentation} hit stays at crossing`);assert.equal(hitAt(0).shadow,undefined,`${presentation} hit emits no fake shadow`);
   assert.equal(hitAt(79).icon?.position.z,0,`${presentation} hit removal stays at crossing`);
   assert.equal(hitAt(80).icon,undefined,`${presentation} hit still disappears at 80ms`);
 }
@@ -78,7 +78,7 @@ assert.deepEqual(centers(object=>object.targetId==="lane-guard"&&object.kind==="
 assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="obstacle"),[0]);
 assert.deepEqual(centers(object=>object.targetId==="lane-wall"&&object.kind==="shadow"),[0]);
 const guard=parts(laneModel,"lane-guard"),guardIcons=laneModel.objects.filter(entry=>entry.targetId==="lane-guard"&&entry.kind==="icon");
-assert.equal(guardIcons.length,2);
+assert.equal(guardIcons.length,2);assert.equal(guard.shadow,undefined,"guard pair retains two icons but no fake ground shadow");
 assert.deepEqual(guard.label.position,{x:-1.5,y:1.5,z:1.5},"dual-guard Miss label uses one fixed world spot");
 
 console.log("Third-feedback defaults, boundary motion, authored color, lane geometry, and label anchoring validation passed.");

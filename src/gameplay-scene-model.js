@@ -104,11 +104,8 @@ export const AFTERMATH_CORPSE_MIN_CHROMA=0.35;
 /** 0.0.52 W1-C: closed-form hit-success aftermath launch velocities (WU/s, gravity −9.8). Hooks are stored without the X sign; the hand signs it toward center (left hand +X, right hand −X). */
 function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freeze({x:0,y:.5,z:-4}),hook:Object.freeze({x:1.2,y:.3,z:-3}),uppercut:Object.freeze({x:0,y:2.2,z:-2.5}),guardBonk:Object.freeze({x:0,y:.2,z:-.5}),flowNote:Object.freeze({x:0,y:.4,z:-2})});}
 const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#2a3038",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,GOOD_HEIGHT_CSS_PX=44,ALMOST_HEIGHT_CSS_PX=38,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2,SMALL_BOUNCE_AMPLITUDE=.12;
-/** 0.0.92 im3p: equipment floor-shadow footprint (WU). The saber shadow is a proper light
- *   projection: the blade's XZ axis projected onto the floor, clipped to the playfield bounds.
- *   The shadow width equals the blade diameter (2 × radius = 0.36 WU). The glove shadow is a
- *   circular/elliptical blob (~0.4). Both sit at floorY + 0.018, renderOrder 35, SHADOW_ALPHA,
- *   SHADOW_COLOR — mirroring the per-note and obstacle floor shadows. */
+/** Legacy pure equipment-projection math only: active rendering uses the native directional
+ *   shadow catcher, and neither equipment nor beats emit fake ground-shadow objects. */
 const EQUIPMENT_SABER_LENGTH_WU=0.75,EQUIPMENT_SABER_RADIUS_WU=0.18,EQUIPMENT_SABER_SHADOW_WIDTH_WU=2*EQUIPMENT_SABER_RADIUS_WU,EQUIPMENT_GLOVE_SHADOW_RADIUS_WU=0.2;
 /** Playfield bounds for shadow clipping: 4 columns × 3 rows of 1-unit cells.
  *   X spans [-2, 2] (columns at -1.5, -0.5, 0.5, 1.5 ± 0.5), Z spans [-1.5, 1.5] (rows at 2, 1, 0 ± 0.5). */
@@ -169,7 +166,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   addTrack(objects,frame.trackExtensionWorldUnits??4);
   if(frame.colliderSettings===undefined)addTimingTiles(objects,frame,segments,tuning,presentationConfig,reach);
   const anchors=colliderSettings.colliderVisible||visibleWristObstacleRadius?normalizeEquipmentColliderAnchors(frame.equipmentColliderAnchors):{left:null,right:null};
-  // Equipment shadows are now rendered via a native PCSS directional light (see renderer-facade.js
+  // Equipment shadows are rendered via a native PCF3 directional light (see renderer-facade.js
   // createShadowLight); no fake shadow mesh objects are emitted to the scene model.
   if(visibleWristObstacleRadius&&wristBombColliderScale>0){
     for(const hand of ["left","right"]){
@@ -363,8 +360,6 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   // to the aftermath pieces. Miss has no removal — hand off immediately on membership.
   const aftermathHandoff=aftermathTargetIds.has(target.id)&&(state==="miss"||(state==="hit"&&removal!==null&&removal.progress>=1));
   const icons=aftermathHandoff?[]:targetVisible?iconPositions.map((p,index)=>{const kindScale=(target.kind==="bomb"||target.family==="bomb"?tuning.bombScaleFactor:tuning.noteScaleFactor)*removalScale;const iconRole=pairKey!==null?(index===0?"left":"right"):role;return sceneObject(`${target.id}:${index}`,"icon",iconRole,target.id,{x:p.x,y:p.y,z},{x:kindScale,y:kindScale,z:kindScale},null,assetId,rotation,state==="hit"?Math.max(0,1-(removal?.progress??1)):1,state,null,Boolean(removal),null,null,z,10,pairKey,pairKey===null?null:index,removal,null,iconAppearanceColor);}):[];
-  const shadowScale=tuning.noteScaleFactor;
-  const shadows=targetVisible?positions.map((p,index)=>sceneObject(`${target.id}:shadow:${index}`,"shadow","neutral",target.id,{x:p.x,y:gameplayWorldGrid.floorY+.018,z},{x:.68*shadowScale,y:.012,z:.34*shadowScale},null,null,0,state==="hit"?Math.max(0,SHADOW_ALPHA*(1-(removal?.progress??1))):SHADOW_ALPHA,state,false,true,null,null,z,35,null,null,removal,null,SHADOW_COLOR)):[];
   /** @type {AeroGameplaySceneObject[]} */ const feedbackObjects=[];
   if(resolved&&target.kind!=="obstacle"&&target.kind!=="bomb"&&positions.length&&elapsedMs<tuning.feedbackDurationMs){
     const hit=state==="hit";
@@ -378,7 +373,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
     const crossingPositions=hit?(target.kind==="guard"?[{x:(positions[0].x+positions[positions.length-1].x)/2,y:positions[0].y}]:positions.slice(0,1)):[{x:target.hand==="right"?1.5:-1.5,y:1.5}];
     for(const [index,p] of crossingPositions.entries())feedbackObjects.push(sceneObject(`${target.id}:feedback:${index}`,"feedback",role,target.id,{x:p.x,y:p.y,z:hit?0:1.5},{x:1,y:1,z:1},null,null,0,alpha,state,false,true,null,null,hit?0:1.5,40,null,null,removal,visual));
   }
-  return{objects:[...icons,...shadows],feedback:feedbackObjects};
+  return{objects:icons,feedback:feedbackObjects};
 }
 
 /** Build bounded renderer-only guidance across the whole visible window from caller-owned mapped beat times or stable actionable group identity. @param {AeroGameplayFrame} frame @param {readonly AeroRenderableTarget[]} targets @param {{beforeMs:number,afterMs:number}} window @param {"off"|"song_beat_grid"|"target_arrivals"} mode @param {typeof defaultTestPresentationConfig} config @param {AeroRendererTuning} tuning */
@@ -528,10 +523,9 @@ function normalizeEquipmentColliderAnchors(value){
   return anchors;
 }
 /**
- * 0.0.92 im3p: build the bounded equipment floor-shadow scene objects from the ALREADY-SMOOTHED
- * per-frame equipment anchors. One shadow per non-null anchor, at floorY + 0.018, renderOrder 35,
- * SHADOW_ALPHA, SHADOW_COLOR, transparent — the same visual treatment as the per-note and
- * obstacle floor shadows.
+ * Dormant compatibility-only legacy projection helper (scheduled for removal in Bead ckpi).
+ * Active scene modeling never calls this: real equipment shadows come from the light, and beats
+ * emit no fake shadows. The function historically constructs mesh records from smoothed anchors.
  *
  * The saber shadow is a PROPER LIGHT PROJECTION: the blade (a capsule of length 0.75 WU,
  * radius 0.18 WU) is projected onto the floor plane from a light source directly above

@@ -180,7 +180,7 @@ export class AeroPlayCanvasRenderer {
    * @param {unknown} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
-  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
+  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.syncShadowReceiverToTrack(model.objects);this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
   clear(options={}){if(!this.app||this.destroyed)return{status:this.describe()};const color=options.color??[0,0,0,0];this.cameraEntity.camera.clearColor=new pc.Color(...color);this.clearSceneObjects();this.clearOverlayEntities();this.manualTick();this.frameCount+=1;this.state="running";return{status:this.describe()};}
   renderFrame(options={}){return this.clear(options);}
   renderGameplayCursors(cursors,options){const result=this.stageGameplayCursors(cursors,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),cursorCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.cursorCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
@@ -534,13 +534,13 @@ export class AeroPlayCanvasRenderer {
     if(!this.app)return;
     this.destroyShadowLight();
     const entity=new pc.Entity("shadow-light",this.app);
-    entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:2,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:1024,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12,layers:[pc.LAYERID_WORLD,this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
+    entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:2,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:2048,shadowIntensity:.4,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12,layers:[pc.LAYERID_WORLD,this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
     this.app.root.addChild(entity);
     this.shadowLightEntity=entity;
     // The pinned glass track spans world Y [floorY-.14, floorY-.08]. Place the
     // receiver top .01 below that glass, rather than occluding it from above.
     // The pinned track reaches X ±2.1 (0.1 beyond the logical 4-cell grid).
-    // Match those visible art edges without changing the gameplay grid or Z span.
+    // Match the visible art in X/Z without changing gameplay or collision bounds.
     const floor=new pc.Entity("aero-shadow-floor",this.app);
     floor.addComponent("render",{type:"box",layers:[this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
     this.app.root.addChild(floor);
@@ -557,9 +557,26 @@ export class AeroPlayCanvasRenderer {
     floor.render.material=floorMaterial;
     this.ownedMaterials.add(floorMaterial);
     const thickness=.02,receiverTop=gameplayWorldGrid.floorY-.15,trackSideOverhang=.1;
-    floor.setLocalScale(gameplayWorldGrid.columns+2*trackSideOverhang,thickness,gameplayWorldGrid.rows);
-    floor.setPosition(0,receiverTop-thickness/2,0);
+    // Three 24-WU glass segments span [extension-72, extension]; default extension is 4.
+    floor.setLocalScale(gameplayWorldGrid.columns+2*trackSideOverhang,thickness,72);
+    floor.setPosition(0,receiverTop-thickness/2,-32);
     this.shadowFloorEntity=floor;
+  }
+  /** Keep the visual-only receiver flush with all three authored glass segments. */
+  syncShadowReceiverToTrack(objects){
+    const floor=this.shadowFloorEntity;if(!floor)return;
+    let minZ=Infinity,maxZ=-Infinity,segments=0;
+    for(const object of objects)if(object.kind==="track"){
+      minZ=Math.min(minZ,object.position.z-12);
+      maxZ=Math.max(maxZ,object.position.z+12);
+      segments++;
+    }
+    if(segments!==3||!(maxZ>minZ))throw new Error("Shadow receiver requires three authored track segments");
+    const {x:width,y:height,z:currentLength}=floor.getLocalScale(),{x,y,z:currentCenter}=floor.getPosition();
+    const length=maxZ-minZ,center=(minZ+maxZ)/2;
+    if(currentLength===length&&currentCenter===center)return;
+    floor.setLocalScale(width,height,length);
+    floor.setPosition(x,y,center);
   }
   /** Destroy the shadow light entity if it exists. */
   destroyShadowLight(){

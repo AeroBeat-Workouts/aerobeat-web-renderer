@@ -1,6 +1,6 @@
 # Equipment shadow receiver alignment
 
-Status: implementation and multi-angle validation complete; committing and pushing renderer change. Approved slice: Derrick requested continuation of the existing shadow receiver work, multi-angle screenshots, and iterative alignment. Goal rounds: Maximum safe integer.
+Status: complete; renderer commit `9fba01b` pushed to `origin/main`, six local screenshot artifacts reproducible by the gated browser oracle. Approved slice: Derrick requested continuation of the existing shadow receiver work, multi-angle screenshots, and iterative alignment. Goal rounds: Maximum safe integer.
 
 ## Diagnosis before changes
 
@@ -31,7 +31,7 @@ Remaining uncertainty: live layer ordering, lighting, and material appearance.
 1. [complete] Inspect canonical geometry and reproduce stale normal-gate assertion; baseline geometry is X4/Z2/top -.71 vs canonical X4/Z3/floor -.72. Browser harness did not previously capture this state.
 2. [complete] Align receiver and add project-owned geometry/visual assertions. Source uses canonical X4×Z3 and top -.87 (below actual glass bottom -.86), neutral finish. Chromium oracle implemented by child 76077be0-fa9f-4ad1-ab5f-f6e5dae0409c then corrected by parent (centered judge-space pose, clean collider-configured frame, six separate full-canvas screenshots, true shadow-on/off differential). Normal browser gate now invokes it first.
 3. [complete] Capture and inspect top, three-quarter, side for both Flow and Boxing; actual directional saber line/glove silhouette seen on receiver through glass in all six. Runtime receiver-AABB counterfactual Z=2 fails same assertion, restored Z=3 passes. Browser frame delta with receiver shadows disabled proves actual caster contribution; see results below.
-4. [in progress] Independent read-only receiver diff audit from 158bd289-fea9-4d94-99c7-4c70e105b419 identified glass occlusion; parent moved receiver below pinned GLB and recaptured. Final review, commit/push renderer changes, close task; preserve assembly dirty work.
+4. [complete] Independent read-only receiver diff audit from 158bd289-fea9-4d94-99c7-4c70e105b419 identified glass occlusion; parent moved receiver below pinned GLB and recaptured. Parent checked the final screenshots and source diff. Renderer commit `9fba01b` pushed; assembly's unrelated dirty work preserved; ledger task closed with named browser-gate caveat.
 
 ## Beads
 Renderer `.beads` lacks a local Dolt database (`bd list` fails: no beads database); assembly ledger task `aerobeat-web-assembly-avuy` was created/claimed for renderer-owned work. This plan is the renderer source record.

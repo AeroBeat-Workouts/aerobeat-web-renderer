@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { buildGameplaySceneModel, gameplayWorldGrid } from "../src/index.js";
 
-// Equipment shadows are now rendered via a native PCSS directional light in the renderer
+// Equipment shadows are rendered via a native directional light in the renderer
 // facade (createShadowLight). The scene model no longer emits `kind:"shadow"` objects for
 // equipment. This test verifies that:
 //   1. No equipment shadow objects are present in the scene model.
@@ -51,7 +51,7 @@ const floorShadow = (model) => model.objects.filter((entry) => entry.kind === "s
 
 // --- Verify the renderer facade exposes the shadow light entity (smoke check via source). ---
 // This is a lightweight source-level assertion: the renderer-facade.js must contain
-// createShadowLight and reference PCSS shadow mapping.
+// createShadowLight and reference the actual PlayCanvas directional shadow mode.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -59,9 +59,9 @@ import { dirname, resolve } from "node:path";
 const facadePath = resolve(dirname(fileURLToPath(import.meta.url)), "../src/renderer-facade.js");
 const facadeSource = readFileSync(facadePath, "utf8");
 assert.ok(facadeSource.includes("createShadowLight"), "renderer-facade.js defines createShadowLight");
-assert.ok(facadeSource.includes("pc.LIGHTTYPE_DIRECTIONAL"), "shadow light uses directional type");
-assert.ok(facadeSource.includes("pc.SHADOW_PCSS_32F"), "shadow light uses PCSS 32F shadow mapping");
+assert.ok(facadeSource.includes('type:"directional"'), "shadow light uses directional type");
+assert.ok(facadeSource.includes("pc.SHADOW_PCF3_32F"), "shadow light uses PCF3 32F shadow mapping");
 assert.ok(facadeSource.includes("castShadows:true"), "shadow light has castShadows enabled");
 assert.ok(facadeSource.includes("shadowLightEntity"), "renderer-facade.js tracks shadowLightEntity");
 
-console.log("Equipment shadows: native PCSS directional light (no fake mesh objects in model) passed.");
+console.log("Equipment shadows: native PCF3 directional light (no fake mesh objects in model) passed.");

@@ -529,7 +529,7 @@ export class AeroPlayCanvasRenderer {
     this.createHazardGlowQuad();
   }
   removeGameplayLayers(){const gridLayer=this.gameplayGridLayer,guidanceLayer=this.gameplayGuidanceLayer,targetLayer=this.gameplayTargetLayer,colliderOverlayLayer=this.gameplayColliderOverlayLayer,hazardGlowLayer=this.gameplayHazardGlowLayer;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayColliderOverlayLayer=null;this.gameplayHazardGlowLayer=null;if(this.cameraEntity?.camera)this.cameraEntity.camera.layers=this.cameraEntity.camera.layers.filter((id)=>![gridLayer?.id,guidanceLayer?.id,targetLayer?.id,colliderOverlayLayer?.id,hazardGlowLayer?.id].includes(id));if(gridLayer)this.app?.scene.layers.removeTransparent(gridLayer);if(guidanceLayer)this.app?.scene.layers.removeTransparent(guidanceLayer);if(targetLayer)this.app?.scene.layers.remove(targetLayer);if(colliderOverlayLayer)this.app?.scene.layers.removeTransparent(colliderOverlayLayer);if(hazardGlowLayer)this.app?.scene.layers.removeTransparent(hazardGlowLayer);}
-  /** Create a single directional light pointing straight down (-Y) with PCSS shadow mapping for equipment shadows. */
+  /** Create a directional light pointing down (-Y) with PCF3 shadow mapping for equipment. */
   createShadowLight(){
     if(!this.app)return;
     this.destroyShadowLight();
@@ -537,20 +537,25 @@ export class AeroPlayCanvasRenderer {
     entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:2,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:1024,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12});
     this.app.root.addChild(entity);
     this.shadowLightEntity=entity;
-    // Shadow-receiving floor plane at playfield level (y=-0.72)
+    // The pinned glass track spans world Y [floorY-.14, floorY-.08]. Place the
+    // receiver top .01 below that glass, rather than occluding it from above.
+    // X and Z cover the full 4 × 3 shadow playfield.
     const floor=new pc.Entity("aero-shadow-floor",this.app);
     floor.addComponent("render",{type:"box"});
     this.app.root.addChild(floor);
     floor.render.castShadows=false;
     floor.render.receiveShadows=true;
-    floor.render.material=new pc.StandardMaterial();
-    floor.render.material.name="aero-shadow-floor-mat";
-    floor.render.material.useLighting=true;
-    floor.render.material.diffuse=new pc.Color(0,0,1);
-    floor.render.material.emissive=new pc.Color(0,0,0.5);
-    floor.render.material.update();
-    floor.setLocalScale(4,0.02,2);
-    floor.setPosition(0,-0.72,0);
+    const floorMaterial=new pc.StandardMaterial();
+    floorMaterial.name="aero-shadow-floor-mat";
+    floorMaterial.useLighting=true;
+    floorMaterial.diffuse=new pc.Color(.16,.20,.27);
+    floorMaterial.emissive=new pc.Color(.04,.055,.075);
+    floorMaterial.update();
+    floor.render.material=floorMaterial;
+    this.ownedMaterials.add(floorMaterial);
+    const thickness=.02,receiverTop=gameplayWorldGrid.floorY-.15;
+    floor.setLocalScale(gameplayWorldGrid.columns,thickness,gameplayWorldGrid.rows);
+    floor.setPosition(0,receiverTop-thickness/2,0);
     this.shadowFloorEntity=floor;
   }
   /** Destroy the shadow light entity if it exists. */

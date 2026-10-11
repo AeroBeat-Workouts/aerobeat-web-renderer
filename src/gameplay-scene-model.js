@@ -451,7 +451,9 @@ function targetPositions(frame,target,config,reach){
       const cells=target.cells.slice(0,2);
       const pair=cells.map(worldPositionForCell);
       if(!pair[0]||!pair[1]||pair[0].y!==pair[1].y||pair[0].x===pair[1].x)throw new TypeError("Guard cells must be a same-height left/right pair");
-      return pair.map((position)=>({x:position.x,y:frame.presentation==="boxing_collider"?presentationRowY(reach,gridRowFromWorldY(position.y)):lanes[0].y})).sort((a,b)=>a.x-b.x);
+      // The authored cells are [left-hand, right-hand], even for crossed guards.
+      // Sorting by screen X would paint the opposite hand on each shield.
+      return pair.map((position)=>({x:position.x,y:frame.presentation==="boxing_collider"?presentationRowY(reach,gridRowFromWorldY(position.y)):lanes[0].y}));
     }
     // Boxing collider: cell-anchored targets render at their reach-row Y; lane-anchored targets use lanes.
     // 0.0.54 P2 fix: real assembly punch targets carry `cell` set + `cells: []` (session-render-
@@ -468,7 +470,8 @@ function targetPositions(frame,target,config,reach){
   if(target.kind==="guard"){
     const cells=target.cells.length>=2?target.cells.slice(0,2):[5,6];const pair=cells.map(worldPositionForCell);
     if(!pair[0]||!pair[1]||pair[0].y!==pair[1].y||pair[0].x===pair[1].x)throw new TypeError("Guard cells must be a same-height left/right pair");
-    return /** @type {{x:number,y:number}[]} */(pair.map(applyReach).sort((a,b)=>a.x-b.x));
+    // Keep authored hand order in non-Boxing views too; pair indices are roles.
+    return /** @type {{x:number,y:number}[]} */(pair.map(applyReach));
   }
   const cells=target.cells.length?target.cells:target.cell===null?[]:[target.cell];
   return cells.map(worldPositionForCell).filter(Boolean).map(applyReach);

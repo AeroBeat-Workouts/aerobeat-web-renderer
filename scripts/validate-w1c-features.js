@@ -248,8 +248,21 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   const tuning = defaultRendererTuning;
   // A saber-cut flow/slice entry carries `sliceT` → the WIDER per-half spread.
   const cut = { targetId: "w1", hitCommitMs: 0, family: "flow", hand: "left", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 11, shape: "arrow", sliceT: 0.5 };
-  assert.ok(Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1)) > tuning.aftermathSliceSeparationWU * 0.99, "a sliceT-present slice corpse spreads WIDER than the legacy base total (.16)");
-  assert.ok(Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1)) <= tuning.aftermathSliceWiderSeparationWU + 1e-9, "wider spread caps at aftermathSliceWiderSeparationWU + jitter bound");
+  const legacySlice = { ...cut };
+  delete legacySlice.sliceT;
+  // Jitter is scaled by the selected spread but centered identically for both
+  // halves of a seed. Check signed OUTWARD movement relative to their common
+  // center, not an individual absolute position whose shared jitter also moves.
+  const baseCenter = (aftermathSliceOffsetX(legacySlice, 1) + aftermathSliceOffsetX(legacySlice, -1)) / 2;
+  const cutCenter = (aftermathSliceOffsetX(cut, 1) + aftermathSliceOffsetX(cut, -1)) / 2;
+  for (const sign of [-1, 1]) {
+    const legacyRelative = aftermathSliceOffsetX(legacySlice, sign) - baseCenter;
+    const cutRelative = aftermathSliceOffsetX(cut, sign) - cutCenter;
+    assert.ok(Math.abs(cutRelative - legacyRelative - sign * 0.30) < 1e-9,
+      `D5 signed per-half outward shift must be +.30 WU: sign ${sign}, delta ${cutRelative - legacyRelative}`);
+  }
+  assert.ok(Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1) - 0.76) < 1e-9,
+    "D5 two halves must have .76 total separation (.16 legacy + .30 EACH)");
   // Legacy / non-slice entries keep the exact .16-based offset (backward compatible).
   const legacy = { targetId: "w2", hitCommitMs: 0, family: "flow", hand: "left", mode: "single", spawn: { x: 0, y: 1, z: 0 }, seed: 11 };
   const baseSpread = tuning.aftermathSliceSeparationWU;
@@ -350,9 +363,9 @@ assert.equal(T.hazardVignettePulseHz, 2, "default hazardVignettePulseHz is 2");
 assert.equal(T.hazardVignettePulseDepth, 0.35, "default hazardVignettePulseDepth is 0.35");
 assert.equal(T.hazardVignetteRampMs, 150, "default hazardVignetteRampMs is 150");
 assert.equal(T.hazardVignetteDecayMs, 400, "default hazardVignetteDecayMs is 400");
-assert.equal(T.version, "6", "0.0.63 D5: tuning version bumped to 6 (wider slice separation)");
-assert.equal(T.hash, "visual-3fed1dee", "0.0.63 D5: tuning hash bumped to v6 (aftermathSliceWiderSeparationWU added)");
-assert.equal(T.aftermathSliceWiderSeparationWU, 0.46, "0.0.63 D5: wider slice separation = .46 WU total spread (.16 base + .30 per-half target)");
+assert.equal(T.version, "7", "signed D5 per-half spread correction advances tuning identity");
+assert.equal(T.hash, "visual-99cb8c71", "signed D5 v7 default hash matches .76 spread");
+assert.equal(T.aftermathSliceWiderSeparationWU, 0.76, "D5 signed separation: .76 WU total = .16 base + .30 outward EACH");
 assert.ok(T.aftermathSliceWiderSeparationWU > T.aftermathSliceSeparationWU, "wider separation exceeds the legacy base");
 assert.equal(COLLIDER_OVERLAY_CAM_OFFSET_WU, 0.03, "camera-side overlay offset is +0.03 WU");
 

@@ -1,0 +1,166 @@
+{
+  "runTag": "d5-sliceT-2026-10-11-03-07-48",
+  "nowMs": 1300,
+  "scale": {
+    "d5Z": -0.9,
+    "pxPerHalfWU": 37.11671073557966,
+    "pxPerWU": 74.23342147115932
+  },
+  "diffPx": 583,
+  "lateDiffPx": 799,
+  "legacy": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.11718019695952535,
+        "sliceT": null,
+        "world": [
+          -0.1172,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 893,
+          "meanX": 420.3,
+          "meanY": 257.3
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.042819803040474655,
+        "sliceT": null,
+        "world": [
+          0.0428,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 915,
+          "meanX": 412.6,
+          "meanY": 247.9
+        }
+      }
+    ]
+  },
+  "mid": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.5566059355577454,
+        "sliceT": 0.5,
+        "world": [
+          -0.5566,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 584,
+          "meanX": 386.7,
+          "meanY": 267.6
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.2033940644422546,
+        "sliceT": 0.5,
+        "world": [
+          0.2034,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 1542,
+          "meanX": 431.6,
+          "meanY": 249.9
+        }
+      }
+    ]
+  },
+  "off": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.5566059355577454,
+        "sliceT": 0.25,
+        "world": [
+          -0.5566,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 889,
+          "meanX": 387,
+          "meanY": 261.7
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.2033940644422546,
+        "sliceT": 0.25,
+        "world": [
+          0.2034,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 1265,
+          "meanX": 428.7,
+          "meanY": 248.1
+        }
+      }
+    ]
+  },
+  "late": {
+    "halves": [
+      {
+        "sign": -1,
+        "offsetXWU": -0.5566059355577454,
+        "sliceT": 0.75,
+        "world": [
+          -0.5566,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 183,
+          "meanX": 381.4,
+          "meanY": 276.6
+        }
+      },
+      {
+        "sign": 1,
+        "offsetXWU": 0.2033940644422546,
+        "sliceT": 0.75,
+        "world": [
+          0.2034,
+          0.1877,
+          -0.9
+        ],
+        "own": {
+          "count": 1939,
+          "meanX": 433.1,
+          "meanY": 254
+        }
+      }
+    ]
+  },
+  "sepLegacyWU": 0.16,
+  "sepMidWU": 0.76,
+  "sepLegacyPx": 11.877347435385445,
+  "sepMidPx": 56.41740031808109,
+  "sepDeltaPx": 44.54005288269565,
+  "perHalfOutwardPx": [
+    {
+      "sign": -1,
+      "outwardPx": 22.270026441347795
+    },
+    {
+      "sign": 1,
+      "outwardPx": 22.270026441347852
+    }
+  ],
+  "midBoundaryY": 258.77291544516106,
+  "offBoundaryY": 254.91260064823913,
+  "boundaryDeltaY": -3.8603147969219265,
+  "massSplitDelta": -582
+}

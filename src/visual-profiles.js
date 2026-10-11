@@ -64,13 +64,18 @@ export function normalizeRendererTuning(value) {
   if (!keys.every((key)=>requiredNames.includes(key)||optionalKeys.includes(key)) || !requiredNames.filter((name)=>!optionalNumberKeys.includes(name)).every((key)=>keys.includes(key)) || typeof value.id!=="string" || value.id.length===0 || typeof value.version!=="string" || value.version.length===0 || !numberNames.every((name)=>(optionalNumberKeys.includes(name)&&!(name in value))?true:(typeof value[name]==="number"&&Number.isFinite(value[name])))) return defaultRendererTuning;
   const scaleClamp=(raw)=>clamp(Number(raw),rendererVisualScaleBounds.min,rendererVisualScaleBounds.max);
   const widerSeparation=(optionalNumberKeys.map((name)=>name in value).every(Boolean) && typeof value.aftermathSliceWiderSeparationWU==="number")?clamp(Number(value.aftermathSliceWiderSeparationWU),0,2):defaultRendererTuning.aftermathSliceWiderSeparationWU;
+  // The v6 default mislabeled .46 TOTAL as .30 outward EACH. Migrate the
+  // historical default identity to corrected v7; independently content-hashed
+  // custom v6 records remain independently tunable.
+  const isOldDefault=value.id===defaultRendererTuning.id&&value.version==="6"&&widerSeparation===.46&&value.hash==="visual-3fed1dee";
   const normalized = {
     id:value.id,version:value.version,
     dprCap:clamp(Number(value.dprCap),1,4),roleScale:clamp(Number(value.roleScale),0.5,1.5),noteScaleFactor:scaleClamp(value.noteScaleFactor),obstacleScaleFactor:scaleClamp(value.obstacleScaleFactor),bombScaleFactor:scaleClamp(value.bombScaleFactor),markerScaleFactor:scaleClamp(value.markerScaleFactor),worldUnitsPerMs:clamp(Number(value.worldUnitsPerMs),0.001,0.02),futureCullMs:clamp(Number(value.futureCullMs),500,10_000),spentCullMs:clamp(Number(value.spentCullMs),100,2000),targetSize:clamp(Number(value.targetSize),0.3,2),obstacleHeight:clamp(Number(value.obstacleHeight),1,8),timingZoneHeight:clamp(Number(value.timingZoneHeight),0.005,0.2),feedbackDurationMs:clamp(Number(value.feedbackDurationMs),120,1000),hitPulseScale:clamp(Number(value.hitPulseScale),1,1.25),greatEndScale:clamp(Number(value.greatEndScale),1,1.5),
     aftermathGravityWUPerS2:clamp(Number(value.aftermathGravityWUPerS2),1,30),aftermathRestitution:clamp(Number(value.aftermathRestitution),0,0.9),aftermathBounceCount:clamp(Math.round(Number(value.aftermathBounceCount)),0,4),aftermathEvictedFadeMs:clamp(Number(value.aftermathEvictedFadeMs),50,1000),aftermathSettledTumbleRadPerS:clamp(Number(value.aftermathSettledTumbleRadPerS),0,10),aftermathSliceSeparationWU:clamp(Number(value.aftermathSliceSeparationWU),0,1),aftermathSliceWiderSeparationWU:widerSeparation,hazardGlowRampMs:clamp(Number(value.hazardGlowRampMs),10,1000),hazardGlowDecayMs:clamp(Number(value.hazardGlowDecayMs),100,5000),hazardVignetteIntensity:clamp(Number(value.hazardVignetteIntensity),0,1),hazardVignettePulseHz:clamp(Number(value.hazardVignettePulseHz),0,5),hazardVignettePulseDepth:clamp(Number(value.hazardVignettePulseDepth),0,1),hazardVignetteRampMs:clamp(Number(value.hazardVignetteRampMs),0,1000),hazardVignetteDecayMs:clamp(Number(value.hazardVignetteDecayMs),0,3000)
   };
   const hash=stableVisualHash(normalized);
-  if(value.hash!==undefined&&value.hash!==hash&&value.hash!==defaultRendererTuning.hash)return defaultRendererTuning;
+  if(value.hash!==undefined&&value.hash!==hash&&value.hash!==defaultRendererTuning.hash&&!isOldDefault)return defaultRendererTuning;
+  if(isOldDefault)return defaultRendererTuning; // v6 canonical defaults migrate; mismatched fields fail to the same safe default.
   const launchVelocities=/** @type {import("./gameplay-scene-model.js").AeroAftermathLaunchVelocities} */(value.aftermathLaunchVelocities??defaultRendererTuning.aftermathLaunchVelocities);
   return Object.freeze({...normalized,aftermathLaunchVelocities:launchVelocities,hash});
 }

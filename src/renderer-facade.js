@@ -12,7 +12,7 @@ import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 import { gameplayAssetMaterialRole } from "./gameplay-assets.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceAxis, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
+import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
@@ -692,22 +692,16 @@ export class AeroPlayCanvasRenderer {
     }
     material.update();
   }
-  /** 0.0.52 W1-C follow-up: aftermath slice halves render through two persistent clip-plane variant materials (vertical local-X cut — left/right halves, 0.0.56 B10), one per pool entity, cloned on first use from the record's pooled material (same clone-on-use discipline as the pooled cursor markers). Both halves share the pool's mesh asset. Non-slice aftermath and all other objects keep the shared pooled appearance. */
+  /** Two complementary local-X side masks start at the blade's local-Y crossing; each pooled GLB half owns its material variants without changing live icons. */
   applyAftermathAppearance(object,entity){
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     const sliceSign=object.aftermath?.sliceSign??null;if(sliceSign===null)return;
-    // 0.0.63 D5: the clip plane no longer sits at the glyph's fixed midpoint —
-    // it sits where the saber blade actually crossed the glyph. `sliceT` (0..1,
-    // 0 = tail / 1 = head, the glyph's local long axis) offsets the plane along
-    // that axis by (sliceT − 0.5) × the glyph's local long-axis length; both
-    // halves share the same plane, so they stay aligned and merely tumble apart
-    // laterally (see `aftermathSliceOffsetX`). Absent `sliceT` → legacy midpoint.
+    // The local-X side seam starts where the blade crossed the local long axis.
+    // Before that crossing, the positive piece alone owns the uncut tail;
+    // absent sliceT keeps the legacy full-height side split. Arrow direction is
+    // already represented by the GLB root's authored rotation, not a world axis here.
     const sliceT=object.aftermath?.sliceT;
-    const planeLocalY=(sliceT!==undefined)?(sliceT-0.5)*aftermathSliceGlyphLengthWU(object):0;
-    // 0.0.95: the clip plane normal is perpendicular to the arrow's direction in the
-    // glyph's LOCAL space. For "up" arrows this is (1,0) — the legacy horizontal cut.
-    // For "right" arrows it's (0,-1) — a vertical cut. Diagonals get diagonal normals.
-    const axis=aftermathSliceAxis(object);
+    const planeLocalY=sliceT===undefined?null:(sliceT-0.5)*aftermathSliceGlyphLengthWU({shape:object.aftermath?.shape});
     // 0.0.58 B11b: the corpse keeps the note's ACTUAL glyph (white outline + silhouette)
     // but DESATURATED — it must read as the same arrow/orb with the color gone, NOT a flat
     // uniform gray blob (the 0.0.57 AFTERMATH_HIT_CORPSE_GRAY override force-set EVERY
@@ -726,7 +720,7 @@ export class AeroPlayCanvasRenderer {
     for(const record of records){
       const role=gameplayAssetMaterialRole(object.assetId??"",record.name);
       const baseRgba=this.aftermathCorpsePartColor(role,object,record);
-      const variant=this.sliceVariantMaterial(record,sliceSign,planeLocalY,axis.x,axis.y);
+      const variant=this.sliceVariantMaterial(record,sliceSign,planeLocalY);
       record.meshInstance.material=variant;
       const state={kind:"aftermath-slice",sliceSign,planeLocalY,part:role,baseR:[baseRgba[0],baseRgba[1],baseRgba[2]],opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
       if(materialStateIsUnchanged(variant,this.materialStates.get(variant),state))continue;
@@ -784,11 +778,11 @@ export class AeroPlayCanvasRenderer {
     // Any other / unrecognized part: keep the authored source appearance unchanged.
     return [record.diffuse.r,record.diffuse.g,record.diffuse.b,1];
   }
-  /** Lazily clone one clip-plane variant per (pool entity, material part, sliceSign, planeLocalY) from the record's pooled material and install the local-X discard blocks (vertical cut — left/right halves, 0.0.56 B10). Both variants are owned and destroyed in the pool/detach teardown. 0.0.60 F1: the key uses the record's unique `materialUid` — the original key interpolated the meshInstance OBJECT ("[object Object]"), so every part of a slice half collided on one cache entry: the first part's clone won and the last part's color painted the whole half flat (flow corpses lost the white outline / charcoal / fill structure; latent since the 0.0.52 clip-plane introduction). 0.0.63 D5: the key also carries `planeLocalY` — the glyph-local Y where the saber blade actually crossed at cut time — so a midpoint cut and an off-center cut for the same glyph produce distinct shader variants (the clip threshold is baked into the GLSL uniform). */
-  sliceVariantMaterial(record,sliceSign,planeLocalY=0,axisX=1,axisY=0){
-    const key=`${sliceSign}:${this.assetPoolGeneration}:${record.materialUid}:${+planeLocalY.toFixed(4)}:${+axisX.toFixed(4)}:${+axisY.toFixed(4)}`;
+  /** Clone a side-piece mask per material UID, sign and local-Y crossing; null crossing retains the legacy full-length side split. Cache variants are owned and destroyed with the pool. */
+  sliceVariantMaterial(record,sliceSign,planeLocalY=null){
+    const key=`${sliceSign}:${this.assetPoolGeneration}:${record.materialUid}:${planeLocalY===null?"legacy":+planeLocalY.toFixed(4)}`;
     let variant=this.sliceVariantMaterials.get(key);
-    if(!variant){variant=record.material.clone();this.installSliceClipBlocks(variant,sliceSign,planeLocalY,axisX,axisY);this.ownedMaterials.add(variant);this.sliceVariantMaterials.set(key,variant);}
+    if(!variant){variant=record.material.clone();this.installSliceClipBlocks(variant,sliceSign,planeLocalY);this.ownedMaterials.add(variant);this.sliceVariantMaterials.set(key,variant);}
     return variant;
   }
   /** Restore pooled materials after a slice entity is disabled (prevents cross-contamination when the next icon reuses the same pool slot). 0.0.56 B10: also called from `applyAssetAppearance` so that when a LIVE icon acquires a pool slot that still carries a clip-plane variant material from a previous aftermath use, the variant is swapped back to the pooled material BEFORE the live appearance is applied — without this, the live arrow/orb renders with the clip blocks installed and is cut in half. Only restores when the current material is a known slice variant (a value in `sliceVariantMaterials`); externally-installed borrowed materials are left for the normal reconciliation path. */
@@ -796,22 +790,20 @@ export class AeroPlayCanvasRenderer {
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     for(const record of records){const mat=record.meshInstance.material;if(mat===record.material)continue;let isSliceVariant=false;for(const v of this.sliceVariantMaterials.values())if(v===mat){isSliceVariant=true;break;}if(isSliceVariant){record.meshInstance.material=record.material;this.materialStates.delete(record.meshInstance.material);}}
   }
-  /** PlayCanvas 2.21.4 has no ShaderBlock class; the paired shader blocks are injected into the material's `shaderChunks` GLSL map — the engine's own user-block injection points. 0.0.56 B10 follow-up: the cut is a VERTICAL slice down the note's local X axis (left/right halves), not the original top/bottom local-Y cut — Derrick's spec: for a hit DOWN arrow the cut runs from the horizontal middle down to the bottom, and the two SIDES fall while separating left/right. The vertex pair (declaration + `litUserMainStartVS`) feeds object-space X as a `vLocalX_aeroSlice` varying; the fragment pair (declaration + `litUserMainStartPS`) discards the far half of LOCAL X (`vLocalX_aeroSlice * SIGN < 0.0`). SIGN is baked per variant (1 keeps the right half where local X ≥ 0, -1 keeps the left half). 0.0.63 D5: `planeLocalY` offsets the CLIP PLANE along the glyph's local long axis (local Y, tail→head) so the cut sits at the blade's actual crossing point instead of always the midpoint. Because both glyphs (arrow + orb) have their local origin at the CENTER of the shape, the midpoint cut passes through local Y = 0. An off-center cut shifts that plane to local Y = PLANE. The left/right identity of each half is preserved by SIGN: SIGN = +1 keeps local Y ≥ PLANE (the "right" half when reading the glyph top-to-bottom), SIGN = −1 keeps local Y ≤ PLANE. At PLANE = 0 the test collapses to `localY * SIGN < 0`, which is exactly the local-Y split at the midpoint — a CONTINUOUS extension of the old local-X-based midpoint test (both partition the glyph into two disjoint halves that tile the whole shape without overlap or gap). Both variants are still cloned on first use from the record's pooled material; the cache key now also carries `planeLocalY` so a midpoint cut and an off-center cut for the same glyph produce distinct shader variants. `material.update()` flags the chunk map dirty so the variant cache serves a distinct clipped program for this variant only. */
-  installSliceClipBlocks(material,sliceSign,planeLocalY=0,axisX=1,axisY=0){
-    const sign=sliceSign===1?"1.0":"-1.0";
-    const plane=+planeLocalY.toFixed(4);
-    const ax=+axisX.toFixed(4),ay=+axisY.toFixed(4);
-    // 0.0.95: the clip plane normal is (axisX, axisY) in the glyph's local space.
-    // The dot product `dot(vertex_position.xy, normal)` gives the signed distance
-    // from the clip plane through the origin. For the legacy "up" arrow the normal
-    // is (1,0) → dot = localX → horizontal cut (top/bottom halves). For a "right"
-    // arrow the normal is (0,-1) → dot = -localY → vertical cut (left/right halves).
-    material.shaderChunks.glsl.set("litUserDeclarationVS","varying float vAeroSliceDist;\n");
-    material.shaderChunks.glsl.set("litUserMainStartVS",`vAeroSliceDist = dot(vertex_position.xy, vec2(${ax}, ${ay}));\n`);
-    material.shaderChunks.glsl.set("litUserDeclarationPS","varying float vAeroSliceDist;\n");
-    material.shaderChunks.glsl.set("litUserMainStartPS",plane===0
-      ? `if (vAeroSliceDist * ${sign} < 0.0) discard;\n`
-      : `if ((vAeroSliceDist - (${plane})) * ${sign} < 0.0) discard;\n`);
+  /** PlayCanvas GLSL blocks pass local XY into complementary side masks. The B10 DOWN-arrow seam goes from blade crossing toward the tip: sign+ retains X≥0 or Y<c; sign− retains X<0 and Y≥c. Two pieces tile the whole glyph, while absent sliceT retains the full-length local-X split. */
+  installSliceClipBlocks(material,sliceSign,planeLocalY=null){
+    // The mesh is clipped in its own coordinates, before authored rotation or tumble.
+    // B10's DOWN-arrow seam runs center→bottom, equivalent to local +Y (tip).
+    // Sign+ owns the uncut tail (Y<c) and the right side ahead of the crossing.
+    // Sign− owns the left side toward the tip (Y>=c); strict/weak X assigns
+    // boundary pixels to exactly one of the two pieces.
+    material.shaderChunks.glsl.set("litUserDeclarationVS","varying vec2 vAeroSliceLocal;\n");
+    material.shaderChunks.glsl.set("litUserMainStartVS","vAeroSliceLocal = vertex_position.xy;\n");
+    material.shaderChunks.glsl.set("litUserDeclarationPS","varying vec2 vAeroSliceLocal;\n");
+    const towardTip=planeLocalY===null?"true":`vAeroSliceLocal.y >= ${(+planeLocalY.toFixed(4)).toFixed(4)}`;
+    material.shaderChunks.glsl.set("litUserMainStartPS",sliceSign===1
+      ? `if (vAeroSliceLocal.x < 0.0 && (${towardTip})) discard;\n`
+      : `if (vAeroSliceLocal.x >= 0.0 || !(${towardTip})) discard;\n`);
     material.update();
   }
   /** 0.0.52 W1-C follow-up: fullscreen hazard-contact red vignette. One persistent unlit fullscreen quad on the topmost transparent gameplay layer (above Targets, below product-UI layers); driven per frame by the model's hazard_glow scene object; disabled (zero cost) at zero intensity. Uses a ShaderMaterial with screen-space UV vignette; depth-test OFF so it always composites on top of the gameplay scene. */

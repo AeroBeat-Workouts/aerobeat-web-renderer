@@ -44,7 +44,7 @@
 //       ring) is still present (counted, NOT gated — it is glyph art by design).
 //   (6) cull: at commit+350 ms the note is gone (no icon in the model).
 //
-// Crops are saved under scripts/evidence/0.0.62-white-flash/<run>/ as
+// Normal captures are saved under ignored .tmp/renderer-browser-evidence/0.0.62-white-flash/<run>/ as
 // approach.png, success-zone.png, note-at-commit.png, note-commit-plus-20.png,
 // post-commit.png, expired.png plus a side-by-side. Run mode is explicit:
 //   node scripts/validate-0.0.62-white-flash-pixels.js assert-after
@@ -64,7 +64,12 @@ import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const ROOT = resolve(process.cwd());
 const BRANDING_ROOT = resolve(ROOT, "../aerobeat-branding/icons/web-gameplay");
-const EVIDENCE_ROOT = resolve(ROOT, "scripts/evidence/0.0.62-white-flash");
+// Normal browser runs write under gitignored .tmp/ rather than dirtying the
+// strict linked-package provenance checkout. Explicit one-off captures may set
+// AEROBEAT_RENDERER_EVIDENCE_ROOT to an absolute reviewed output directory.
+const EVIDENCE_ROOT = process.env.AEROBEAT_RENDERER_EVIDENCE_ROOT
+  ? resolve(process.env.AEROBEAT_RENDERER_EVIDENCE_ROOT, "0.0.62-white-flash")
+  : resolve(ROOT, ".tmp/renderer-browser-evidence/0.0.62-white-flash");
 const MODE = process.argv[2] ?? "capture-after";
 assert.ok(["assert-after", "capture-before", "capture-after"].includes(MODE), `unknown mode ${MODE}`);
 const RUN_TAG = `${MODE}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;

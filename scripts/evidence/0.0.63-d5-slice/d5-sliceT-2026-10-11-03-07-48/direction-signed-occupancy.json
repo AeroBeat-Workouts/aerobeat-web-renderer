@@ -1,0 +1,665 @@
+{
+  "states": [
+    {
+      "direction": "down",
+      "sliceT": null,
+      "authoredRotation": 3.141592653589793,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1079,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 833,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 108,
+            "tipReachLeft": 80,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": -0.11718019695952535,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1083,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 0,
+            "tailRight": 0,
+            "tipRight": 868,
+            "tailReachLeft": 0,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": 0.042819803040474655,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "down",
+      "sliceT": 0.25,
+      "authoredRotation": 3.141592653589793,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1213,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 839,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 85,
+            "nearCrossingLeft": 79,
+            "nearCrossingRight": 0
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1674,
+          "rows": {
+            "tailLeft": 117,
+            "tipLeft": 0,
+            "tailRight": 114,
+            "tipRight": 868,
+            "tailReachLeft": 127,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 56,
+            "nearCrossingRight": 133
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "down",
+      "sliceT": 0.5,
+      "authoredRotation": 3.141592653589793,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 828,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 453,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 85,
+            "nearCrossingLeft": 149,
+            "nearCrossingRight": 0
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2046,
+          "rows": {
+            "tailLeft": 328,
+            "tipLeft": 0,
+            "tailRight": 328,
+            "tipRight": 481,
+            "tailReachLeft": 127,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 113,
+            "nearCrossingRight": 253
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "down",
+      "sliceT": 0.75,
+      "authoredRotation": 3.141592653589793,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 263,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 74,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 85,
+            "nearCrossingLeft": 104,
+            "nearCrossingRight": 0
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2596,
+          "rows": {
+            "tailLeft": 815,
+            "tipLeft": 0,
+            "tailRight": 819,
+            "tipRight": 86,
+            "tailReachLeft": 127,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 125,
+            "nearCrossingRight": 227
+          },
+          "rotation": 3.6243625495908973,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up",
+      "sliceT": null,
+      "authoredRotation": 0,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1414,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 1111,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 121,
+            "tipReachLeft": 118,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": -0.11718019695952535,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1418,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 0,
+            "tailRight": 0,
+            "tipRight": 1067,
+            "tailReachLeft": 0,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": 0.042819803040474655,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up",
+      "sliceT": 0.25,
+      "authoredRotation": 0,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1165,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 922,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 130,
+            "nearCrossingLeft": 64,
+            "nearCrossingRight": 0
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1660,
+          "rows": {
+            "tailLeft": 110,
+            "tipLeft": 0,
+            "tailRight": 106,
+            "tipRight": 867,
+            "tailReachLeft": 120,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 68,
+            "nearCrossingRight": 129
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up",
+      "sliceT": 0.5,
+      "authoredRotation": 0,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 789,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 546,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 130,
+            "nearCrossingLeft": 111,
+            "nearCrossingRight": 0
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2035,
+          "rows": {
+            "tailLeft": 305,
+            "tipLeft": 0,
+            "tailRight": 303,
+            "tipRight": 501,
+            "tailReachLeft": 120,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 123,
+            "nearCrossingRight": 243
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up",
+      "sliceT": 0.75,
+      "authoredRotation": 0,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 243,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 115,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 130,
+            "nearCrossingLeft": 89,
+            "nearCrossingRight": 0
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2587,
+          "rows": {
+            "tailLeft": 794,
+            "tipLeft": 0,
+            "tailRight": 788,
+            "tipRight": 95,
+            "tailReachLeft": 120,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 145,
+            "nearCrossingRight": 235
+          },
+          "rotation": 0.48276989600110415,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "right",
+      "sliceT": null,
+      "authoredRotation": -1.5707963267948966,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1413,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 1133,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 137,
+            "tipReachLeft": 103,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": -0.11718019695952535,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1424,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 0,
+            "tailRight": 0,
+            "tipRight": 1042,
+            "tailReachLeft": 0,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": 0.042819803040474655,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "right",
+      "sliceT": 0.25,
+      "authoredRotation": -1.5707963267948966,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1168,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 901,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 98,
+            "nearCrossingLeft": 86,
+            "nearCrossingRight": 0
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1668,
+          "rows": {
+            "tailLeft": 117,
+            "tipLeft": 0,
+            "tailRight": 108,
+            "tipRight": 841,
+            "tailReachLeft": 127,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 67,
+            "nearCrossingRight": 123
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "right",
+      "sliceT": 0.5,
+      "authoredRotation": -1.5707963267948966,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 799,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 485,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 98,
+            "nearCrossingLeft": 151,
+            "nearCrossingRight": 0
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2041,
+          "rows": {
+            "tailLeft": 333,
+            "tipLeft": 0,
+            "tailRight": 306,
+            "tipRight": 471,
+            "tailReachLeft": 127,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 125,
+            "nearCrossingRight": 253
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "right",
+      "sliceT": 0.75,
+      "authoredRotation": -1.5707963267948966,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 248,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 85,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 98,
+            "nearCrossingLeft": 112,
+            "nearCrossingRight": 0
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2592,
+          "rows": {
+            "tailLeft": 830,
+            "tipLeft": 0,
+            "tailRight": 784,
+            "tipRight": 81,
+            "tailReachLeft": 127,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 138,
+            "nearCrossingRight": 223
+          },
+          "rotation": -1.0880264307937924,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up-right",
+      "sliceT": null,
+      "authoredRotation": -0.7853981633974483,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1411,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 1137,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 130,
+            "tipReachLeft": 120,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": -0.11718019695952535,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1422,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 0,
+            "tailRight": 0,
+            "tipRight": 1046,
+            "tailReachLeft": 0,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 0,
+            "nearCrossingRight": 0
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": 0.042819803040474655,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up-right",
+      "sliceT": 0.25,
+      "authoredRotation": -0.7853981633974483,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 1165,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 933,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 124,
+            "nearCrossingLeft": 77,
+            "nearCrossingRight": 0
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 1668,
+          "rows": {
+            "tailLeft": 115,
+            "tipLeft": 0,
+            "tailRight": 104,
+            "tipRight": 850,
+            "tailReachLeft": 126,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 71,
+            "nearCrossingRight": 123
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up-right",
+      "sliceT": 0.5,
+      "authoredRotation": -0.7853981633974483,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 801,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 538,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 124,
+            "nearCrossingLeft": 131,
+            "nearCrossingRight": 0
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2036,
+          "rows": {
+            "tailLeft": 318,
+            "tipLeft": 0,
+            "tailRight": 290,
+            "tipRight": 493,
+            "tailReachLeft": 126,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 121,
+            "nearCrossingRight": 243
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    },
+    {
+      "direction": "up-right",
+      "sliceT": 0.75,
+      "authoredRotation": -0.7853981633974483,
+      "pieces": [
+        {
+          "sign": -1,
+          "count": 250,
+          "rows": {
+            "tailLeft": 0,
+            "tipLeft": 110,
+            "tailRight": 0,
+            "tipRight": 0,
+            "tailReachLeft": 0,
+            "tipReachLeft": 124,
+            "nearCrossingLeft": 106,
+            "nearCrossingRight": 0
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": -0.5566059355577454,
+          "asset": 3
+        },
+        {
+          "sign": 1,
+          "count": 2590,
+          "rows": {
+            "tailLeft": 812,
+            "tipLeft": 0,
+            "tailRight": 770,
+            "tipRight": 92,
+            "tailReachLeft": 126,
+            "tipReachLeft": 0,
+            "nearCrossingLeft": 144,
+            "nearCrossingRight": 230
+          },
+          "rotation": -0.30262826739634413,
+          "centerWorldX": 0.2033940644422546,
+          "asset": 3
+        }
+      ]
+    }
+  ],
+  "directionPixelDiff": {
+    "upRight": 4238,
+    "upDiagonal": 3411,
+    "downUp": 3981
+  }
+}

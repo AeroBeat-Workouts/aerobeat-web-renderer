@@ -4,7 +4,7 @@ export const gameplayVisualExperimentConfigSchema="aerobeat/gameplay_visual_expe
 export const gameplayVisualExperimentConfigVersion=2;
 export const gameplayGuidanceBandModes=Object.freeze(["off","song_beat_grid","target_arrivals"]);
 export const gameplayVisualExperimentConfigBounds=deepFreeze({
-  horizontalRangeWorldUnits:[0,.9],verticalRangeWorldUnits:[0,.6],deadzoneNormalized:[0,.2],
+  horizontalRangeWorldUnits:[0,.9],verticalRangeWorldUnits:[0,1.2],deadzoneNormalized:[0,.2],
   smoothingTimeConstantMs:[0,500],maximumHorizontalVelocityWorldUnitsPerSecond:[.1,10],
   maximumVerticalVelocityWorldUnitsPerSecond:[.1,8],recenterTimeConstantMs:[0,1000]
 });
@@ -19,7 +19,7 @@ export function createGameplayVisualExperimentConfig(guidanceBandMode,noseCamera
     guidanceBandMode:guidanceMode(guidanceBandMode),noseCameraParallax:booleanValue(noseCameraParallax,"noseCameraParallax"),
     horizontalRangeWorldUnits:bounded(horizontalRangeWorldUnits,gameplayVisualExperimentConfigBounds.horizontalRangeWorldUnits,"horizontalRangeWorldUnits"),verticalRangeWorldUnits:bounded(verticalRangeWorldUnits,gameplayVisualExperimentConfigBounds.verticalRangeWorldUnits,"verticalRangeWorldUnits"),deadzoneNormalized:bounded(deadzoneNormalized,gameplayVisualExperimentConfigBounds.deadzoneNormalized,"deadzoneNormalized"),smoothingTimeConstantMs:bounded(smoothingTimeConstantMs,gameplayVisualExperimentConfigBounds.smoothingTimeConstantMs,"smoothingTimeConstantMs"),maximumHorizontalVelocityWorldUnitsPerSecond:bounded(maximumHorizontalVelocityWorldUnitsPerSecond,gameplayVisualExperimentConfigBounds.maximumHorizontalVelocityWorldUnitsPerSecond,"maximumHorizontalVelocityWorldUnitsPerSecond"),maximumVerticalVelocityWorldUnitsPerSecond:bounded(maximumVerticalVelocityWorldUnitsPerSecond,gameplayVisualExperimentConfigBounds.maximumVerticalVelocityWorldUnitsPerSecond,"maximumVerticalVelocityWorldUnitsPerSecond"),recenterTimeConstantMs:bounded(recenterTimeConstantMs,gameplayVisualExperimentConfigBounds.recenterTimeConstantMs,"recenterTimeConstantMs")});
 }
-export const defaultGameplayVisualExperimentConfig=createGameplayVisualExperimentConfig("off",false,.55,.55,.04,120,3,3,180);
+export const defaultGameplayVisualExperimentConfig=createGameplayVisualExperimentConfig("off",false,.55,1.1,.04,120,3,3,180);
 export function parseGameplayVisualExperimentConfig(text){if(typeof text!=="string")throw new TypeError("Gameplay visual experiment config JSON must be text");let value;try{value=JSON.parse(text);}catch{throw new TypeError("Gameplay visual experiment config JSON is invalid");}return normalizeParsedRecord(value);}
 export function normalizeGameplayVisualExperimentConfig(value){if((typeof value!=="object"&&typeof value!=="function")||value===null||!trustedConfigs.has(/** @type {GameplayVisualExperimentConfig} */(value)))throw new TypeError("Gameplay visual experiment config must be created by the trusted constructor or JSON parser");return /** @type {GameplayVisualExperimentConfig} */(value);}
 export function serializeGameplayVisualExperimentConfig(value){return `${JSON.stringify(normalizeGameplayVisualExperimentConfig(value),null,2)}\n`;}

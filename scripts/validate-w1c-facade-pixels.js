@@ -1,6 +1,6 @@
 // @ts-check
 // 0.0.52 W1-C follow-up browser pixel oracles for the PlayCanvas facade:
-//   (a) Flow slice aftermath — two clip-plane half icons (hard local-Y cut, distinct horizontal offsets)
+//   (a) Flow slice aftermath — two longitudinal local-X half icons (fixed centerline, distinct offsets)
 //   (b) Boxing straight punch aftermath — projected position/size shifts toward the background over 0→500 ms
 //   (c) Guard bonk aftermath — 0.0.59 B14: the piece keeps a single off-screen fall (no floor
 //       rest): below the track surface and still descending at the sample, with bounded −Z drift
@@ -25,9 +25,9 @@ import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 // To intentionally retain a reviewed run, set AEROBEAT_RENDERER_EVIDENCE_ROOT
 // to an absolute output directory; do not change assertion behavior.
 const D5_EVIDENCE_ROOT = process.env.AEROBEAT_RENDERER_EVIDENCE_ROOT
-  ? resolve(process.env.AEROBEAT_RENDERER_EVIDENCE_ROOT, "0.0.63-d5-slice")
-  : resolve(process.cwd(), ".tmp/renderer-browser-evidence/0.0.63-d5-slice");
-const D5_RUN_TAG = `d5-sliceT-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
+  ? resolve(process.env.AEROBEAT_RENDERER_EVIDENCE_ROOT, "fixed-flow-centerline")
+  : resolve(process.cwd(), ".tmp/renderer-browser-evidence/fixed-flow-centerline");
+const D5_RUN_TAG = `centerline-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
 const D5_EVIDENCE_DIR = join(D5_EVIDENCE_ROOT, D5_RUN_TAG);
 
 const root = process.cwd(),
@@ -221,10 +221,9 @@ try {
     // Restore the live slice frame state.
     renderer.renderGameplayFrame({ ...idleFrame, nowMs: SLICE_NOW_MS, aftermath: [sliceEntry] });
 
-    // --- (h) 0.0.63 D5: real-pixel evidence for the off-center sliceT clip plane + wider half separation.
-    // Same arrow glyph (rounded-outline-v1), authored UP, same hand/seed (42)/timing; only sliceT differs:
-    //   off=.25, mid=.5, late=.75: seam starts at each crossing and extends to tip
-    //   legacy = NO sliceT (full-length X side split + legacy .16 base spread)
+    // --- (h) Fixed full-length centerline GLB pixels independent of scored sliceT.
+    // Same authored arrow GLB, same hand/seed (42)/timing; only scored sliceT differs.
+    // Absent/.25/.5/.75 must produce identical fixed full-length side masks and separation.
     // The camera's real WU→px scale at the corpse depth is measured IN-PAGE (the harness
     // camera is not the canonical pose; scale is pinned from the probe, never assumed).
     const D5_NOW_MS = 1300;
@@ -431,6 +430,61 @@ try {
       return pixels;
     };
     const d5DirectionDiff = { upRight: d5DirectionPixelDifference("up", "right"), upDiagonal: d5DirectionPixelDifference("up", "up-right"), downUp: d5DirectionPixelDifference("down", "up") };
+    // The any-note has its own pinned GLB; the same local X=0 fixed diameter
+    // must remain independent of contact and use the same bounded two masks.
+    const orbGeometry = [];
+    for (const sliceT of [undefined, 0.25, 0.5, 0.75]) {
+      const entry = { ...d5EntryFor(sliceT, "up", D5_NOW_MS), shape: "orb" };
+      renderer.renderGameplayFrame({ ...idleFrame, nowMs: D5_NOW_MS, targets: [], aftermath: [entry] });
+      const halves = renderer.lastModel.objects.filter((o) => o.targetId === "d5" && o.kind === "aftermath");
+      const pool = renderer.aftermathAssetPools.get("any-note/outlined-circle-v1") ?? [];
+      const pieces = [];
+      for (const half of halves) {
+        const sign = half.aftermath.sliceSign;
+        const slot = pool.find((entity) => String(entity.name).includes(sign === 1 ? "half+" : "half-"));
+        if (!slot) throw new Error(`orb t=${sliceT}: missing GLB half ${sign}`);
+        slot.enabled = false; renderer.manualTick(); const without = sample();
+        slot.enabled = true; renderer.manualTick(); const withIt = sample();
+        const center = d5Probe(half.position.x, half.position.y, half.position.z), rotation = half.rotationZRad;
+        const xWorld = d5Probe(half.position.x + Math.cos(rotation), half.position.y + Math.sin(rotation), half.position.z);
+        const yWorld = d5Probe(half.position.x - Math.sin(rotation), half.position.y + Math.cos(rotation), half.position.z);
+        const xAxis = [xWorld.x - center.x, xWorld.y - center.y], yAxis = [yWorld.x - center.x, yWorld.y - center.y];
+        const determinant = xAxis[0] * yAxis[1] - xAxis[1] * yAxis[0];
+        let count = 0, left = 0, right = 0, top = 0, bottom = 0;
+        for (let index = 0; index < withIt.length; index += 4) {
+          if (deltaRGB(withIt, without, index) <= 24) continue;
+          const px = (index / 4) % canvas.width - center.x, py = Math.floor(index / 4 / canvas.width) - center.y;
+          const x = (px * yAxis[1] - py * yAxis[0]) / determinant, y = (py * xAxis[0] - px * xAxis[1]) / determinant;
+          count++; if (x < -0.055) left++; if (x > 0.055) right++;
+          if (Math.abs(x) > 0.055 && y > 0.12) top++; if (Math.abs(x) > 0.055 && y < -0.12) bottom++;
+        }
+        pieces.push({ sign, count, left, right, top, bottom, centerWorldX: half.position.x, asset: slot.findComponents("render").reduce((sum, c) => sum + c.meshInstances.length, 0) });
+      }
+      orbGeometry.push({ sliceT: sliceT ?? null, pieces, framePng: canvas.toDataURL("image/png") });
+    }
+
+    // Same frame also presents a live colored arrow, an authored orb and feedback;
+    // corpse clip materials must never leak into their independent live pool.
+    const liveTarget = { id: "live-flow", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [], lane: null, beatCenterMs: D5_NOW_MS + 600, direction: "up", appearanceColor: "#D42F81" };
+    const composite = { ...idleFrame, nowMs: D5_NOW_MS, targets: [liveTarget], aftermath: [d5EntryFor(.25, "down", D5_NOW_MS)] };
+    renderer.renderGameplayFrame(composite);
+    const live = renderer.lastModel.objects.find((o) => o.kind === "icon" && o.targetId === liveTarget.id);
+    const livePool = renderer.assetPools.get("directional-arrow/rounded-outline-v1") ?? [];
+    const liveSlot = livePool.find((entity) => entity.enabled);
+    const corpsePool = renderer.aftermathAssetPools.get("directional-arrow/rounded-outline-v1") ?? [];
+    const liveMaterials = liveSlot ? renderer.assetMaterials.get(liveSlot) : [];
+    const liveFill = liveMaterials.find((record) => record.name.includes("tint_base"));
+    const liveClipFree = liveMaterials.length >= 3 && liveMaterials.every((record) => record.meshInstance.material === record.material && !record.material.shaderChunks.glsl.get("litUserMainStartPS")?.includes("vAeroSlice"));
+    const livePixelCount = (() => {
+      if (!liveSlot) return 0;
+      liveSlot.enabled = false; renderer.manualTick(); const without = sample();
+      liveSlot.enabled = true; renderer.manualTick(); const withIt = sample();
+      let count = 0; for (let index = 0; index < withIt.length; index += 4) if (deltaRGB(withIt, without, index) > 24) count++;
+      return count;
+    })();
+    const compositeEvidence = { live: Boolean(live), liveColor: live?.appearanceColor, livePixelCount, liveClipFree,
+      fill: liveFill ? [liveFill.material.diffuse.r, liveFill.material.diffuse.g, liveFill.material.diffuse.b] : [],
+      separatePools: liveSlot != null && !corpsePool.includes(liveSlot), variants: renderer.sliceVariantMaterials.size };
 
     // --- (b) Boxing straight punch aftermath: projected position/size shifts toward the background over 0→500 ms ---
     const punchEntry = {
@@ -628,6 +682,8 @@ try {
       d5,
       d5Geometry,
       d5DirectionDiff,
+      orbGeometry,
+      compositeEvidence,
       redCubeAbsent,
       wallRampEnd,
       wallMidPulse,
@@ -716,113 +772,65 @@ try {
   assert.equal(evidence.wallDecayDone.vignetteEnabled, false, "vignette disabled after the decay completes");
   assert.ok(evidence.wallDecayDone.shifted < 200, `post-decay frame returns to baseline: ${evidence.wallDecayDone.shifted}px`);
 
-  // (h) 0.0.63 D5: the off-center sliceT clip plane + wider half separation render in REAL pixels.
+  // (h) Fixed local-X arrow and orb GLB splits, including scored crossing variants.
   // MEASURED_* anchors are pinned from a deterministic in-page measurement pass (no env overrides).
   // The WU→px scale is measured at the corpse depth (z=-0.9) by projecting a 0.5 WU baseline.
   const MEASURED_PX_PER_WU = 74.23; // px per WU at the D5 corpse depth (z=-0.9, harness camera pose)
   const APPROVED_ADDITIONAL_OUTWARD_PER_HALF_WU = 0.30; // D5 plan: EACH half, not .30 total
   const EXPECTED_WIDER_TOTAL_WU = 0.16 + 2 * APPROVED_ADDITIONAL_OUTWARD_PER_HALF_WU;
-  const MEASURED_SEP_TOLERANCE_PX = 5;
-  // Historical Sep22 massSplitDelta=1053 measured a different, unapproved cut;
-  // do not use it as the side-piece oracle. Signed occupancy below tests the actual seam.
-  const MIN_SIGNED_MASS_CHANGE_PX = 100;
-  const MEASURED_OFF_CENTER_DIFF_FLOOR = 200; // off-vs-mid full-frame pixel diff must exceed this
-  const MEASURED_LEGACY_OFFSET_DELTA_PX = 11.9; // |legacy screen-sep| at z=-0.9 (the legacy .16 base spread)
-  const MEASURED_LEGACY_OFFSET_TOLERANCE_PX = 4;
-
-  // (a) OFF-CENTER IS REAL: the 0.25 render differs from the 0.5 render beyond a noise floor.
-  assert.ok(evidence.d5.diffPx > MEASURED_OFF_CENTER_DIFF_FLOOR, `D5 off-center clip plane must render a real diff: diffPx=${evidence.d5.diffPx} (floor ${MEASURED_OFF_CENTER_DIFF_FLOOR})`);
-  const halfAt = (state, sign) => state.halves.find((half) => half.sign === sign).own.count;
-  assert.ok(evidence.d5.lateDiffPx > MEASURED_OFF_CENTER_DIFF_FLOOR,
-    `D5 later crossing must render a real diff from midpoint: ${evidence.d5.lateDiffPx}`);
-  for (const [early, late, label] of [[evidence.d5.off, evidence.d5.mid, ".25→.5"], [evidence.d5.mid, evidence.d5.late, ".5→.75"]]) {
-    assert.ok(halfAt(late, -1) < halfAt(early, -1) - MIN_SIGNED_MASS_CHANGE_PX,
-      `D5 crossing→tip ${label} must shorten the local-left cut side: ${halfAt(early, -1)}→${halfAt(late, -1)}`);
-    assert.ok(halfAt(late, 1) > halfAt(early, 1) + MIN_SIGNED_MASS_CHANGE_PX,
-      `D5 crossing→tip ${label} must expand the uncut tail: ${halfAt(early, 1)}→${halfAt(late, 1)}`);
-  }
-
-  // Every named state renders the actual pinned arrow GLB. Transform attributed
-  // framebuffer pixels back to authored local XY, staying away from AA/seam edges.
+  // Scored crossings have the same authored-local full-length centerline silhouette.
   const byDirection = (direction, sliceT) => evidence.d5Geometry.find((state) => state.direction === direction && state.sliceT === sliceT);
   const piece = (state, sign) => state.pieces.find((item) => item.sign === sign);
   for (const direction of ["down", "up", "right", "up-right"]) {
-    const legacy = byDirection(direction, null);
-    assert.equal(legacy.pieces.length, 2, `${direction}: exactly two GLB pieces`);
-    for (const sign of [-1, 1]) {
-      const p = piece(legacy, sign);
-      assert.ok(p.asset >= 3 && p.count > 900, `${direction} legacy sign ${sign}: real GLB and visible full side`);
-      assert.ok(Math.abs(p.rotation - legacy.authoredRotation) < 1, `${direction}: authored rotation precedes bounded tumble`);
-      assert.ok(Math.abs(piece(legacy, 1).centerWorldX - piece(legacy, -1).centerWorldX - 0.16) < 1e-6, `${direction}: legacy world-X separation`);
-      assert.ok(sign < 0 ? p.rows.tipLeft > 700 && p.rows.tipRight === 0 : p.rows.tipRight > 700 && p.rows.tipLeft === 0,
-        `${direction} legacy sign ${sign}: full-length LOCAL side split ${JSON.stringify(p.rows)}`);
-    }
-    let previous = null;
-    const cutStates = [];
-    for (const sliceT of [0.25, 0.5, 0.75]) {
+    const reference = byDirection(direction, null);
+    for (const sliceT of [null, 0.25, 0.5, 0.75]) {
       const state = byDirection(direction, sliceT);
-      assert.equal(state.pieces.length, 2, `${direction} t=${sliceT}: exactly two GLB pieces`);
+      assert.equal(state.pieces.length, 2, `${direction} t=${sliceT}: two GLB halves`);
       assert.ok(Math.abs(piece(state, 1).centerWorldX - piece(state, -1).centerWorldX - EXPECTED_WIDER_TOTAL_WU) < 1e-6,
-        `${direction} t=${sliceT}: exact .76 WU total world-X separation (.30 outward EACH)`);
-      const minus = piece(state, -1), plus = piece(state, 1);
-      assert.ok(minus.asset >= 3 && plus.asset >= 3 && minus.count > 150 && plus.count > 900,
-        `${direction} t=${sliceT}: both pinned GLB pieces must be visible`);
-      assert.ok(minus.rows.tailLeft === 0 && minus.rows.tailRight === 0 && minus.rows.tipLeft > 35 && minus.rows.tipRight === 0,
-        `${direction} t=${sliceT}: sign- owns only left of crossing→tip seam ${JSON.stringify(minus.rows)}`);
-      assert.ok(plus.rows.tailLeft > 55 && plus.rows.tailRight > 55 && plus.rows.tipLeft === 0 && plus.rows.tipRight > 55,
-        `${direction} t=${sliceT}: sign+ owns unsplit tail and right cut side ${JSON.stringify(plus.rows)}`);
-      if (previous) {
-        assert.ok(minus.rows.tipLeft < previous.minus.rows.tipLeft - 90,
-          `${direction} t=${sliceT}: later crossing must shorten tip seam: ${previous.minus.rows.tipLeft}→${minus.rows.tipLeft}`);
-        assert.ok(plus.rows.tailLeft > previous.plus.rows.tailLeft + 90,
-          `${direction} t=${sliceT}: later crossing must expand uncut tail: ${previous.plus.rows.tailLeft}→${plus.rows.tailLeft}`);
+        `${direction} t=${sliceT}: same wider .76 WU separation`);
+      for (const sign of [-1, 1]) {
+        const p = piece(state, sign), original = piece(reference, sign);
+        assert.ok(p.asset >= 3 && p.count > 900, `${direction} t=${sliceT} sign ${sign}: visible three-part GLB`);
+        assert.ok(Math.abs(p.rotation - state.authoredRotation) < 1, `${direction} t=${sliceT}: authored direction retained`);
+        assert.ok(sign < 0
+          ? p.rows.tailReachLeft > 25 && p.rows.tipReachLeft > 25 && p.rows.tailRight === 0 && p.rows.tipRight === 0
+          : p.rows.tipRight > 35 && p.rows.tailLeft === 0 && p.rows.tipLeft === 0,
+        `${direction} t=${sliceT} sign ${sign}: full tail-to-tip complementary half ${JSON.stringify(p.rows)}`);
+        assert.ok(Math.abs(p.count - original.count) < 300, `${direction} sign ${sign}: scored sliceT must not change half-pixel mass`);
       }
-      cutStates.push({ sliceT, minus, plus });
-      previous = { minus, plus };
     }
-    const [tailCrossing, middleCrossing, tipCrossing] = cutStates;
-    assert.ok(tailCrossing.minus.rows.tailReachLeft === 0 && tailCrossing.minus.rows.tipReachLeft > 25,
-      `${direction}: crossing near tail leaves ONLY tip-side left piece`);
-    assert.ok(tipCrossing.plus.rows.tailReachLeft > 25 && tipCrossing.minus.rows.tipReachLeft > 25,
-      `${direction}: near-head crossing preserves unsplit tail and a visible cut-side tip`);
-    assert.ok(tailCrossing.plus.rows.tailReachLeft > 25 && tipCrossing.minus.rows.tailReachLeft === 0,
-      `${direction}: tail below crossing must belong exclusively to sign+`);
-    assert.ok(middleCrossing.minus.rows.nearCrossingLeft > 0 && middleCrossing.plus.rows.nearCrossingLeft > 0,
-      `${direction}: both sides must have visible pixels immediately around actual crossing`);
   }
   assert.ok(evidence.d5DirectionDiff.upRight > 250 && evidence.d5DirectionDiff.upDiagonal > 250 && evidence.d5DirectionDiff.downUp > 250,
-    `authored arrow rotation must change real GLB pixels: ${JSON.stringify(evidence.d5DirectionDiff)}`);
-
-  // (b) WIDER SEPARATION IS REAL: the sliceT-present entry spreads WIDER than the legacy no-sliceT
-  // entry by .30 WU outward EACH (.76 total vs .16 legacy), in measured screen px.
-  const measuredScale = evidence.d5.scale.pxPerWU;
-  assert.ok(
-    Math.abs(measuredScale - MEASURED_PX_PER_WU) <= 1.5,
-    `D5 in-page WU→px scale must match the fixture: ${measuredScale.toFixed(3)} (pinned ${MEASURED_PX_PER_WU} ± 1.5)`
-  );
-  const expectedPerHalfOutwardPx = APPROVED_ADDITIONAL_OUTWARD_PER_HALF_WU * measuredScale;
-  for (const half of evidence.d5.perHalfOutwardPx) {
-    assert.ok(Math.abs(half.outwardPx - expectedPerHalfOutwardPx) <= MEASURED_SEP_TOLERANCE_PX / 2,
-      `D5 sign ${half.sign} must move +.30 WU outward in pixels: ${half.outwardPx.toFixed(1)} vs ${expectedPerHalfOutwardPx.toFixed(1)}`);
+    `authored arrow rotation changes real GLB pixels: ${JSON.stringify(evidence.d5DirectionDiff)}`);
+  assert.ok(evidence.d5.diffPx < 20 && evidence.d5.lateDiffPx < 20,
+    `scored contacts produce identical centerline pixels: ${evidence.d5.diffPx}/${evidence.d5.lateDiffPx}`);
+  assert.ok(Math.abs(evidence.d5.sepMidWU - EXPECTED_WIDER_TOTAL_WU) < 1e-3 && Math.abs(evidence.d5.sepLegacyWU - EXPECTED_WIDER_TOTAL_WU) < 1e-3,
+    `all halves retain .76 WU separation: ${evidence.d5.sepLegacyWU}/${evidence.d5.sepMidWU}`);
+  assert.ok(evidence.d5.legacy.halves.every((h) => h.sliceT === null), "absent scored sliceT remains absent in metadata");
+  assert.ok(evidence.compositeEvidence.live && evidence.compositeEvidence.livePixelCount > 400,
+    `normal live arrow visible beside corpses: ${JSON.stringify(evidence.compositeEvidence)}`);
+  assert.ok(evidence.compositeEvidence.liveClipFree && evidence.compositeEvidence.separatePools,
+    "corpse clip materials and entities must not contaminate the live arrow");
+  assert.equal(evidence.compositeEvidence.liveColor, "#D42F81");
+  assert.ok(evidence.compositeEvidence.fill[0] > .7 && evidence.compositeEvidence.fill[1] < .3 && evidence.compositeEvidence.fill[2] > .4,
+    `live fill retains song color ${JSON.stringify(evidence.compositeEvidence.fill)}`);
+  assert.ok(evidence.compositeEvidence.variants === 12,
+    `two assets × three part materials × signs already owned per dedicated slot; no scored-cut growth: ${evidence.compositeEvidence.variants}`);
+  for (const state of evidence.orbGeometry) {
+    assert.equal(state.pieces.length, 2, `orb t=${state.sliceT}: two GLB halves`);
+    assert.ok(Math.abs(Math.abs(state.pieces[0].centerWorldX - state.pieces[1].centerWorldX) - .76) < 1e-6,
+      `orb t=${state.sliceT}: fixed wider separation`);
+    for (const p of state.pieces) {
+      assert.ok(p.asset >= 3 && p.count > 800 && p.top > 50 && p.bottom > 50,
+        `orb t=${state.sliceT} sign=${p.sign}: visible full fixed center diameter`);
+      assert.ok(p.sign < 0 ? p.left > 500 && p.right === 0 : p.right > 500 && p.left === 0,
+        `orb t=${state.sliceT} sign=${p.sign}: complementary local-X side ${JSON.stringify(p)}`);
+    }
+    for (const p of state.pieces) {
+      const reference = evidence.orbGeometry[0].pieces.find((other) => other.sign === p.sign);
+      assert.equal(p.count, reference.count, `orb t=${state.sliceT}: independent of crossing`);
+    }
   }
-  const expectedSeparationDeltaPx = 2 * expectedPerHalfOutwardPx;
-  assert.ok(Math.abs(evidence.d5.sepDeltaPx - expectedSeparationDeltaPx) <= MEASURED_SEP_TOLERANCE_PX,
-    `D5 two-half separation must increase by .30 WU EACH: Δsep=${evidence.d5.sepDeltaPx.toFixed(1)} px, expected ${expectedSeparationDeltaPx.toFixed(1)} ± ${MEASURED_SEP_TOLERANCE_PX}`);
-  assert.ok(Math.abs(evidence.d5.sepMidWU - EXPECTED_WIDER_TOTAL_WU) < 1e-3 && Math.abs(evidence.d5.sepLegacyWU - 0.16) < 1e-3,
-    `D5 world total must be .76 vs .16: present=${evidence.d5.sepMidWU.toFixed(4)}, legacy=${evidence.d5.sepLegacyWU.toFixed(4)}`);
-  assert.ok(Math.abs((evidence.d5.sepMidWU - evidence.d5.sepLegacyWU) / 2 - APPROVED_ADDITIONAL_OUTWARD_PER_HALF_WU) < 1e-6,
-    `D5 signed outward displacement must be .30 WU per half, not .15: ${((evidence.d5.sepMidWU - evidence.d5.sepLegacyWU) / 2).toFixed(3)}`);
-
-  // (c) NO REGRESSION: the legacy no-sliceT case keeps the exact legacy .16-based offset spread,
-  // and the existing (a) slice assertions above (offsets/signs/bbox) are unchanged and intact.
-  assert.ok(
-    Math.abs(evidence.d5.sepLegacyPx - MEASURED_LEGACY_OFFSET_DELTA_PX) <= MEASURED_LEGACY_OFFSET_TOLERANCE_PX,
-    `D5 legacy no-sliceT half separation must keep the legacy .16-based offset: ${evidence.d5.sepLegacyPx.toFixed(1)} px (measured ${MEASURED_LEGACY_OFFSET_DELTA_PX} ± ${MEASURED_LEGACY_OFFSET_TOLERANCE_PX})`
-  );
-  assert.ok(
-    evidence.d5.legacy.halves.every((h) => h.sliceT === null),
-    "D5 legacy (no sliceT) halves must omit the sliceT visual"
-  );
 
   // Persist true on-canvas GLB PNGs for each named direction/crossing state.
   mkdirSync(D5_EVIDENCE_DIR, { recursive: true });
@@ -836,6 +844,9 @@ try {
   for (const { direction, sliceT, framePng } of evidence.d5Geometry) {
     writeFileSync(join(D5_EVIDENCE_DIR, `${direction}-${sliceT === null ? "absent" : sliceT.toFixed(2)}.png`), d5Png(framePng));
   }
+  for (const { sliceT, framePng } of evidence.orbGeometry) {
+    writeFileSync(join(D5_EVIDENCE_DIR, `orb-${sliceT === null ? "absent" : sliceT.toFixed(2)}.png`), d5Png(framePng));
+  }
   writeFileSync(join(D5_EVIDENCE_DIR, "direction-signed-occupancy.json"), `${JSON.stringify({ states: evidence.d5Geometry.map(({ framePng, ...state }) => state), directionPixelDiff: evidence.d5DirectionDiff }, null, 2)}\n`);
   writeFileSync(
     join(D5_EVIDENCE_DIR, "numbers.json"),
@@ -843,9 +854,11 @@ try {
   );
   console.log(`D5 evidence written to ${D5_EVIDENCE_DIR}: diffPx=${evidence.d5.diffPx} Δsep=${evidence.d5.sepDeltaPx.toFixed(1)}px ΔboundaryY=${evidence.d5.boundaryDeltaY.toFixed(1)}px massSplitΔ=${evidence.d5.massSplitDelta}`);
 
-  // Zero console noise beyond pinned ReadPixels grammar
-  assert.deepEqual(noise, [], `unexpected console noise: ${JSON.stringify(noise)}`);
-  console.log("W1-C facade pixel oracles (two signed side pieces, authored DOWN/UP/RIGHT/diagonal, absent/.25/.5/.75 crossing, crossing→tip seam, uncut tail ownership, .16/.76 WU total and +.30 WU EACH separation, punch, bonk, glow, idle) all passed.");
+  // The optional sibling branding directory is absent in this checkout; the
+  // testbed explicitly falls back to its inline SVG atlas for a 404 manifest.
+  assert.deepEqual(noise.filter((entry) => !entry.includes('/branding/manifest.json') || !entry.includes('404 (Not Found)')), [],
+    `unexpected console noise: ${JSON.stringify(noise)}`);
+  console.log("W1-C facade pixel oracles (full-length fixed arrow centerline DOWN/UP/RIGHT/diagonal and orb diameter at absent/.25/.5/.75 scored crossings; two GLB halves, .76 WU separation, live song-color isolation, punch, bonk, glow, idle) all passed.");
 } finally {
   await browser.close();
   await new Promise((done) => server.close(done));

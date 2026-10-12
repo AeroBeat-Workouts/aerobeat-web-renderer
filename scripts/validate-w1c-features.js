@@ -6,7 +6,6 @@ import {
   gameplayWorldGrid,
   aftermathPose,
   aftermathLaunchVelocity,
-  aftermathSliceGlyphLengthWU,
   aftermathSliceOffsetX,
   hazardContactEnvelopeIntensity,
   hazardContactIntensity,
@@ -243,38 +242,19 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.notEqual(aftermathSliceOffsetX(entry, 1), aftermathSliceOffsetX(entry, -1), "opposite signs differ");
 }
 
-// 0.0.63 D5: wider half separation (blade-cut entries only).
+// Every Flow slice has the same wider separation, regardless of scored crossing.
 {
-  const tuning = defaultRendererTuning;
-  // A saber-cut flow/slice entry carries `sliceT` → the WIDER per-half spread.
   const cut = { targetId: "w1", hitCommitMs: 0, family: "flow", hand: "left", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 11, shape: "arrow", sliceT: 0.5 };
-  const legacySlice = { ...cut };
-  delete legacySlice.sliceT;
-  // Jitter is scaled by the selected spread but centered identically for both
-  // halves of a seed. Check signed OUTWARD movement relative to their common
-  // center, not an individual absolute position whose shared jitter also moves.
-  const baseCenter = (aftermathSliceOffsetX(legacySlice, 1) + aftermathSliceOffsetX(legacySlice, -1)) / 2;
-  const cutCenter = (aftermathSliceOffsetX(cut, 1) + aftermathSliceOffsetX(cut, -1)) / 2;
-  for (const sign of [-1, 1]) {
-    const legacyRelative = aftermathSliceOffsetX(legacySlice, sign) - baseCenter;
-    const cutRelative = aftermathSliceOffsetX(cut, sign) - cutCenter;
-    assert.ok(Math.abs(cutRelative - legacyRelative - sign * 0.30) < 1e-9,
-      `D5 signed per-half outward shift must be +.30 WU: sign ${sign}, delta ${cutRelative - legacyRelative}`);
+  const noContact = { ...cut };
+  delete noContact.sliceT;
+  const single = { ...noContact, mode: "single" };
+  for (const sliceT of [undefined, 0.25, 0.5, 0.75]) {
+    const entry = sliceT === undefined ? noContact : { ...cut, sliceT };
+    assert.equal(aftermathSliceOffsetX(entry, 1) - aftermathSliceOffsetX(entry, -1), 0.76,
+      `Flow half separation is invariant for scored crossing ${sliceT}`);
   }
-  assert.ok(Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1) - 0.76) < 1e-9,
-    "D5 two halves must have .76 total separation (.16 legacy + .30 EACH)");
-  // Legacy / non-slice entries keep the exact .16-based offset (backward compatible).
-  const legacy = { targetId: "w2", hitCommitMs: 0, family: "flow", hand: "left", mode: "single", spawn: { x: 0, y: 1, z: 0 }, seed: 11 };
-  const baseSpread = tuning.aftermathSliceSeparationWU;
-  // The two legacy halves' total spread stays on the legacy base scale (never the wider one).
-  const legacyTotal = Math.abs(aftermathSliceOffsetX(legacy, 1) - aftermathSliceOffsetX(legacy, -1));
-  const cutTotal = Math.abs(aftermathSliceOffsetX(cut, 1) - aftermathSliceOffsetX(cut, -1));
-  assert.ok(legacyTotal < cutTotal, "legacy (no sliceT) halves stay narrower than a blade-cut corpse (cut=${cutTotal.toFixed(4)} vs legacy=${legacyTotal.toFixed(4)})");
-  assert.ok(legacyTotal <= baseSpread + 1e-9, "legacy spread never exceeds the .16 base total");
-  // Glyph long-axis length per shape (authored GLB local extents).
-  assert.equal(aftermathSliceGlyphLengthWU({ shape: "arrow" }), 0.78, "arrow glyph long axis = 0.78 WU (authored Y extent)");
-  assert.equal(aftermathSliceGlyphLengthWU({ shape: "orb" }), 0.7, "orb glyph long axis = 0.70 WU (authored Y extent)");
-  assert.equal(aftermathSliceGlyphLengthWU({}), 0.7, "absent shape defaults to the orb extent");
+  assert.equal(aftermathSliceOffsetX(single, 1) - aftermathSliceOffsetX(single, -1), 0.16,
+    "non-slice fallback keeps its legacy separation");
 }
 
 // 0.0.63 D5: sliceT rides the scene visual for slice halves ONLY.

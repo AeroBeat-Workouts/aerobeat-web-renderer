@@ -19,7 +19,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
-/** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two complementary side pieces with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the lengthwise side seam begins at local Y = (sliceT − 0.5) × glyph length. One of the two side pieces owns the still-uncut tail region below the crossing. Absent sliceT retains the legacy full-length side split. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroAftermathEntry */
+/** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two complementary side pieces with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the renderer retains this scored metadata but the visual always splits the authored GLB along local X=0 for its entire tail-to-tip length (or an orb diameter), independent of crossing. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
 /** 0.0.54 W1-C: bounded wall-collider contact STATE (nose inside any obstacle collider), presentation-only — no coordinates. `sinceMs` is the absolute ms of first contact of the current episode (present while active); `releasedAtMs` is the absolute ms of the most recent exit (present after release), letting the renderer compute a stateless decay. @typedef {{active:boolean,sinceMs:number|null,releasedAtMs:number|null}} AeroHazardContactActive */
 /** 0.0.54 W1-C: bounded per-frame vignette pulse parameters; absent fields fall back to the tuning defaults (frame values override tuning). @typedef {{intensity:number,pulseHz:number,pulseDepth:number,rampMs:number,decayMs:number}} AeroHazardVignetteParams */
@@ -30,7 +30,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{text:"Great"|"Good"|"Almost"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"small_bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
 /** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band"|"aftermath"|"hazard_glow"|"tolerance_cone"|"collider_square"|"collider_volume"|"wrist_bomb_collider",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,appearanceColor:string|null,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,aftermath?:AeroAftermathVisual|AeroHazardGlowVisual|AeroToleranceConeVisual|AeroColliderSquareVisual|null}} AeroGameplaySceneObject */
-/** Closed-form aftermath pose for one icon entity. 0.0.59 B14: the corpse has ONE phase — an uninterrupted fall off-screen — so `settleMs` is the off-screen crossing time and `phase` is always "flight". 0.0.63 D5: slice halves carry `sliceT` (0..1) to start the side seam at the blade's actual local-Y crossing. @typedef {{targetId:string,family:AeroAftermathFamily,elapsedMs:number,settleMs:number,phase:"flight",sliceSign:1|-1|null,offsetXWU:number,sliceT?:number,shape?:"arrow"|"orb"}} AeroAftermathVisual */
+/** Closed-form aftermath pose for one icon entity. 0.0.59 B14: the corpse has ONE phase — an uninterrupted fall off-screen — so `settleMs` is the off-screen crossing time and `phase` is always "flight". 0.0.63 D5: slice halves retain scored `sliceT` (0..1) only as metadata; the visible seam ignores it. @typedef {{targetId:string,family:AeroAftermathFamily,elapsedMs:number,settleMs:number,phase:"flight",sliceSign:1|-1|null,offsetXWU:number,sliceT?:number,shape?:"arrow"|"orb"}} AeroAftermathVisual */
 /** Presentation-only full-viewport hazard glow; no coordinates or event internals. @typedef {{present:boolean,activeCount:number,intensity:number,rampMs:number,decayMs:number}} AeroHazardGlowVisual */
 /** 0.0.53 W2: presentation-only summary of the two debug-visibility overlays (tolerance cones + collider squares). @typedef {{visibleToleranceRange:boolean,visibleColliderRadius:boolean,colliderRadius:number,directionToleranceDegrees:number,coneCount:number,squareCount:number}} AeroColliderOverlayVisual */
 /** Geometry for one tolerance-cone debug scene object (kind `tolerance_cone`): authored direction unit vector, half-angle, inner (footprint) radius, outer radius, and the closed-form fan geometry (positions/indices) for the facade to build a mesh. @typedef {{directionX:number,directionY:number,toleranceDegrees:number,innerRadius:number,radius:number,positions:Float32Array,indices:Uint16Array,vertexCount:number,triangleCount:number}} AeroToleranceConeVisual */
@@ -656,39 +656,15 @@ function offscreenCrossingMs(y0,vy,g,offY){
   return(vy+Math.sqrt(Math.max(0,vy*vy+2*g*c)))/g*1000;
 }
 /**
- * 0.0.63 D5: the glyph's LOCAL long-axis length (WU) for the slice clip-plane
- * offset, per corpse shape. The glyph entity renders at unit scale, so this is
- * the authored GLB's local bounding extent along its long axis (the glyph's
- * `up: +Y` axis, tail→head): arrow "rounded-outline-v1" has authored
- * dimensions [0.78, 0.78, 0.18] (Y extent 0.78), orb "outlined-circle-v1"
- * has [0.70, 0.70, 0.18] (Y extent 0.70). The lengthwise local-X seam starts
- * at local Y = (sliceT − 0.5) × this length, the blade's actual crossing.
- * Before that point one of the two side pieces owns the uncut tail.
- * For the arrow the crossing is the blade position projected onto the
- * arrow's long axis (0 = tail, 1 = head); for the orb the glyph is
- * isotropic, so the crossing is taken along the same axis by convention.
- * @param {Pick<AeroAftermathEntry,"shape">} entry
- * @returns {number}
- */
-export function aftermathSliceGlyphLengthWU(entry){
-  return entry.shape==="arrow"?0.78:0.7;
-}
-/**
- * 0.0.63 D5: deterministic horizontal separation offset for one Flow slice
- * half — signed base split plus seeded jitter. `aftermathSliceSeparationWU`
- * (.16) is RETAINED as the legacy/minimum split so non-slice producers and
- * pre-0.0.63 fixtures keep their exact offset; a `slice`-mode corpse whose
- * `sliceT` is present (the saber-cut entry) is pushed farther apart laterally
- * by `aftermathSliceWiderSeparationWU` (.76 TOTAL = .16 legacy total +
- * 2 × .30 outward per half, as confirmed in the signed D5 plan). The prior
- * .46 total only added .15 per half; it was not the approved .30 EACH.
- * The two independently-tumbling halves
- * fall to the left/right far enough apart that they never rotate into each
- * other and clip.
+ * Deterministic Flow slice separation: every sliced corpse uses the wider
+ * .76 WU total regardless of scored `sliceT`; non-slice fallback keeps .16.
+ * Seeded jitter moves the pair together, while each half tumbles independently.
  * @param {AeroAftermathEntry} entry @param {number} sign @param {AeroRendererTuning} [tuning]
  */
 export function aftermathSliceOffsetX(entry,sign,tuning=defaultRendererTuning){
-  const spread=(entry.mode==="slice"&&entry.sliceT!==undefined)?tuning.aftermathSliceWiderSeparationWU:tuning.aftermathSliceSeparationWU;
+  // The scored crossing remains producer truth, but the visual cut and separation
+  // are fixed for every Flow slice, including entries without a sliceT field.
+  const spread=entry.mode==="slice"?tuning.aftermathSliceWiderSeparationWU:tuning.aftermathSliceSeparationWU;
   return sign*spread/2+(seedPhase(entry.seed,7)-.5)*spread*.25;
 }
 /**
@@ -773,9 +749,8 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardP
 /** @param {string} id @param {AeroAftermathEntry} entry @param {AeroVisualRole} role @param {number} x @param {number} y @param {number} z @param {number} rotationZRad @param {number} alpha @param {string|null} assetId @param {number} elapsedMs @param {number} settleMs @param {number|null} sliceSign @param {number} offsetXWU */
 function aftermathSceneObject(id,entry,role,x,y,z,rotationZRad,alpha,assetId,elapsedMs,settleMs,sliceSign,offsetXWU){
   // 0.0.59 B14: single "flight" phase for the whole off-screen fall (no settled phase).
-  // 0.0.63 D5: `sliceT` rides the visual only for slice halves — the facade
-  // starts the local-X seam at (sliceT − 0.5) × glyph length;
-  // absent sliceT keeps the full-length legacy left/right split.
+  // Retain scored `sliceT` metadata for slice halves; the facade's fixed
+  // full-length local-X seam does not consume it.
   const visual=Object.freeze({targetId:entry.targetId,family:entry.family,elapsedMs,settleMs,phase:"flight",sliceSign,offsetXWU,...(sliceSign!==null&&entry.sliceT!==undefined?{sliceT:entry.sliceT,shape:entry.shape??"orb"}:{})});
   // 0.0.58 B11b: every aftermath "hit corpse" keeps the note's ACTUAL glyph (authored
   // white outline + the note's real fill tint) but DESATURATED: `appearanceColor` carries

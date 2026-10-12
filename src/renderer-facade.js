@@ -12,7 +12,7 @@ import { PlayCanvasGameplayAssetPreloader } from "./gameplay-asset-loader.js";
 import { gameplayAssetMaterialRole } from "./gameplay-assets.js";
 import { normalizeIconAtlasData } from "./icon-atlas.js";
 import { mapNormalizedLandmarkToViewport, normalizeOverlaySurfaceDescriptor } from "./landmark-mapping.js";
-import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, aftermathSliceGlyphLengthWU, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
+import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, buildGameplaySceneModel, defaultRendererThemeTokens, gameplayWorldGrid } from "./gameplay-scene-model.js";
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
@@ -692,16 +692,13 @@ export class AeroPlayCanvasRenderer {
     }
     material.update();
   }
-  /** Two complementary local-X side masks start at the blade's local-Y crossing; each pooled GLB half owns its material variants without changing live icons. */
+  /** Fixed complementary local-X masks split each authored GLB from tail to tip; scored contact affects gameplay, never shader variants. */
   applyAftermathAppearance(object,entity){
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     const sliceSign=object.aftermath?.sliceSign??null;if(sliceSign===null)return;
-    // The local-X side seam starts where the blade crossed the local long axis.
-    // Before that crossing, the positive piece alone owns the uncut tail;
-    // absent sliceT keeps the legacy full-height side split. Arrow direction is
-    // already represented by the GLB root's authored rotation, not a world axis here.
-    const sliceT=object.aftermath?.sliceT;
-    const planeLocalY=sliceT===undefined?null:(sliceT-0.5)*aftermathSliceGlyphLengthWU({shape:object.aftermath?.shape});
+    // The producer's exact crossing stays in the model for scoring/inspection;
+    // arrow direction is represented by the authored GLB root rotation. Neither
+    // changes this fixed local-X, full-length visual seam.
     // 0.0.58 B11b: the corpse keeps the note's ACTUAL glyph (white outline + silhouette)
     // but DESATURATED — it must read as the same arrow/orb with the color gone, NOT a flat
     // uniform gray blob (the 0.0.57 AFTERMATH_HIT_CORPSE_GRAY override force-set EVERY
@@ -720,9 +717,9 @@ export class AeroPlayCanvasRenderer {
     for(const record of records){
       const role=gameplayAssetMaterialRole(object.assetId??"",record.name);
       const baseRgba=this.aftermathCorpsePartColor(role,object,record);
-      const variant=this.sliceVariantMaterial(record,sliceSign,planeLocalY);
+      const variant=this.sliceVariantMaterial(record,sliceSign);
       record.meshInstance.material=variant;
-      const state={kind:"aftermath-slice",sliceSign,planeLocalY,part:role,baseR:[baseRgba[0],baseRgba[1],baseRgba[2]],opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
+      const state={kind:"aftermath-slice",sliceSign,part:role,baseR:[baseRgba[0],baseRgba[1],baseRgba[2]],opacity:baseRgba[3]*object.alpha,blendType:baseRgba[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType,depthWrite:baseRgba[3]*object.alpha<1?false:record.depthWrite,depthTest:true,useLighting:false,cull:record.cull,diffuseMap:record.diffuseMap,emissiveMap:record.emissiveMap,opacityMap:record.opacityMap,diffuseMapChannel:record.diffuseMapChannel,emissiveMapChannel:record.emissiveMapChannel,opacityMapChannel:record.opacityMapChannel};
       if(materialStateIsUnchanged(variant,this.materialStates.get(variant),state))continue;
       variant.diffuse.set(baseRgba[0],baseRgba[1],baseRgba[2]);variant.emissive.set(baseRgba[0]*.32,baseRgba[1]*.32,baseRgba[2]*.32);
       variant.opacity=baseRgba[3]*object.alpha;variant.blendType=state.blendType;variant.depthWrite=state.depthWrite;variant.depthTest=true;variant.useLighting=false;variant.cull=record.cull;
@@ -778,11 +775,11 @@ export class AeroPlayCanvasRenderer {
     // Any other / unrecognized part: keep the authored source appearance unchanged.
     return [record.diffuse.r,record.diffuse.g,record.diffuse.b,1];
   }
-  /** Clone a side-piece mask per material UID, sign and local-Y crossing; null crossing retains the legacy full-length side split. Cache variants are owned and destroyed with the pool. */
-  sliceVariantMaterial(record,sliceSign,planeLocalY=null){
-    const key=`${sliceSign}:${this.assetPoolGeneration}:${record.materialUid}:${planeLocalY===null?"legacy":+planeLocalY.toFixed(4)}`;
+  /** One fixed mask per sign and pooled material; the set grows with bounded entity slots, never with scored crossings or direction. */
+  sliceVariantMaterial(record,sliceSign){
+    const key=`${sliceSign}:${this.assetPoolGeneration}:${record.materialUid}`;
     let variant=this.sliceVariantMaterials.get(key);
-    if(!variant){variant=record.material.clone();this.installSliceClipBlocks(variant,sliceSign,planeLocalY);this.ownedMaterials.add(variant);this.sliceVariantMaterials.set(key,variant);}
+    if(!variant){variant=record.material.clone();this.installSliceClipBlocks(variant,sliceSign);this.ownedMaterials.add(variant);this.sliceVariantMaterials.set(key,variant);}
     return variant;
   }
   /** Restore pooled materials after a slice entity is disabled (prevents cross-contamination when the next icon reuses the same pool slot). 0.0.56 B10: also called from `applyAssetAppearance` so that when a LIVE icon acquires a pool slot that still carries a clip-plane variant material from a previous aftermath use, the variant is swapped back to the pooled material BEFORE the live appearance is applied — without this, the live arrow/orb renders with the clip blocks installed and is cut in half. Only restores when the current material is a known slice variant (a value in `sliceVariantMaterials`); externally-installed borrowed materials are left for the normal reconciliation path. */
@@ -790,20 +787,14 @@ export class AeroPlayCanvasRenderer {
     const records=this.assetMaterials.get(entity);if(!records?.length)return;
     for(const record of records){const mat=record.meshInstance.material;if(mat===record.material)continue;let isSliceVariant=false;for(const v of this.sliceVariantMaterials.values())if(v===mat){isSliceVariant=true;break;}if(isSliceVariant){record.meshInstance.material=record.material;this.materialStates.delete(record.meshInstance.material);}}
   }
-  /** PlayCanvas GLSL blocks pass local XY into complementary side masks. The B10 DOWN-arrow seam goes from blade crossing toward the tip: sign+ retains X≥0 or Y<c; sign− retains X<0 and Y≥c. Two pieces tile the whole glyph, while absent sliceT retains the full-length local-X split. */
-  installSliceClipBlocks(material,sliceSign,planeLocalY=null){
-    // The mesh is clipped in its own coordinates, before authored rotation or tumble.
-    // B10's DOWN-arrow seam runs center→bottom, equivalent to local +Y (tip).
-    // Sign+ owns the uncut tail (Y<c) and the right side ahead of the crossing.
-    // Sign− owns the left side toward the tip (Y>=c); strict/weak X assigns
-    // boundary pixels to exactly one of the two pieces.
-    material.shaderChunks.glsl.set("litUserDeclarationVS","varying vec2 vAeroSliceLocal;\n");
-    material.shaderChunks.glsl.set("litUserMainStartVS","vAeroSliceLocal = vertex_position.xy;\n");
-    material.shaderChunks.glsl.set("litUserDeclarationPS","varying vec2 vAeroSliceLocal;\n");
-    const towardTip=planeLocalY===null?"true":`vAeroSliceLocal.y >= ${(+planeLocalY.toFixed(4)).toFixed(4)}`;
+  /** Local X=0 is the authored arrow tail-center→tip-center line and a fixed orb diameter. Two constant fragment masks partition every part before root rotation/tumble. */
+  installSliceClipBlocks(material,sliceSign){
+    material.shaderChunks.glsl.set("litUserDeclarationVS","varying float vAeroSliceLocalX;\n");
+    material.shaderChunks.glsl.set("litUserMainStartVS","vAeroSliceLocalX = vertex_position.x;\n");
+    material.shaderChunks.glsl.set("litUserDeclarationPS","varying float vAeroSliceLocalX;\n");
     material.shaderChunks.glsl.set("litUserMainStartPS",sliceSign===1
-      ? `if (vAeroSliceLocal.x < 0.0 && (${towardTip})) discard;\n`
-      : `if (vAeroSliceLocal.x >= 0.0 || !(${towardTip})) discard;\n`);
+      ? "if (vAeroSliceLocalX < 0.0) discard;\n"
+      : "if (vAeroSliceLocalX >= 0.0) discard;\n");
     material.update();
   }
   /** 0.0.52 W1-C follow-up: fullscreen hazard-contact red vignette. One persistent unlit fullscreen quad on the topmost transparent gameplay layer (above Targets, below product-UI layers); driven per frame by the model's hazard_glow scene object; disabled (zero cost) at zero intensity. Uses a ShaderMaterial with screen-space UV vignette; depth-test OFF so it always composites on top of the gameplay scene. */

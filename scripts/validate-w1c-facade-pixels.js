@@ -394,7 +394,7 @@ try {
           slot.enabled = false; renderer.manualTick();
           const without = sample(); slot.enabled = true; renderer.manualTick();
           const withIt = sample();
-          const rows = { tailLeft: 0, tipLeft: 0, tailRight: 0, tipRight: 0, tailReachLeft: 0, tipReachLeft: 0, nearCrossingLeft: 0, nearCrossingRight: 0 };
+          const rows = { tailLeft: 0, tipLeft: 0, tailRight: 0, tipRight: 0, tailReachLeft: 0, tipReachLeft: 0, tailReachRight: 0, tipReachRight: 0, nearCrossingLeft: 0, nearCrossingRight: 0 };
           let count = 0;
           const crossingY = sliceT === undefined ? null : (sliceT - 0.5) * 0.78;
           for (let index = 0; index < withIt.length; index += 4) {
@@ -410,6 +410,8 @@ try {
             if (region) rows[`${region}${side}`]++;
             if (side === "Left" && localY < -0.24) rows.tailReachLeft++;
             if (side === "Left" && localY > 0.24) rows.tipReachLeft++;
+            if (side === "Right" && localY < -0.24) rows.tailReachRight++;
+            if (side === "Right" && localY > 0.24) rows.tipReachRight++;
             if (crossingY !== null && Math.abs(localY - crossingY) <= 0.085 && Math.abs(localX) >= 0.08 && Math.abs(localX) < 0.28) rows[`nearCrossing${side}`]++;
           }
           pieces.push({ sign, count, rows, rotation, centerWorldX: half.position.x, asset: slot.render?.meshInstances?.length ?? slot.findComponents("render").reduce((sum, component) => sum + component.meshInstances.length, 0) });
@@ -794,7 +796,7 @@ try {
         assert.ok(Math.abs(p.rotation - state.authoredRotation) < 1, `${direction} t=${sliceT}: authored direction retained`);
         assert.ok(sign < 0
           ? p.rows.tailReachLeft > 25 && p.rows.tipReachLeft > 25 && p.rows.tailRight === 0 && p.rows.tipRight === 0
-          : p.rows.tipRight > 35 && p.rows.tailLeft === 0 && p.rows.tipLeft === 0,
+          : p.rows.tailReachRight > 25 && p.rows.tipReachRight > 25 && p.rows.tailLeft === 0 && p.rows.tipLeft === 0,
         `${direction} t=${sliceT} sign ${sign}: full tail-to-tip complementary half ${JSON.stringify(p.rows)}`);
         assert.ok(Math.abs(p.count - original.count) < 300, `${direction} sign ${sign}: scored sliceT must not change half-pixel mass`);
       }

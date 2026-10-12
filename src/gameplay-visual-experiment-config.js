@@ -4,7 +4,7 @@ export const gameplayVisualExperimentConfigSchema="aerobeat/gameplay_visual_expe
 export const gameplayVisualExperimentConfigVersion=2;
 export const gameplayGuidanceBandModes=Object.freeze(["off","song_beat_grid","target_arrivals"]);
 export const gameplayVisualExperimentConfigBounds=deepFreeze({
-  horizontalRangeWorldUnits:[0,.9],verticalRangeWorldUnits:[0,1.2],deadzoneNormalized:[0,.2],
+  horizontalRangeWorldUnits:[0,1.1],verticalRangeWorldUnits:[0,1.2],deadzoneNormalized:[0,.2],
   smoothingTimeConstantMs:[0,500],maximumHorizontalVelocityWorldUnitsPerSecond:[.1,10],
   maximumVerticalVelocityWorldUnitsPerSecond:[.1,8],recenterTimeConstantMs:[0,1000]
 });

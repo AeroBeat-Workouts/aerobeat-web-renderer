@@ -187,3 +187,28 @@ console.log("PlayCanvas world model, all presentations, atlas, timing, spent/cul
   assert.equal(desc.renderScale, 1, "describe() exposes renderScale");
   console.log("0.0.90 renderScale: backing-store-only scaling (CSS/world geometry untouched) passed.");
 }
+
+// Asset-ready prewarm owns its corpse pool across the first scored scene update;
+// only a NEW loader generation may dispose that pool. GPU links/pixels are tested
+// separately against real GLBs in validate-first-flow-cut-programs-browser.js.
+{
+  const renderer=createAeroPlayCanvasRenderer();
+  const loader=renderer.gameplayAssetLoader;
+  loader.describe=()=>({state:"ready",generation:3,release:"unit-ready"});
+  const guidance=buildGameplaySceneModel({presentation:"flow",nowMs:0,targets:[]}).guidance;
+  let disposed=0;
+  const stale={destroy(){disposed++;}};
+  renderer.assetPoolGeneration=2;
+  renderer.aftermathAssetPools.set("any-note/outlined-circle-v1",[stale]);
+  renderer.updateSceneObjects([],guidance);
+  assert.equal(disposed,1,"a new asset generation disposes stale corpse entities");
+  assert.equal(renderer.assetPoolGeneration,3,"the replacement pool belongs to the ready generation");
+  const warmed={destroy(){disposed++;}};
+  renderer.aftermathAssetPools.set("any-note/outlined-circle-v1",[warmed]);
+  renderer.updateSceneObjects([],guidance);
+  assert.equal(renderer.aftermathAssetPools.get("any-note/outlined-circle-v1")?.[0],warmed,"first scored update must reuse the ready-generation prewarmed corpse entity");
+  assert.equal(disposed,1,"same-generation scene updates must not dispose warmed corpses");
+  renderer.aftermathAssetPools.clear();
+  renderer.destroy();
+  console.log("Flow corpse pool generation transition and first-update reuse passed.");
+}

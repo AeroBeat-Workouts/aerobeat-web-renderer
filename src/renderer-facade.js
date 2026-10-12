@@ -22,6 +22,7 @@ const equipmentRoles=Object.freeze(["left_wrist","right_wrist"]);
 const equipmentModes=Object.freeze(["flow","boxing"]);
 const gameplayCameraModes=Object.freeze(["flow","boxing"]);
 const nativeTargetShadowAssets=new Set(["directional-arrow/rounded-outline-v1","any-note/outlined-circle-v1","guard/outlined-shield-v1","bomb/urchin-v1","wall/red-glass-v1"]);
+const flowSliceWarmupAssets=Object.freeze(["directional-arrow/rounded-outline-v1","any-note/outlined-circle-v1"]);
 const boxingCameraPresentations=Object.freeze(["boxing_collider","boxing_spatial_grid","boxing_lanes"]);
 /** @param {string|null} presentation */
 function gameplayCameraModeForPresentation(presentation){return boxingCameraPresentations.includes(presentation)?"boxing":presentation;}
@@ -60,7 +61,7 @@ export class AeroPlayCanvasRenderer {
   constructor(options={}){
     this.serviceId=aeroPlayCanvasRendererServiceId;
     this.contextAttributes=options.contextAttributes??{alpha:true,antialias:true,premultipliedAlpha:true,preserveDrawingBuffer:false};
-    this.canvas=null;this.app=null;this.appStarted=false;this.cameraEntity=null;this.fixedCamera=null;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayHazardGlowLayer=null;this.gameplayColliderOverlayLayer=null;this.shadowReceiverLayer=null;this.pool=[];this.assetPools=new Map();this.assetPoolGeneration=-1;this.aftermathAssetPools=new Map();this.assetMaterials=new WeakMap();this.materialStates=new WeakMap();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.equipmentPoseRoots=new Map();this.equipmentGlbEntities=new Map();this.equipmentPrimitiveChildren=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.activeCount=0;this.overlayEntities=[];this.entityMaterials=new WeakMap();this.ownedMaterials=new Set();this.sliceVariantMaterials=new Map();this.materialUidCounter=0;this.hazardGlowEntity=null;this.hazardGlowMaterial=null;this.shadowLightEntity=null;
+    this.canvas=null;this.app=null;this.appStarted=false;this.cameraEntity=null;this.fixedCamera=null;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayHazardGlowLayer=null;this.gameplayColliderOverlayLayer=null;this.shadowReceiverLayer=null;this.pool=[];this.assetPools=new Map();this.assetPoolGeneration=-1;this.aftermathAssetPools=new Map();this.assetMaterials=new WeakMap();this.materialStates=new WeakMap();this.markerPool=[];this.markerPoolMode="none";this.equipmentPools=new Map();this.equipmentPoseRoots=new Map();this.equipmentGlbEntities=new Map();this.equipmentPrimitiveChildren=new Map();this.feedbackPool=[];this.feedbackTextures=new Map();this.activeCount=0;this.overlayEntities=[];this.entityMaterials=new WeakMap();this.ownedMaterials=new Set();this.sliceVariantMaterials=new Map();this.materialUidCounter=0;this.flowSliceWarmupGeneration=-1;this.flowSliceWarmupFailedGeneration=-1;this.hazardGlowEntity=null;this.hazardGlowMaterial=null;this.shadowLightEntity=null;
     this.iconAtlasData=null;this.iconEntries=new Map();this.iconTexture=null;this.iconAtlasError=null;this.atlasRestorePending=false;
     this.state="unsupported";this.contextLost=false;this.destroyed=false;this.errorMessage=null;this.frameCount=0;this.drawCount=0;this.contextRestoreCount=0;
     this.widthCssPx=0;this.heightCssPx=0;this.devicePixelRatio=1;this.renderScale=1;this.theme=defaultRendererThemeTokens;this.visualProfile=defaultRendererVisualProfile;this.visualScales=null;this.tuning=rendererTuningFromVisualProfile(this.visualProfile);this.testPresentationConfig=defaultTestPresentationConfig;this.gameplayVisualExperimentConfig=defaultGameplayVisualExperimentConfig;/** @type {Readonly<Record<string,ReturnType<typeof normalizeGameplayCameraPose>>>} */ this.gameplayCameraPoses=Object.freeze({});/** @type {string|null} */ this.activeGameplayCameraMode=null;this.productionCameraNow=typeof options.now==="function"?options.now:()=>globalThis.performance?.now?.()??Date.now();productionCameraStates.set(this,{offset:{x:0,y:0},lastTimeMs:null});
@@ -77,7 +78,7 @@ export class AeroPlayCanvasRenderer {
     this.gameplayAssetLoader=options.gameplayAssetLoader??new PlayCanvasGameplayAssetPreloader({fetch:options.fetch,baseUrl:options.gameplayAssetBaseUrl});this.gameplayAssetLoadPromise=null;
     this.environmentOwner=options.environmentOwner??new PlayCanvasEnvironmentAssetOwner({fetch:options.fetch,decodeImage:options.environmentDecodeImage,createSphere:options.environmentCreateSphere,locationHref:options.locationHref});this.environmentLoadPromise=null;
     this.onContextLost=(event)=>{event.preventDefault();this.resetProductionCameraParallax();this.contextLost=true;projectionReadyRenderers.delete(this);this.state="context_lost";this.atlasRestorePending=Boolean(this.iconAtlasData);this.iconTexture?.destroy();this.iconTexture=null;this.destroyInstantiatedPools();this.environmentOwner.handleContextLost();this.gameplayAssetLoader.handleContextLost();};
-    this.onContextRestored=()=>{if(this.destroyed||!this.app)return;this.resetProductionCameraParallax();this.contextLost=false;projectionReadyRenderers.delete(this);this.contextRestoreCount+=1;this.state="ready";this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app);this.environmentLoadPromise=this.environmentOwner.restore(this.app);};
+    this.onContextRestored=()=>{if(this.destroyed||!this.app)return;this.resetProductionCameraParallax();this.contextLost=false;projectionReadyRenderers.delete(this);this.contextRestoreCount+=1;this.state="ready";this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app).then((result)=>{this.warmFlowSlicePrograms();return result;});this.environmentLoadPromise=this.environmentOwner.restore(this.app);};
   }
   attach(canvas,options=this.contextAttributes){
     if(this.destroyed)return this.describe();
@@ -93,7 +94,7 @@ export class AeroPlayCanvasRenderer {
       this.app.root.addChild(this.cameraEntity);this.createGameplayLayers();try{this.createShadowLight();}catch(e){console.warn("shadow light disabled:",String(e));}this.resetDebugCamera();
       if(this.iconAtlasData)this.createAtlasTexture();
       this.app.requestAnimationFrame=()=>{};
-      this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app);this.environmentLoadPromise=this.environmentOwner.attach(this.app);
+      this.gameplayAssetLoadPromise=this.gameplayAssetLoader.preload(this.app).then((result)=>{this.warmFlowSlicePrograms();return result;});this.environmentLoadPromise=this.environmentOwner.attach(this.app);
       this.state="ready";this.errorMessage=null;
       if(this.widthCssPx||this.heightCssPx)this.applySize();
     }catch(error){this.fail(error);}
@@ -181,7 +182,7 @@ export class AeroPlayCanvasRenderer {
    * @param {unknown} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
-  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.syncShadowReceiverToTrack(model.objects);this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
+  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.syncShadowReceiverToTrack(model.objects);this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();if(model.presentation==="flow")this.warmFlowSlicePrograms();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
   clear(options={}){if(!this.app||this.destroyed)return{status:this.describe()};const color=options.color??[0,0,0,0];this.cameraEntity.camera.clearColor=new pc.Color(...color);this.clearSceneObjects();this.clearOverlayEntities();this.manualTick();this.frameCount+=1;this.state="running";return{status:this.describe()};}
   renderFrame(options={}){return this.clear(options);}
   renderGameplayCursors(cursors,options){const result=this.stageGameplayCursors(cursors,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),cursorCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.cursorCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
@@ -596,6 +597,87 @@ export class AeroPlayCanvasRenderer {
   acquireAssetEntity(assetId,index){let entries=this.assetPools.get(assetId);if(!entries){entries=[];this.assetPools.set(assetId,entries);}while(entries.length<=index){const resource=this.gameplayAssetLoader.resourceFor(assetId);if(!resource?.instantiateRenderEntity)return null;const entity=resource.instantiateRenderEntity({castShadows:nativeTargetShadowAssets.has(assetId),receiveShadows:false});entity.enabled=false;this.cloneAssetMaterials(entity);if(assetId==="wall/red-glass-v1")for(const record of this.assetMaterials.get(entity)??[]){record.material.opacityShadowDither=pc.DITHER_BAYER8;record.material.update();}this.app.root.addChild(entity);entries.push(entity);}return entries[index];}
   /** 0.0.58 B11c: acquire (or lazily create) an aftermath half/whole in a DEDICATED pool isolated from the live-icon `assetPools` slots. The 0.0.57 bug: aftermath halves were indexed into the same per-asset pool as live icons with a separate counter starting at 0, so a live arrow/orb and an aftermath half could map to the SAME pooled entity (index 0) and fight for it mid-frame — the last write to position/material/appearance won, and one or both halves could vanish from the frame (the 0/1/2-halves symptom). The dedicated pool gives every aftermath piece its own entity for the lifetime of the frame; live-icon/B10 material-restore logic is untouched (slice variants created on aftermath entities are never acquired by live icons). */
   acquireAftermathAssetEntity(assetId,index){let entries=this.aftermathAssetPools.get(assetId);if(!entries){entries=[];this.aftermathAssetPools.set(assetId,entries);}while(entries.length<=index){const resource=this.gameplayAssetLoader.resourceFor(assetId);if(!resource?.instantiateRenderEntity)return null;const entity=resource.instantiateRenderEntity({castShadows:false,receiveShadows:false});entity.enabled=false;this.cloneAssetMaterials(entity);this.app.root.addChild(entity);entries.push(entity);}return entries[index];}
+  /** Draw each signed, real GLB mesh on this application's graphics device before the first
+   * eligible Flow cut. A separate camera/layer/target prevents even a transient canvas write;
+   * the already-staged production scene is left intact for its one caller-owned manual tick.
+   * Offscreen targets use the same non-sRGB forward shader pass as the production canvas.
+   * Failure never masquerades as program readiness and never discards the staged scene. */
+  warmFlowSlicePrograms(){
+    const loader=this.gameplayAssetLoader.describe(),generation=loader.generation;
+    if(loader.state!=="ready"||!this.app||!this.cameraEntity||this.contextLost||this.destroyed||this.flowSliceWarmupGeneration===generation||this.flowSliceWarmupFailedGeneration===generation)return;
+    // A new asset generation invalidates both pooled mesh ownership and material
+    // shader keys. Establish the new generation before creating any warm entity.
+    if(this.assetPoolGeneration!==generation){this.destroyInstantiatedPools();this.assetPoolGeneration=generation;}
+    const app=this.app,device=app.graphicsDevice;
+    if(device.contextLost)return;
+    // Refuse to prewarm over an already-active scored corpse; that first-cut
+    // deadline has passed and swapping its material would corrupt the frame.
+    if(flowSliceWarmupAssets.some((assetId)=>(this.aftermathAssetPools.get(assetId)??[]).some((entity)=>entity.enabled)))return;
+    let texture=null,target=null,cameraEntity=null,layer=null;
+    const warmed=[],expectedVariants=[],expectedMeshes=[];
+    try{
+      // These two slots are the actual first-cut corpse pool, not disposable shader probes.
+      for(const assetId of flowSliceWarmupAssets){
+        const halves=[this.acquireAftermathAssetEntity(assetId,0),this.acquireAftermathAssetEntity(assetId,1)];
+        if(halves.some((entity)=>!entity||!(this.assetMaterials.get(entity)?.length)))throw new Error(`Flow slice warmup asset unavailable: ${assetId}`);
+        for(let index=0;index<2;index++){
+          const entity=halves[index],sign=index===0?-1:1;
+          this.applyAftermathAppearance({assetId,role:"left",appearanceColor:"#3B82C4",alpha:1,aftermath:{sliceSign:sign}},entity);
+          for(const record of this.assetMaterials.get(entity)){expectedVariants.push(record.meshInstance.material);expectedMeshes.push(record.meshInstance);}
+          warmed.push(entity);
+        }
+      }
+      texture=new pc.Texture(device,{name:"aero-flow-slice-warmup",width:64,height:64,format:pc.PIXELFORMAT_RGBA8,mipmaps:false,minFilter:pc.FILTER_NEAREST,magFilter:pc.FILTER_NEAREST});
+      target=new pc.RenderTarget({colorBuffer:texture,depth:true,samples:1,name:"aero-flow-slice-warmup"});
+      layer=new pc.Layer({name:"Aero Flow Slice Warmup",clearColorBuffer:true,clearDepthBuffer:true,clearStencilBuffer:false});
+      // This layer never enters the production scene composition. Register its
+      // camera and mesh instances explicitly in the private composition below.
+      // Keep production's directional-light shader flags identical on both
+      // the offscreen draw and subsequent real target-layer draw. The isolated
+      // camera sees its mesh layer but not the target layer's shadow caster pass.
+      const warmupLight=this.shadowLightEntity?.light;
+      if(warmupLight)layer.addLight(warmupLight);
+      cameraEntity=new pc.Entity("aero-flow-slice-warmup-camera",app);
+      cameraEntity.addComponent("camera",{layers:[layer.id],renderTarget:target,priority:-100,clearColorBuffer:true,clearDepthBuffer:true,clearStencilBuffer:false,fov:48,nearClip:.1,farClip:10});
+      cameraEntity.setPosition(0,0,3);
+      app.root.addChild(cameraEntity);
+      layer.addCamera(cameraEntity.camera);
+      for(const entity of warmed){
+        entity.setPosition(0,0,0);entity.setLocalScale(1,1,1);entity.setEulerAngles(0,0,0);
+        entity.enabled=true;
+      }
+      layer.addMeshInstances(expectedMeshes,true);
+      // Render only this isolated layer/camera. Rendering the application's full
+      // composition here would also write the gameplay camera to the canvas.
+      // No tick, scene-model rebuild, gameplay clock update, or autonomous RAF occurs.
+      app.root.syncHierarchy();
+      const isolated=new pc.LayerComposition("Aero Flow Slice Warmup Only");
+      isolated.pushOpaque(layer);
+      app.renderComposition(isolated);
+      // A linked material without an actually submitted mesh is not a warmup.
+      if(expectedMeshes.some((mesh)=>!mesh.visibleThisFrame))throw new Error("Flow slice meshes were not submitted");
+      // PlayCanvas's forward draw synchronously finalizes GL links. Materials alone
+      // carry no proof: require every signed mesh variant to own a ready program.
+      if(device.contextLost||expectedVariants.some((material)=>![...material.variants.values()].some((shader)=>shader.ready&&!shader.failed&&shader.impl?.glProgram)))throw new Error("Flow slice GPU programs did not link");
+      this.flowSliceWarmupGeneration=generation;
+    }catch{
+      this.flowSliceWarmupFailedGeneration=generation;
+    }finally{
+      for(const entity of warmed)entity.enabled=false;
+      if(layer){
+        layer.removeMeshInstances(expectedMeshes,true);
+        if(cameraEntity?.camera)layer.removeCamera(cameraEntity.camera);
+        const light=this.shadowLightEntity?.light;
+        if(light)layer.removeLight(light);
+      }
+      cameraEntity?.destroy();
+      target?.destroy();texture?.destroy();
+      // The caller's next manual tick owns the production canvas; restore the
+      // graphics device target without submitting a gameplay frame here.
+      device.setRenderTarget(null);
+      // Neither the temporary camera nor its framebuffer remains attached to the canvas.
+    }
+  }
   acquirePrimitiveEntity(index){while(this.pool.length<=index)this.pool.push(this.makeEntity(`pooled-${this.pool.length}`,"box"));return this.pool[index];}
   /** Acquire dedicated wrist spheres or the existing box/cone collider overlay geometry. */
   acquireColliderOverlayEntity(object,index){
@@ -858,7 +940,7 @@ export class AeroPlayCanvasRenderer {
   destroyPrimitiveEntity(entity){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
   destroyMarkerPool(){for(const entity of this.markerPool){const records=this.assetMaterials.get(entity)??[];for(const record of records)if(record.materialOwned)record.material.destroy();if(records.length)entity.destroy();else this.destroyPrimitiveEntity(entity);}this.markerPool=[];this.markerPoolMode="none";}
   destroyEquipmentPools(){for(const entries of this.equipmentPools.values())for(const entity of entries.slice(1)){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();}for(const root of this.equipmentPoseRoots.values())root.destroy();this.equipmentPools.clear();this.equipmentPoseRoots.clear();this.equipmentGlbEntities.clear();this.equipmentPrimitiveChildren.clear();}
-  destroyInstantiatedPools(){for(const entries of this.assetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.assetPools.clear();for(const entries of this.aftermathAssetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.aftermathAssetPools.clear();this.destroyEquipmentPools();this.destroyMarkerPool();for(const entry of this.feedbackPool){this.destroyPrimitiveEntity(entry.quad);entry.root.destroy();}this.feedbackPool=[];for(const texture of this.feedbackTextures.values())texture.destroy();this.feedbackTextures.clear();this.assetPoolGeneration=-1;for(const variant of this.sliceVariantMaterials.values())if(this.ownedMaterials.delete(variant))variant.destroy();this.sliceVariantMaterials.clear();this.materialStates=new WeakMap();this.destroyColliderOverlayPools();}
+  destroyInstantiatedPools(){for(const entries of this.assetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.assetPools.clear();for(const entries of this.aftermathAssetPools.values())for(const entity of entries){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();entity.destroy();}this.aftermathAssetPools.clear();this.destroyEquipmentPools();this.destroyMarkerPool();for(const entry of this.feedbackPool){this.destroyPrimitiveEntity(entry.quad);entry.root.destroy();}this.feedbackPool=[];for(const texture of this.feedbackTextures.values())texture.destroy();this.feedbackTextures.clear();this.assetPoolGeneration=-1;this.flowSliceWarmupGeneration=-1;this.flowSliceWarmupFailedGeneration=-1;for(const variant of this.sliceVariantMaterials.values())if(this.ownedMaterials.delete(variant))variant.destroy();this.sliceVariantMaterials.clear();this.materialStates=new WeakMap();this.destroyColliderOverlayPools();}
   /** 0.0.53 W2: destroy the collider-overlay entity pools (primitives + cone meshes). Cone meshes are owned and destroyed alongside their materials. */
   destroyColliderOverlayPools(){
     for(const entity of this.colliderOverlayPrimitivePool??[]){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}

@@ -56,7 +56,7 @@ Context loss removes the private atlas texture, pinned gameplay containers, and 
 
 ## First Flow cut
 
-When the pinned arrow and Any-orb GLBs become ready, the renderer builds two pooled halves per shape and draws their real clipped meshes into a private target on the same PlayCanvas device. This links both signed shaders before a scored Flow frame without painting the canvas, advancing gameplay, or adding a RAF. The pool and linked programs are renewed after asset or graphics-context changes; first hits reuse them. The normal browser gate checks pre-frame WebGL program links, first-cut zero new signed links, real GLB pixels for four arrow directions and Any, and context recovery. Only a paired physical phone retake can show whether the felt first-cut hitch improved.
+When the pinned arrow and Any-orb GLBs become ready, the renderer builds two arrow halves and four Any-orb halves (enough for the scored two-Any burst) and draws their real clipped meshes into a private target on the same PlayCanvas device. This links both signed shaders before a scored Flow frame without painting the canvas, advancing gameplay, or adding a RAF. The pool and linked programs are renewed after asset or graphics-context changes; first hits reuse them. The normal browser gate checks pre-frame WebGL program links, first-cut zero new signed links, real GLB pixels for four arrow directions and Any, and context recovery. Only a paired physical phone retake can show whether the felt first-cut hitch improved.
 
 ## Branding contract
 

@@ -363,17 +363,22 @@ try {
         direct.setEnvironmentVisible(false);
         direct.setBackgroundProjection({ kind: "solid", colors: ["#102030"], angleDeg: 180 });
         const beforeCount = direct.frameCount, beforeLinks = directLinks.filter((link) => link.success).map((link) => link.sign), beforeGeneration = direct.gameplayAssetLoader.describe().generation;
-        const pools = () => assets.map((asset) => (direct.aftermathAssetPools.get(asset) ?? []).slice(0, 2));
+        const poolSizes = [2, 4];
+        const pools = () => assets.map((asset, assetIndex) => (direct.aftermathAssetPools.get(asset) ?? []).slice(0, poolSizes[assetIndex]));
         const readyPools = pools();
         const readyRecords = readyPools.map((slots) => slots.map((entity) => direct.assetMaterials.get(entity) ?? []));
         const readyMaterials = readyRecords.map((slots) => slots.map((records) => records.map((record) => record.meshInstance.material)));
         const readyVariants = new Map(direct.sliceVariantMaterials);
         const readyVariantCount = readyVariants.size;
         const readyPoolGeneration = direct.assetPoolGeneration;
-        direct.renderGameplayFrame({ ...idle, aftermath: [entry("arrow", "up")] });
+        const concurrentAny = [
+          { ...entry("orb", "up"), targetId: "first-any-a", spawn: { x: -.5, y: 1, z: 0 } },
+          { ...entry("orb", "up"), targetId: "first-any-b", spawn: { x: .5, y: 1, z: 0 }, seed: 43 }
+        ];
+        direct.renderGameplayFrame({ ...idle, aftermath: concurrentAny });
         const afterLinks = directLinks.filter((link) => link.success).map((link) => link.sign);
         const afterPools = pools();
-        const poolIdentityPreserved = readyPools.every((slots, assetIndex) => slots.length === 2 && slots.every((entity, slotIndex) => entity === afterPools[assetIndex][slotIndex]));
+        const poolIdentityPreserved = readyPools.every((slots, assetIndex) => slots.length === poolSizes[assetIndex] && slots.every((entity, slotIndex) => entity === afterPools[assetIndex][slotIndex]));
         const materialIdentityPreserved = readyRecords.every((slots, assetIndex) => slots.every((records, slotIndex) => records.length >= 3 &&
           records.every((record, partIndex) => record === direct.assetMaterials.get(afterPools[assetIndex][slotIndex])?.[partIndex] &&
             readyMaterials[assetIndex][slotIndex][partIndex] === record.meshInstance.material)));
@@ -394,6 +399,8 @@ try {
         } finally { directGl.bindFramebuffer(directGl.READ_FRAMEBUFFER, previousRead); directGl.readBuffer(previousBuffer); }
         scoredFirst = { beforeCount, afterCount: direct.frameCount, beforeLinks, newLinks: afterLinks.length - beforeLinks.length, beforeGeneration,
           readyPoolGeneration, afterPoolGeneration: direct.assetPoolGeneration, readyPoolSizes: readyPools.map((slots) => slots.length),
+          afterPoolSizes: assets.map((asset) => (direct.aftermathAssetPools.get(asset) ?? []).length),
+          enabledAnySlots: (direct.aftermathAssetPools.get(assets[1]) ?? []).map((entity, index) => entity.enabled ? index : -1).filter((index) => index >= 0),
           readyVariantCount, afterVariantCount, poolIdentityPreserved, materialIdentityPreserved, variantIdentityPreserved,
           afterGeneration: direct.gameplayAssetLoader.describe().generation, sameContext: direct.app.graphicsDevice.gl === directGl,
           signs: direct.lastModel.objects.filter((object) => object.kind === "aftermath").map((object) => object.aftermath.sliceSign),
@@ -419,8 +426,8 @@ try {
     return { first, reattached, restored, scoredFirst, fixtureControl, assetReadyWarmup };
   });
   console.log("Asset-ready private warmup GL interval", JSON.stringify(evidence.assetReadyWarmup));
-  assert.ok(evidence.assetReadyWarmup?.draws >= 12 && evidence.assetReadyWarmup?.privateDraws >= 12,
-    "GLB-ready warmup must issue at least twelve real private-framebuffer mesh draws before first gameplay frame");
+  assert.ok(evidence.assetReadyWarmup?.draws >= 18 && evidence.assetReadyWarmup?.privateDraws >= 18,
+    "GLB-ready warmup must issue at least eighteen real private-framebuffer mesh draws before first gameplay frame");
   assert.ok(evidence.assetReadyWarmup.clears >= 1 && evidence.assetReadyWarmup.privateClears >= 1,
     "GLB-ready warmup must clear its private framebuffer, not merely prepare materials");
   assert.equal(evidence.assetReadyWarmup.privateWrites, evidence.assetReadyWarmup.draws + evidence.assetReadyWarmup.clears,
@@ -438,19 +445,21 @@ try {
   assert.ok(direct, "fresh scored-first renderer evidence must exist");
   assert.equal(direct.beforeCount, 0, "no Flow frame may precede the first scored cut");
   for (const sign of [-1, 1]) assert.ok(direct.beforeLinks.includes(sign), `fresh GLB-ready attachment lacks pre-frame signed GPU program ${sign}`);
-  assert.deepEqual(direct.readyPoolSizes, [2, 2], "GLB-ready arrow and Any pools must each prebuild two actual corpse slots");
+  assert.deepEqual(direct.readyPoolSizes, [2, 4], "GLB-ready pools must prebuild two arrow and four Any corpse halves");
+  assert.deepEqual(direct.afterPoolSizes, [2, 4], "two simultaneous Any hits must not append a corpse slot on their first scored frame");
+  assert.deepEqual(direct.enabledAnySlots, [0, 1, 2, 3], "two simultaneous Any hits must consume exactly four ready-made halves");
   assert.equal(direct.readyPoolGeneration, direct.beforeGeneration, "GLB-ready corpse pool generation must match loaded assets before any scored frame");
   assert.equal(direct.poolIdentityPreserved, true, "first scored cut must reuse exact GLB-ready arrow and Any corpse entities");
   assert.equal(direct.materialIdentityPreserved, true, "first scored cut must reuse exact GLB-ready mesh material identities");
-  assert.ok(direct.readyVariantCount > 0 && direct.readyVariantCount <= 12, "GLB-ready complementary material variants must already exist in a bounded pool");
+  assert.equal(direct.readyVariantCount, 18, "GLB-ready pool must have exactly eighteen bounded three-part material variants");
   assert.equal(direct.afterVariantCount, direct.readyVariantCount, "first scored cut must not insert/reclone complementary material variants");
   assert.equal(direct.variantIdentityPreserved, true, "first scored cut must preserve every complementary variant key and material object identity");
   assert.equal(direct.afterPoolGeneration, direct.beforeGeneration, "first scored cut must not rebuild asset generation");
   assert.equal(direct.newLinks, 0, "first scored Flow frame must not link a cut-specific program");
-  assert.equal(direct.afterCount, 1, "scored-first frame uses exactly one caller-owned gameplay tick");
+  assert.equal(direct.afterCount, 1, "two concurrent scored Any hits use exactly one caller-owned gameplay tick");
   assert.equal(direct.afterGeneration, direct.beforeGeneration, "scored-first GLB generation must remain stable");
   assert.equal(direct.sameContext, true);
-  assert.deepEqual([...direct.signs].sort((a, b) => a - b), [-1, 1]);
+  assert.deepEqual([...direct.signs].sort((a, b) => a - b), [-1, -1, 1, 1], "two simultaneous Any hits must stage four complementary GLB halves");
   assert.equal(direct.captureError, 0, "scored-first default framebuffer capture must be valid");
   assert.ok(direct.pixels > 400, "scored-first live scene and corpse must paint real canvas pixels");
   assert.equal(direct.framebufferMatchesBackbuffer, true, "scored-first frame must return to PlayCanvas's backBuffer framebuffer");
@@ -460,7 +469,7 @@ try {
     assert.equal(lifecycle.before.context, true, `${lifecycle.label}: links must belong to renderer graphics context`);
     assert.equal(lifecycle.before.shaderReadyCount, lifecycle.before.shaderProgramCount,
       `${lifecycle.label}: all signed material shader programs must be linked, valid on this context, and ready before cut`);
-    assert.ok(lifecycle.before.shaderReadyCount >= 12, `${lifecycle.label}: no missing signed mesh shader programs`);
+    assert.ok(lifecycle.before.shaderReadyCount >= 18, `${lifecycle.label}: no missing signed mesh shader programs`);
     if (lifecycle.label === "restored") {
       assert.equal(lifecycle.restoreDiagnostic.wrapperPreserved, true, "WebGL linkProgram instrumentation must survive context restoration");
       assert.equal(lifecycle.restoreDiagnostic.deviceContextPreserved, true, "restored shader programs must belong to the same WebGL context");
@@ -488,7 +497,7 @@ try {
     assert.ok(lifecycle.idlePixelDifference < 20, `${lifecycle.label}: no corpse flash/ghost on idle framebuffer`);
     for (const asset of ["directional-arrow/rounded-outline-v1", "any-note/outlined-circle-v1"]) {
       const slots = lifecycle.before.pool[asset] ?? [];
-      assert.ok(slots.length >= 2, `${lifecycle.label}: missing prebuilt two-half pool for ${asset}`);
+      assert.equal(slots.length, asset === "any-note/outlined-circle-v1" ? 4 : 2, `${lifecycle.label}: missing bounded prebuilt GLB halves for ${asset}`);
       assert.ok(slots.every((slot) => slot.records.length >= 3 && slot.records.every((record) => record.signed.includes("vAeroSliceLocalX"))), `${lifecycle.label}: ${asset} has missing signed real-GLB material parts`);
       assert.ok(slots.every((slot) => slot.records.every((record) => record.program.some((program) => lifecycle.before.programs.includes(program)))), `${lifecycle.label}: ${asset} has material parts without actual linked WebGL programs`);
       assert.ok(slots.every((slot) => !slot.enabled), `${lifecycle.label}: warmup leaves no visible corpse`);

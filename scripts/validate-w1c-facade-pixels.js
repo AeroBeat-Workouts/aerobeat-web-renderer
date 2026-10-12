@@ -816,8 +816,8 @@ try {
   assert.equal(evidence.compositeEvidence.liveColor, "#D42F81");
   assert.ok(evidence.compositeEvidence.fill[0] > .7 && evidence.compositeEvidence.fill[1] < .3 && evidence.compositeEvidence.fill[2] > .4,
     `live fill retains song color ${JSON.stringify(evidence.compositeEvidence.fill)}`);
-  assert.ok(evidence.compositeEvidence.variants === 12,
-    `two assets × three part materials × signs already owned per dedicated slot; no scored-cut growth: ${evidence.compositeEvidence.variants}`);
+  assert.ok(evidence.compositeEvidence.variants === 18,
+    `two arrow halves plus four Any halves × three part materials already owned; no scored-cut growth: ${evidence.compositeEvidence.variants}`);
   for (const state of evidence.orbGeometry) {
     assert.equal(state.pieces.length, 2, `orb t=${state.sliceT}: two GLB halves`);
     assert.ok(Math.abs(Math.abs(state.pieces[0].centerWorldX - state.pieces[1].centerWorldX) - .76) < 1e-6,

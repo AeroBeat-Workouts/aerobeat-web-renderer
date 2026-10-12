@@ -616,12 +616,14 @@ export class AeroPlayCanvasRenderer {
     let texture=null,target=null,cameraEntity=null,layer=null;
     const warmed=[],expectedVariants=[],expectedMeshes=[];
     try{
-      // These two slots are the actual first-cut corpse pool, not disposable shader probes.
+      // These are retained corpse slots, not disposable shader probes. The
+      // scored Flow burst can show two Any cuts at once (four signed halves).
       for(const assetId of flowSliceWarmupAssets){
-        const halves=[this.acquireAftermathAssetEntity(assetId,0),this.acquireAftermathAssetEntity(assetId,1)];
+        const slotCount=assetId==="any-note/outlined-circle-v1"?4:2;
+        const halves=Array.from({length:slotCount},(_,index)=>this.acquireAftermathAssetEntity(assetId,index));
         if(halves.some((entity)=>!entity||!(this.assetMaterials.get(entity)?.length)))throw new Error(`Flow slice warmup asset unavailable: ${assetId}`);
-        for(let index=0;index<2;index++){
-          const entity=halves[index],sign=index===0?-1:1;
+        for(let index=0;index<slotCount;index++){
+          const entity=halves[index],sign=index%2===0?-1:1;
           this.applyAftermathAppearance({assetId,role:"left",appearanceColor:"#3B82C4",alpha:1,aftermath:{sliceSign:sign}},entity);
           for(const record of this.assetMaterials.get(entity)){expectedVariants.push(record.meshInstance.material);expectedMeshes.push(record.meshInstance);}
           warmed.push(entity);

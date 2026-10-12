@@ -15,7 +15,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"crossed_guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",tier?:"great"|"good"|"almost"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",tier?:"great"|"good"|"almost"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
 /** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
@@ -190,6 +190,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   for(const cell of validateCellList(frame.blockedCells??[],"Blocked cells"))addCellState(objects,cell,"obstacle",reach,frame.presentation==="boxing_collider");
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
+  if(sorted.some((target)=>target?.kind==="guard"&&target.family!=="guard"))throw new TypeError("Gameplay guard target family is invalid");
   const guidanceMode=frame.guidanceBandMode??experiment.guidanceBandMode;
   const guidance=buildGuidanceBands(frame,sorted,window,guidanceMode,presentationConfig,tuning);
   objects.push(...guidance.objects);
@@ -394,7 +395,7 @@ function buildGuidanceBands(frame,targets,window,mode,config,tuning){
   return Object.freeze({objects:Object.freeze(entries.map((entry,index)=>guidanceBand(frame,index,entry.z,entry.alpha))),culledCount:culled});
 }
 /** @param {AeroRenderableTarget} target */
-function isGuidanceEligible(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
+function isGuidanceEligible(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&target.family==="guard";}
 /** One reduced-alpha or full-extent band. Continuation alpha is exactly half the arrival alpha (.32 → .16). @param {AeroGameplayFrame} frame @param {number} index @param {number} z @param {number} alpha */
 function guidanceBand(frame,index,z,alpha){const lanes=frame.presentation==="boxing_lanes"?boxingLanes(defaultTestPresentationConfig):[{x:0,width:4}],left=Math.min(...lanes.map((lane)=>lane.x-lane.width/2)),right=Math.max(...lanes.map((lane)=>lane.x+lane.width/2));return sceneObject(`guidance-band-${index}`,"guidance_band","neutral",null,{x:(left+right)/2,y:TRACK_SURFACE_Y+.018,z},{x:right-left,y:.018,z:.055},null,null,0,alpha,null,0,true,null,null,z,19,null,null,null,null,"#d9f5ff");}
 /**
@@ -436,7 +437,7 @@ function feedbackMotion(animation,elapsedMs,durationMs){
 /** @param {AeroRenderableTarget} target */
 function isDynamicNoteFillTarget(target){return target.kind==="flow"&&target.family==="flow"||target.kind==="punch"&&["straight","hook","uppercut"].includes(target.family);}
 /** @param {AeroRenderableTarget} target */
-function isBeatBounceSemanticTarget(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&["guard","crossed_guard"].includes(target.family);}
+function isBeatBounceSemanticTarget(target){return isDynamicNoteFillTarget(target)||target.kind==="guard"&&target.family==="guard";}
 /** @param {AeroRenderableTarget} target */
 function assetForTarget(target){if(target.kind==="guard")return ASSET.guard;if(target.kind==="bomb"||target.family==="bomb")return ASSET.bomb;return target.direction?ASSET.arrow:ASSET.circle;}
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {typeof defaultTestPresentationConfig} config @param {AeroFrameRowReach} reach */
@@ -451,7 +452,7 @@ function targetPositions(frame,target,config,reach){
       const cells=target.cells.slice(0,2);
       const pair=cells.map(worldPositionForCell);
       if(!pair[0]||!pair[1]||pair[0].y!==pair[1].y||pair[0].x===pair[1].x)throw new TypeError("Guard cells must be a same-height left/right pair");
-      // The authored cells are [left-hand, right-hand], even for crossed guards.
+      // The authored cells are [left-hand, right-hand]; preserve their order.
       // Sorting by screen X would paint the opposite hand on each shield.
       return pair.map((position)=>({x:position.x,y:frame.presentation==="boxing_collider"?presentationRowY(reach,gridRowFromWorldY(position.y)):lanes[0].y}));
     }

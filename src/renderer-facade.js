@@ -297,7 +297,7 @@ export class AeroPlayCanvasRenderer {
         fragmentGLSL:"precision highp float;uniform vec3 view_position;uniform vec3 u_haloColor;uniform float u_haloGain;varying vec3 vAeroHaloWorld;varying vec3 vAeroHaloNormal;varying float vAeroHaloAxis;varying vec2 vAeroHaloCross;varying float vAeroHaloCap;void main(){vec3 viewDir=normalize(view_position-vAeroHaloWorld);float normalFacing=dot(normalize(vAeroHaloNormal),viewDir);float facing=pow(max(normalFacing,0.0),0.72);float endpoint=1.0-smoothstep(0.72,1.0,vAeroHaloAxis);float side=facing*endpoint;float cap=(1.0-smoothstep(0.08,1.0,length(vAeroHaloCross)))*0.55*step(0.0001,normalFacing);float energy=u_haloGain*mix(side,cap,smoothstep(0.5,0.9,vAeroHaloCap));gl_FragColor=vec4(u_haloColor,energy);}"
       });
       material.blendType=pc.BLEND_ADDITIVEALPHA;material.depthTest=true;material.depthWrite=false;material.cull=pc.CULLFACE_NONE;
-      for(const component of glow.findComponents("render"))for(const meshInstance of component.meshInstances)meshInstance.material=material;
+      for(const component of glow.findComponents("render"))for(const meshInstance of component.meshInstances){meshInstance.material=material;meshInstance.castShadow=false;}
       if(previous&&this.ownedMaterials.delete(previous))previous.destroy();this.ownedMaterials.add(material);this.entityMaterials.set(glow,material);
     }
     glow.enabled=true;this.applyLocalCylinder(glow,0.48,0.60,0.045);

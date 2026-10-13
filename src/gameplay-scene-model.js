@@ -27,7 +27,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** Per-family aftermath launch velocity (WU/s); hooks carry the magnitude with hand-derived sign. @typedef {{x:number,y:number,z:number}} AeroAftermathLaunchVelocity */
 /** @typedef {{straight:AeroAftermathLaunchVelocity,hook:AeroAftermathLaunchVelocity,uppercut:AeroAftermathLaunchVelocity,guardBonk:AeroAftermathLaunchVelocity,flowNote:AeroAftermathLaunchVelocity}} AeroAftermathLaunchVelocities */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,noteScaleFactor:number,obstacleScaleFactor:number,bombScaleFactor:number,markerScaleFactor:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number,aftermathGravityWUPerS2:number,aftermathRestitution:number,aftermathBounceCount:number,aftermathEvictedFadeMs:number,aftermathSettledTumbleRadPerS:number,aftermathSliceSeparationWU:number,aftermathSliceWiderSeparationWU:number,aftermathLaunchVelocities:AeroAftermathLaunchVelocities,hazardGlowRampMs:number,hazardGlowDecayMs:number,hazardVignetteIntensity:number,hazardVignettePulseHz:number,hazardVignettePulseDepth:number,hazardVignetteRampMs:number,hazardVignetteDecayMs:number}} AeroRendererTuning */
-/** @typedef {{text:"Great"|"Good"|"Almost"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"small_bounce"|"shake"}} AeroFeedbackVisual */
+/** @typedef {{text:"Great"|"Good"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
 /** @typedef {{id:string,kind:"icon"|"obstacle"|"cell"|"lane"|"track"|"timing"|"shadow"|"feedback"|"guidance_band"|"aftermath"|"hazard_glow"|"tolerance_cone"|"collider_square"|"collider_volume"|"wrist_bomb_collider",role:AeroVisualRole,targetId:string|null,position:AeroWorldPosition,scale:AeroWorldScale,rotationZRad:number,alpha:number,iconId:string|null,assetId:string|null,appearanceColor:string|null,state:AeroSceneTargetState|null,transparent:boolean,intervalStartMs:number|null,intervalEndMs:number|null,sortDepth:number,renderOrder:number,guardPairKey:string|null,guardPairIndex:number|null,removal:AeroRemovalVisual|null,feedback:AeroFeedbackVisual|null,aftermath?:AeroAftermathVisual|AeroHazardGlowVisual|AeroToleranceConeVisual|AeroColliderSquareVisual|null}} AeroGameplaySceneObject */
 /** Closed-form aftermath pose for one icon entity. 0.0.59 B14: the corpse has ONE phase — an uninterrupted fall off-screen — so `settleMs` is the off-screen crossing time and `phase` is always "flight". 0.0.63 D5: slice halves retain scored `sliceT` (0..1) only as metadata; the visible seam ignores it. @typedef {{targetId:string,family:AeroAftermathFamily,elapsedMs:number,settleMs:number,phase:"flight",sliceSign:1|-1|null,offsetXWU:number,sliceT?:number,shape?:"arrow"|"orb"}} AeroAftermathVisual */
@@ -103,7 +103,7 @@ export const AFTERMATH_CORPSE_DESATURATION=0.92;
 export const AFTERMATH_CORPSE_MIN_CHROMA=0.35;
 /** 0.0.52 W1-C: closed-form hit-success aftermath launch velocities (WU/s, gravity −9.8). Hooks are stored without the X sign; the hand signs it toward center (left hand +X, right hand −X). */
 function aftermathLaunchVelocities(){return Object.freeze({straight:Object.freeze({x:0,y:.5,z:-4}),hook:Object.freeze({x:1.2,y:.3,z:-3}),uppercut:Object.freeze({x:0,y:2.2,z:-2.5}),guardBonk:Object.freeze({x:0,y:.2,z:-.5}),flowNote:Object.freeze({x:0,y:.4,z:-2})});}
-const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#2a3038",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,GOOD_HEIGHT_CSS_PX=44,ALMOST_HEIGHT_CSS_PX=38,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2,SMALL_BOUNCE_AMPLITUDE=.12;
+const CANONICAL_WORLD_UNITS_PER_MS=.006,REMOVAL_MS=80,MISS_EXPIRY_MS=350,FEEDBACK_HOLD_MS=180,FEEDBACK_FADE_MS=170,MAX_FEEDBACK=4,MAX_SONG_GUIDANCE_BANDS=16,MAX_TARGET_ARRIVAL_BANDS=24,MAX_GUIDANCE_CONTINUATION_BANDS=16,MAX_GUIDANCE_BEAT_TIMESTAMPS=512,TIMING_TILE_PITCH=.36,TIMING_TILE_GAP=.025,TRACK_SURFACE_Y=gameplayWorldGrid.floorY-.08,SURFACE_BIAS=.006,SHADOW_ALPHA=.3,SHADOW_COLOR="#11141a",MISS_COLOR="#2a3038",MISS_HEIGHT_CSS_PX=42,GREAT_HEIGHT_CSS_PX=48,GOOD_HEIGHT_CSS_PX=44,SHAKE_AMPLITUDE=.18,SHAKE_CYCLES=9,BOUNCE_AMPLITUDE=.2;
 /** Legacy pure equipment-projection math only: active rendering uses the native directional
  *   shadow catcher, and neither equipment nor beats emit fake ground-shadow objects. */
 const EQUIPMENT_SABER_LENGTH_WU=0.75,EQUIPMENT_SABER_RADIUS_WU=0.18,EQUIPMENT_SABER_SHADOW_WIDTH_WU=2*EQUIPMENT_SABER_RADIUS_WU,EQUIPMENT_GLOVE_SHADOW_RADIUS_WU=0.2;
@@ -333,7 +333,8 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   const assetId=assetForTarget(target);
   const rotation=target.direction?directionRotation(target.direction):0;
   const pairKey=target.kind==="guard"?target.id:null;
-  const iconAppearanceColor=state==="miss"&&target.tier!=="almost"?MISS_COLOR:appearanceColor;
+  const nearGood=state==="miss"&&(target.tier==="good"||target.tier==="almost");
+  const iconAppearanceColor=state==="miss"&&!nearGood?MISS_COLOR:appearanceColor;
   // 0.0.55 W2 follow-up: `frame.aftermath` now contains the hit target from commit time
   // (the W2 aftermath-persistence fix), so gating the handoff on mere membership would hide
   // the icon at commit instead of after the 80 ms removal window. Gate the hit-state handoff
@@ -344,14 +345,14 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   /** @type {AeroGameplaySceneObject[]} */ const feedbackObjects=[];
   if(resolved&&target.kind!=="obstacle"&&target.kind!=="bomb"&&positions.length&&elapsedMs<tuning.feedbackDurationMs){
     const hit=state==="hit";
-    const tier=hit?normalizeHitTier(target.tier):target.tier==="almost"?"almost":"miss";
-    const tierText=tier==="great"?"Great":tier==="good"?"Good":tier==="almost"?"Almost":"Miss";
-    const tierColor=tier==="great"?"#ffffff":tier==="good"?"#6ec6ff":tier==="almost"?"#ffd60a":"#e5484d";
-    const tierHeight=tier==="great"?GREAT_HEIGHT_CSS_PX:tier==="good"?GOOD_HEIGHT_CSS_PX:tier==="almost"?ALMOST_HEIGHT_CSS_PX:MISS_HEIGHT_CSS_PX;
-    const tierAnimation=tier==="great"?"bounce":tier==="good"?"bounce":tier==="almost"?"small_bounce":"shake";
+    const tier=hit?normalizeHitTier(target.tier):nearGood?"good":"miss";
+    const tierText=tier==="great"?"Great":tier==="good"?"Good":"Miss";
+    const tierColor=tier==="great"?"#ffffff":tier==="good"?"#6ec6ff":"#e5484d";
+    const tierHeight=tier==="great"?GREAT_HEIGHT_CSS_PX:tier==="good"?GOOD_HEIGHT_CSS_PX:MISS_HEIGHT_CSS_PX;
+    const tierAnimation=tier==="miss"?"shake":"bounce";
     const alpha=elapsedMs<=FEEDBACK_HOLD_MS?1:clamp(1-(elapsedMs-FEEDBACK_HOLD_MS)/FEEDBACK_FADE_MS,0,1),motion=feedbackMotion(tierAnimation,elapsedMs,tuning.feedbackDurationMs);
-    const visual=Object.freeze({text:/** @type {"Great"|"Good"|"Almost"|"Miss"} */(tierText),holdMs:FEEDBACK_HOLD_MS,fadeMs:FEEDBACK_FADE_MS,totalMs:tuning.feedbackDurationMs,elapsedMs,alpha,faceColor:tierColor,separationColor:"#171a22",depthBias:state==="miss"&&tier==="almost"?.5:.01,apparentHeightCssPx:tierHeight,offsetX:motion.x,offsetY:motion.y,scale:motion.scale,animation:/** @type {"bounce"|"small_bounce"|"shake"} */(tierAnimation)});
-    const crossingAnchor=hit||(state==="miss"&&tier==="almost");
+    const visual=Object.freeze({text:/** @type {"Great"|"Good"|"Miss"} */(tierText),holdMs:FEEDBACK_HOLD_MS,fadeMs:FEEDBACK_FADE_MS,totalMs:tuning.feedbackDurationMs,elapsedMs,alpha,faceColor:tierColor,separationColor:"#171a22",depthBias:nearGood?.5:.01,apparentHeightCssPx:tierHeight,offsetX:motion.x,offsetY:motion.y,scale:motion.scale,animation:/** @type {"bounce"|"shake"} */(tierAnimation)});
+    const crossingAnchor=hit||nearGood;
     const crossingPositions=crossingAnchor?(target.kind==="guard"?[{x:(positions[0].x+positions[positions.length-1].x)/2,y:positions[0].y}]:positions.slice(0,1)):[{x:target.hand==="right"?1.5:-1.5,y:1.5}];
     for(const [index,p] of crossingPositions.entries())feedbackObjects.push(sceneObject(`${target.id}:feedback:${index}`,"feedback",role,target.id,{x:p.x,y:p.y,z:crossingAnchor?0:1.5},{x:1,y:1,z:1},null,null,0,alpha,state,false,true,null,null,crossingAnchor?0:1.5,40,null,null,removal,visual));
   }
@@ -426,13 +427,12 @@ export function iconRenderPosition(frame,target,tuning,presentationConfig,reach)
   const z=state==="miss"?(frame.nowMs-target.beatCenterMs)*CANONICAL_WORLD_UNITS_PER_MS:state==="hit"?0:movingZ;
   return Object.freeze({x:base.x,y:base.y+totalOffset,z});
 }
-/** Deterministic caller-time feedback motion; no engine delta or random state participates. @param {"bounce"|"small_bounce"|"shake"} animation @param {number} elapsedMs @param {number} durationMs */
+/** Deterministic caller-time feedback motion; no engine delta or random state participates. @param {"bounce"|"shake"} animation @param {number} elapsedMs @param {number} durationMs */
 function feedbackMotion(animation,elapsedMs,durationMs){
   const progress=clamp(elapsedMs/Math.max(1,durationMs),0,1);
   if(animation==="shake")return Object.freeze({x:Math.sin(progress*Math.PI*2*SHAKE_CYCLES)*SHAKE_AMPLITUDE*(1-progress),y:0,scale:1.08});
-  const amplitude=animation==="small_bounce"?SMALL_BOUNCE_AMPLITUDE:BOUNCE_AMPLITUDE;
   const bounce=Math.sin(progress*Math.PI);
-  return Object.freeze({x:0,y:bounce*amplitude,scale:1+bounce*amplitude});
+  return Object.freeze({x:0,y:bounce*BOUNCE_AMPLITUDE,scale:1+bounce*BOUNCE_AMPLITUDE});
 }
 /** @param {AeroRenderableTarget} target */
 function isDynamicNoteFillTarget(target){return target.kind==="flow"&&target.family==="flow"||target.kind==="punch"&&["straight","hook","uppercut"].includes(target.family);}
@@ -490,7 +490,7 @@ function targetRole(target){return target.kind==="guard"?"guard":target.kind==="
 /** @param {AeroRenderableTarget} target @param {number} nowMs @param {{startMs:number,endMs:number}} interval @param {{beforeMs:number,afterMs:number}} window @returns {AeroSceneTargetState} */
 function targetState(target,nowMs,interval,window){if(target.judgement==="hit")return"hit";if(target.judgement==="miss")return"miss";if(nowMs>interval.endMs+window.afterMs)return"spent";if(nowMs>=interval.startMs-window.beforeMs&&nowMs<=interval.endMs+window.afterMs)return"active";return"pending";}
 /** Resolve the 0.0.94 scoring tier for a hit target. @param {"great"|"good"|"almost"|"miss"|undefined} tier */
-function normalizeHitTier(tier){return tier==="good"?"good":tier==="almost"?"almost":"great";}
+function normalizeHitTier(tier){return tier==="good"||tier==="almost"?"good":"great";}
 /** @param {AeroRenderableTarget} target */
 function obstacleInterval(target){const startMs=Number(target.intervalStartMs??target.beatCenterMs),endMs=Number(target.intervalEndMs??target.endMs??startMs);if(target.intervalEndMs!==undefined&&target.endMs!==undefined&&target.intervalEndMs!==target.endMs)throw new TypeError("Flow obstacle end bounds conflict");if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs<=startMs||endMs>86_400_000)throw new TypeError("Flow obstacle interval is invalid");return Object.freeze({startMs,endMs});}
 /** Private projected world-space equipment centers. Absent roles use fixed per-hand fallback. */

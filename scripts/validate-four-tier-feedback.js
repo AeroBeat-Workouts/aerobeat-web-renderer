@@ -20,19 +20,20 @@ const parts = (model) => ({
   icon: model.objects.find((entry) => entry.kind === "icon" && entry.targetId === "tier-test"),
 });
 
-// Good on an authoritative miss is presentation only: no fabricated hit or changed motion.
-for (const tier of ["good", "almost"]) {
+// A finalized qualifying near miss retains its intact note and authoritative miss state.
+for (const tier of ["almost"]) {
   for (const nowMs of [COMMIT_MS, COMMIT_MS + 50, COMMIT_MS + 179]) {
     const { label, icon } = parts(buildGameplaySceneModel(frame(nowMs, targetFor("miss", tier)), undefined, defaultRendererTuning));
-    assert.equal(label?.feedback?.text, "Good", `${tier} near contact shows Good`);
-    assert.equal(label?.feedback?.faceColor, "#6ec6ff", `${tier} near contact is blue`);
+    assert.equal(label?.feedback?.text, "Almost", `${tier} near contact spells Almost`);
+    assert.equal(label?.feedback?.faceColor, "#facc15", `${tier} near contact is yellow`);
     assert.equal(label?.feedback?.apparentHeightCssPx, 44);
     assert.equal(label?.feedback?.animation, "bounce");
     assert.equal(label?.feedback?.depthBias, .5, "near label clears the GLB face without disabling depth testing");
-    assert.deepEqual(label?.position, { x: -.5, y: 1, z: 0 }, "Good stays over the target crossing");
+    assert.deepEqual(label?.position, { x: -.5, y: 1, z: 0 }, "Almost stays over the target crossing");
     assert.equal(icon?.state, "miss", "judgement remains miss");
     assert.equal(icon?.appearanceColor, APPEARANCE, "near icon keeps its authored fill");
     assert.equal(icon?.position.z, (nowMs - CENTER_MS) * .006, "near icon retains committed miss motion");
+    assert.equal(icon?.removal, null, "near miss cannot start hit removal or fake slice");
   }
 }
 const great = parts(buildGameplaySceneModel(frame(CENTER_MS, targetFor("hit", "great")), undefined, defaultRendererTuning));
@@ -62,4 +63,4 @@ const guard = { id: "tier-test", kind: "guard", hand: "both", family: "guard", c
   cells: [4, 7], lane: null, beatCenterMs: CENTER_MS, judgement: "miss", tier: "good", missCommitMs: COMMIT_MS };
 assert.deepEqual(parts(buildGameplaySceneModel(frame(COMMIT_MS, guard))).label?.position, { x: 0, y: 1, z: 0 }, "dual guard near label uses shared crossing midpoint");
 assert.throws(() => buildGameplaySceneModel(frame(CENTER_MS, targetFor("hit", "perfect"))), /tier is invalid/);
-console.log("Three-tier feedback validation passed: Great white, near Good blue, true Miss red/gray, legacy almost visually Good.");
+console.log("Feedback validation passed: finalized Almost yellow with intact note, true Great white, far Miss red/gray, legacy hit Good unchanged.");

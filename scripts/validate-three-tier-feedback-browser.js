@@ -1,5 +1,5 @@
 // @ts-check
-// Normal browser gate: real pinned arrow GLB plus PlayCanvas-generated world glyph pixels.
+// Normal browser gate: real pinned arrow GLB plus PlayCanvas-generated world glyph pixels, including full Almost texture bounds.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -79,15 +79,36 @@ try {
         const red = (r, g, b) => r > 100 && r > g * 1.25 && r > b * 1.25;
         const white = (r, g, b) => r > 155 && g > 155 && b > 155 && Math.max(r, g, b) - Math.min(r, g, b) < 65;
         const gray = (r, g, b) => r > 30 && r < 145 && Math.max(r, g, b) - Math.min(r, g, b) < 22;
+        const yellow = (r, g, b) => r > 120 && g > 100 && b < g * .7 && r > b * 1.5;
+        const texture = glyph?.quad?.render?.meshInstances?.[0]?.material?.diffuseMap;
+        const texturePixels = texture?.lock();
+        const faceColumns = [];
+        const faceSignatures = [];
+        if (texturePixels) for (let x = 0; x < texture.width; x++) {
+          let found = false;
+          let signature = "";
+          for (let y = 0; y < texture.height; y++) {
+            const i = (y * texture.width + x) * 4;
+            const face = Boolean(texturePixels[i + 3] && yellow(texturePixels[i], texturePixels[i + 1], texturePixels[i + 2]));
+            signature += face ? "1" : "0";
+            if (face) found = true;
+          }
+          if (found) faceColumns.push(x);
+          faceSignatures[x] = signature;
+        }
+        if (texturePixels) texture.unlock();
+        const groups = faceColumns.filter((x, index) => index === 0 || x > faceColumns[index - 1] + 1);
+        const letters = groups.map((start, index) => faceSignatures.slice(start, (groups[index + 1] ?? texture.width) - 2).join("|"));
         return {
           ready: renderer.describe().gameplayAssets.state, fallback: renderer.describe().sceneVisuals.fallbackInstanceCount,
           icon: { state: icon?.state, tint: icon?.appearanceColor, asset: icon?.assetId, screen: glbScreen, fill: fill ? [fill.material.diffuse.r, fill.material.diffuse.g, fill.material.diffuse.b] : null },
-          feedback: { text: feedback?.feedback?.text, face: feedback?.feedback?.faceColor, position: feedback?.position, screen: glyphScreen, texture: glyph?.quad?.render?.meshInstances?.[0]?.material?.diffuseMap?.name },
-          glyphPixels: { blue: count(glyphScreen, 25, blue), red: count(glyphScreen, 25, red), white: count(glyphScreen, 25, white) },
+          feedback: { text: feedback?.feedback?.text, face: feedback?.feedback?.faceColor, position: feedback?.position, screen: glyphScreen, texture: texture?.name, quadAspect: glyph?.quad?.getLocalScale().x / glyph?.quad?.getLocalScale().z },
+          textureFace: { width: texture?.width, height: texture?.height, first: faceColumns[0], last: faceColumns.at(-1), groups: groups.length, distinctLetters: new Set(letters).size },
+          glyphPixels: { blue: count(glyphScreen, 25, blue), red: count(glyphScreen, 25, red), white: count(glyphScreen, 25, white), yellow: count(glyphScreen, 65, yellow) },
           iconPixels: { blue: count(glbScreen, 28, blue), gray: count(glbScreen, 28, gray) },
         };
       };
-      return { good: capture("miss", "good", 1200), legacy: capture("miss", "almost", 1200), great: capture("hit", "great", 1000), miss: capture("miss", "miss", 1200) };
+      return { almost: capture("miss", "almost", 1200), great: capture("hit", "great", 1000), miss: capture("miss", "miss", 1200) };
     }, { width, height });
     for (const [state, sample] of Object.entries(result)) {
       assert.equal(sample.ready, "ready", `${viewport}/${state}: real pinned GLBs ready`);
@@ -98,18 +119,19 @@ try {
       assert.ok(sample.icon.screen.x > 0 && sample.icon.screen.x < width && sample.feedback.screen.x > 0 && sample.feedback.screen.x < width, `${viewport}/${state}: objects lie in viewport`);
       assert.ok(sample.feedback.texture?.startsWith("aero-feedback-"), `${viewport}/${state}: facade uses generated glyph texture`);
     }
-    for (const state of ["good", "legacy"]) {
-      const sample = result[state];
-      assert.equal(sample.icon.state, "miss", `${viewport}/${state}: no fabricated hit`);
-      assert.equal(sample.icon.tint, "#2468AC", `${viewport}/${state}: icon keeps authored color`);
-      assert.equal(sample.feedback.text, "Good");
-      assert.equal(sample.feedback.face, "#6ec6ff");
-      assert.equal(sample.feedback.texture, "aero-feedback-good");
-      assert.deepEqual(sample.feedback.position, { x: -.5, y: 1, z: 0 });
-      assert.ok(sample.glyphPixels.blue > 100, `${viewport}/${state}: blue glyph pixels visible: ${JSON.stringify(sample)}`);
-      assert.ok(sample.glyphPixels.blue > sample.glyphPixels.red * 2, `${viewport}/${state}: blue rather than red glyph`);
-      assert.ok(sample.iconPixels.blue > 100, `${viewport}/${state}: authored blue real GLB remains visible: ${JSON.stringify(sample)}`);
-    }
+    const near = result.almost;
+    assert.equal(near.icon.state, "miss", `${viewport}: no fabricated hit or slice`);
+    assert.equal(near.icon.tint, "#2468AC", `${viewport}: intact icon keeps authored color`);
+    assert.equal(near.feedback.text, "Almost");
+    assert.equal(near.feedback.face, "#facc15");
+    assert.equal(near.feedback.texture, "aero-feedback-almost");
+    assert.deepEqual(near.feedback.position, { x: -.5, y: 1, z: 0 });
+    assert.equal(near.textureFace.groups, 6, `${viewport}: all six letter faces: ${JSON.stringify(near)}`);
+    assert.equal(near.textureFace.distinctLetters, 6, `${viewport}: no missing glyph rendered as repeated '?' fallback`);
+    assert.ok(near.textureFace.first > 0 && near.textureFace.last < near.textureFace.width - 1, `${viewport}: yellow word fully inside texture`);
+    assert.ok(Math.abs(near.feedback.quadAspect - near.textureFace.width / near.textureFace.height) < .01, `${viewport}: world quad matches texture aspect`);
+    assert.ok(near.glyphPixels.yellow > 100, `${viewport}: yellow glyph pixels visible: ${JSON.stringify(near)}`);
+    assert.ok(near.iconPixels.blue > 100, `${viewport}: authored real GLB remains visible: ${JSON.stringify(near)}`);
     assert.equal(result.great.icon.state, "hit");
     assert.equal(result.great.feedback.text, "Great");
     assert.equal(result.great.feedback.face, "#ffffff");
@@ -122,7 +144,7 @@ try {
     assert.deepEqual(result.miss.feedback.position, { x: -1.5, y: 1.5, z: 1.5 });
     assert.ok(result.miss.glyphPixels.red > 100, `${viewport}: Miss red pixels visible: ${JSON.stringify(result.miss)}`);
     assert.ok(result.miss.iconPixels.gray > 100, `${viewport}: Miss gray real GLB visible: ${JSON.stringify(result.miss)}`);
-    console.log(`${viewport} real-GLB feedback pixels: Good blue=${result.good.glyphPixels.blue}, Great white=${result.great.glyphPixels.white}, Miss red=${result.miss.glyphPixels.red}; icon Good blue=${result.good.iconPixels.blue}, Miss gray=${result.miss.iconPixels.gray}`);
+    console.log(`${viewport} real-GLB feedback pixels: Almost yellow=${near.glyphPixels.yellow}, Great white=${result.great.glyphPixels.white}, Miss red=${result.miss.glyphPixels.red}; icon Almost blue=${near.iconPixels.blue}, Miss gray=${result.miss.iconPixels.gray}`);
   }
   assert.deepEqual(noise, [], "browser console clean");
   console.log("Three-tier real GLB feedback pixel validation passed in landscape and portrait.");

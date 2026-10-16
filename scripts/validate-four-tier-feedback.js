@@ -36,6 +36,17 @@ for (const tier of ["almost"]) {
     assert.equal(icon?.removal, null, "near miss cannot start hit removal or fake slice");
   }
 }
+// Boxing's genuine miss/good remains blue Good, with the same intact tinted icon and crossing anchor.
+const boxer = { ...targetFor("miss", "good"), kind: "punch", family: "straight" };
+const boxingFrame = { ...frame(COMMIT_MS + 50, boxer), presentation: "boxing_spatial_grid" };
+const boxing = parts(buildGameplaySceneModel(boxingFrame, undefined, defaultRendererTuning));
+assert.equal(boxing.label?.feedback?.text, "Good", "Boxing miss/good retains Good, not Flow Almost");
+assert.equal(boxing.label?.feedback?.faceColor, "#6ec6ff", "Boxing miss/good remains blue");
+assert.deepEqual(boxing.label?.position, { x: -.5, y: 1, z: 0 }, "Boxing near label stays at target crossing");
+assert.equal(boxing.label?.feedback?.depthBias, .5);
+assert.equal(boxing.icon?.state, "miss");
+assert.equal(boxing.icon?.appearanceColor, APPEARANCE, "Boxing near icon keeps authored color");
+assert.equal(boxing.icon?.removal, null, "Boxing miss/good cannot fabricate hit removal");
 const great = parts(buildGameplaySceneModel(frame(CENTER_MS, targetFor("hit", "great")), undefined, defaultRendererTuning));
 assert.equal(great.label?.feedback?.text, "Great");
 assert.equal(great.label?.feedback?.faceColor, "#ffffff");
@@ -63,4 +74,4 @@ const guard = { id: "tier-test", kind: "guard", hand: "both", family: "guard", c
   cells: [4, 7], lane: null, beatCenterMs: CENTER_MS, judgement: "miss", tier: "good", missCommitMs: COMMIT_MS };
 assert.deepEqual(parts(buildGameplaySceneModel(frame(COMMIT_MS, guard))).label?.position, { x: 0, y: 1, z: 0 }, "dual guard near label uses shared crossing midpoint");
 assert.throws(() => buildGameplaySceneModel(frame(CENTER_MS, targetFor("hit", "perfect"))), /tier is invalid/);
-console.log("Feedback validation passed: finalized Almost yellow with intact note, true Great white, far Miss red/gray, legacy hit Good unchanged.");
+console.log("Feedback validation passed: finalized Almost yellow, Boxing miss/good blue, true Great white, far Miss red/gray, hit Good unchanged.");

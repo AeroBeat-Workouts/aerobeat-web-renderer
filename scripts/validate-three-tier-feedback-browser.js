@@ -49,8 +49,10 @@ try {
         beatCenterMs: 1000, direction: "right", appearanceColor: "#2468AC", judgement, tier,
         ...(judgement === "hit" ? { feedbackProgress: 0 } : { missCommitMs: 1181 }),
       });
-      const capture = (judgement, tier, nowMs) => {
-        const rendered = renderer.renderGameplayFrame({ presentation: "flow", nowMs, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, targets: [target(judgement, tier)] });
+      const capture = (judgement, tier, nowMs, boxing = false) => {
+        const note = target(judgement, tier);
+        if (boxing) { note.kind = "punch"; note.family = "straight"; }
+        const rendered = renderer.renderGameplayFrame({ presentation: boxing ? "boxing_spatial_grid" : "flow", nowMs, timingWindowBeforeMs: 180, timingWindowAfterMs: 180, targets: [note] });
         const icon = rendered.model.objects.find((entry) => entry.kind === "icon" && entry.targetId === "three-tier-glb");
         const feedback = rendered.model.objects.find((entry) => entry.kind === "feedback" && entry.targetId === "three-tier-glb");
         const glb = renderer.assetPools.get("directional-arrow/rounded-outline-v1")?.find((entry) => entry.enabled && entry.name === "three-tier-glb:0");
@@ -108,7 +110,7 @@ try {
           iconPixels: { blue: count(glbScreen, 28, blue), gray: count(glbScreen, 28, gray) },
         };
       };
-      return { almost: capture("miss", "almost", 1200), great: capture("hit", "great", 1000), miss: capture("miss", "miss", 1200) };
+      return { almost: capture("miss", "almost", 1200), boxerGood: capture("miss", "good", 1200, true), great: capture("hit", "great", 1000), miss: capture("miss", "miss", 1200) };
     }, { width, height });
     for (const [state, sample] of Object.entries(result)) {
       assert.equal(sample.ready, "ready", `${viewport}/${state}: real pinned GLBs ready`);
@@ -132,6 +134,15 @@ try {
     assert.ok(Math.abs(near.feedback.quadAspect - near.textureFace.width / near.textureFace.height) < .01, `${viewport}: world quad matches texture aspect`);
     assert.ok(near.glyphPixels.yellow > 100, `${viewport}: yellow glyph pixels visible: ${JSON.stringify(near)}`);
     assert.ok(near.iconPixels.blue > 100, `${viewport}: authored real GLB remains visible: ${JSON.stringify(near)}`);
+    const boxer = result.boxerGood;
+    assert.equal(boxer.icon.state, "miss", `${viewport}: Boxing near note remains unsliced`);
+    assert.equal(boxer.icon.tint, "#2468AC", `${viewport}: Boxing near note remains tinted`);
+    assert.equal(boxer.feedback.text, "Good", `${viewport}: Boxing miss/good label remains Good`);
+    assert.equal(boxer.feedback.face, "#6ec6ff", `${viewport}: Boxing miss/good label remains blue`);
+    assert.equal(boxer.feedback.texture, "aero-feedback-good");
+    assert.deepEqual(boxer.feedback.position, { x: -.5, y: 1, z: 0 });
+    assert.ok(boxer.glyphPixels.blue > 100, `${viewport}: blue Boxing Good glyph pixels visible: ${JSON.stringify(boxer)}`);
+    assert.ok(boxer.iconPixels.blue > 100, `${viewport}: real Boxing GLB authored blue fill visible`);
     assert.equal(result.great.icon.state, "hit");
     assert.equal(result.great.feedback.text, "Great");
     assert.equal(result.great.feedback.face, "#ffffff");

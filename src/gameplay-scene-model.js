@@ -345,7 +345,7 @@ function targetObjects(frame,target,window,successZone,theme,tuning,presentation
   /** @type {AeroGameplaySceneObject[]} */ const feedbackObjects=[];
   if(resolved&&target.kind!=="obstacle"&&target.kind!=="bomb"&&positions.length&&elapsedMs<tuning.feedbackDurationMs){
     const hit=state==="hit";
-    const tier=hit?normalizeHitTier(target.tier):nearContact?"almost":"miss";
+    const tier=hit?normalizeHitTier(target.tier):target.tier==="almost"?"almost":nearContact?"good":"miss";
     const tierText=tier==="great"?"Great":tier==="good"?"Good":tier==="almost"?"Almost":"Miss";
     const tierColor=tier==="great"?"#ffffff":tier==="good"?"#6ec6ff":tier==="almost"?"#facc15":"#e5484d";
     const tierHeight=tier==="great"?GREAT_HEIGHT_CSS_PX:tier==="good"||tier==="almost"?GOOD_HEIGHT_CSS_PX:MISS_HEIGHT_CSS_PX;

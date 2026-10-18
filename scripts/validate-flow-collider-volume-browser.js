@@ -1,7 +1,7 @@
 // @ts-check
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { chromium } from "playwright";
 import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, saberCapsuleGeometry } from "@aerobeat/web-contracts/equipment-pose-contracts";
@@ -35,6 +35,8 @@ try{
   const down={...up,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:-90})};
   const diagonal={...up,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:45})};
   const right={...up,role:"right_wrist",anchor:{...up.anchor,x:2.5},orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:-45})};
+  const evidenceDirectory=resolve(root,".tmp/renderer-browser-evidence/flow-capsule-before-after");
+  await mkdir(evidenceDirectory,{recursive:true});
   const evidence=await page.evaluate(({up,down,diagonal,right})=>{
     const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0],canvas=document.querySelector("#primary canvas");
     renderer.resize({widthCssPx:844,heightCssPx:390,devicePixelRatio:1});renderer.setEnvironmentVisible(false);
@@ -64,6 +66,7 @@ try{
       buffer.unlock();return vertices;
     };
     renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);const base=pixels(),rows=[];
+    const snapshots={baseline:canvas.toDataURL("image/png")};
     for(const [name,pose,other] of [["up",up,false],["down",down,false],["diagonal",diagonal,false],["second-slot",right,true]]){
       // Prime a two-capsule pool first, then leave slot 0 disabled while the named right-hand
       // collider occupies slot 1 alongside an independent wrist-bomb overlay entity.
@@ -79,6 +82,7 @@ try{
       const meshAxis=[Math.min(...vertices.map(coordinate)),Math.max(...vertices.map(coordinate))];
       const meshRadius=Math.max(...vertices.map((point)=>{const axial=coordinate(point)-coordinate(capsule.start),center={x:capsule.start.x+axial*axis.x,y:capsule.start.y+axial*axis.y,z:capsule.start.z+axial*axis.z};return Math.hypot(point.x-center.x,point.y-center.y,point.z-center.z);}));
       const image=pixels(),points=silhouette(image,base);
+      if(name==="up"||name==="diagonal")snapshots[name]=canvas.toDataURL("image/png");
       const camera=renderer.cameraEntity.camera;
       const project=(point)=>{const p=camera.worldToScreen(new (entity.getPosition().constructor)(point.x,point.y,point.z));return{x:p.x,y:p.y};};
       const near=project(capsule.start),far=project(capsule.end),axisScreen={x:far.x-near.x,y:far.y-near.y},span=Math.hypot(axisScreen.x,axisScreen.y),unit={x:axisScreen.x/span,y:axisScreen.y/span};
@@ -91,9 +95,13 @@ try{
     const missing=renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null).model.objects.filter((object)=>object.kind==="collider_volume").length;
     const lostPixels=delta(pixels(),base),enabled=(renderer.flowColliderCapsulePool??[]).some((entity)=>entity.enabled);
     renderer.destroyColliderOverlayPools();
-    return{rows,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length};
+    return{rows,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
   },{up,down,diagonal,right});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
+  for(const [name,dataUrl] of Object.entries(evidence.snapshots)){
+    assert.match(dataUrl,/^data:image\/png;base64,/);
+    await writeFile(resolve(evidenceDirectory,`${name}-after.png`),Buffer.from(dataUrl.slice("data:image/png;base64,".length),"base64"));
+  }
   const [upRow,downRow,diagonalRow,secondSlotRow]=evidence.rows;
   for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>40,`${row.name} capsule must alter real browser pixels: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,row.name==="second-slot"?2:1);assert.equal(row.capsule.start.y,1);}
   assert.equal(secondSlotRow.entityName,"equipment-collider-volume-right");

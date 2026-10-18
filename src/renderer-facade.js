@@ -736,7 +736,7 @@ export class AeroPlayCanvasRenderer {
     this.colliderOverlayConePool=pool;
     return pool[index];
   }
-  /** Retain one unit-cuboid line mesh per hand, independently layered after World. */
+  /** Retain one unit-cuboid line mesh per hand before World so crossing beats stay readable. */
   stageBoxingColliderWire(object){
     const pool=this.boxingColliderWirePool??[];
     const index=object.role==="left"?0:1;
@@ -744,7 +744,7 @@ export class AeroPlayCanvasRenderer {
       const wire=new pc.Entity(`boxing-collider-wire-${pool.length}`,this.app);
       const material=this.makeMaterial(),mesh=createUnitBoxEdgeMesh(this.app.graphicsDevice);
       this.ownedMaterials.add(mesh);
-      wire.addComponent("render",{material,layers:[this.flowColliderOverlayLayer?.id??pc.LAYERID_WORLD]});
+      wire.addComponent("render",{material,layers:[this.gameplayColliderOverlayLayer?.id??pc.LAYERID_WORLD]});
       wire.render.meshInstances=[new pc.MeshInstance(mesh,material)];
       this.entityMaterials.set(wire,material);
       material.diffuse.set(.025,.032,.045);material.emissive.set(.025,.032,.045);

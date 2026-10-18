@@ -39,7 +39,7 @@ try{
     render({...frame,colliderSettings:{...frame.colliderSettings,colliderVisible:false}});const off=sample();
     const model=render(frame),on=sample(),boxes=model.objects.filter((entry)=>entry.kind==="collider_volume"),fill=(renderer.colliderOverlayPrimitivePool??[]).filter((entry)=>entry.enabled&&entry.name.startsWith("equipment-collider-volume-")),wires=(renderer.boxingColliderWirePool??[]).filter((entry)=>entry.enabled);
     if(boxes.length!==2||fill.length!==2||wires.length!==2)throw new Error("Two scored Boxer Show boxes, fills and wires required");
-    const layer=renderer.flowColliderOverlayLayer,world=renderer.app.scene.layers.getLayerById(0),composition=renderer.app.scene.layers;
+    const layer=renderer.gameplayColliderOverlayLayer,world=renderer.app.scene.layers.getLayerById(0),composition=renderer.app.scene.layers;
     const edges=wires.map((wire,index)=>{
       const mesh=wire.render.meshInstances[0].mesh,material=wire.render.meshInstances[0].material,buffer=mesh.vertexBuffer,element=buffer.format.elements.find((entry)=>entry.name==="POSITION"),view=new DataView(buffer.lock()),vertices=[];
       for(let vertex=0;vertex<buffer.numVertices;vertex++){const offset=vertex*buffer.format.size+element.offset;vertices.push([view.getFloat32(offset,true),view.getFloat32(offset+4,true),view.getFloat32(offset+8,true)]);}buffer.unlock();
@@ -65,7 +65,7 @@ try{
     assert.equal(edge.vertices.length,8);assert.equal(edge.indices,24);assert.equal(edge.primitive,1,"PlayCanvas wire must use line primitives");
     assert.deepEqual([...edge.vertices].sort((a,b)=>a.join().localeCompare(b.join())),Array.from({length:8},(_,i)=>[i&4?.5:-.5,i&2?.5:-.5,i&1?.5:-.5]).sort((a,b)=>a.join().localeCompare(b.join())));
     for(const axis of ["x","y","z"]){assert.ok(Math.abs(edge.position[axis]-edge.boxPosition[axis])<1e-6);assert.ok(Math.abs(edge.scale[axis]-edge.boxScale[axis])<1e-6);}
-    assert.equal(edge.fillOpacity,.16);assert.notEqual(edge.fillLayer,edge.wireLayer);assert.equal(edge.wireLayer,edge.outlineLayer);assert.ok(edge.outlineTransparentIndex>edge.worldTransparentIndex);
+    assert.equal(edge.fillOpacity,.16);assert.equal(edge.fillLayer,edge.wireLayer);assert.equal(edge.wireLayer,edge.outlineLayer);assert.ok(edge.outlineTransparentIndex<edge.worldTransparentIndex,'Boxer wire must not overpaint World beats');
     assert.deepEqual(edge.material.diffuse,[.025,.032,.045]);assert.deepEqual(edge.material.emissive,[.025,.032,.045]);assert.equal(edge.material.opacity,.8);assert.equal(edge.material.depthTest,false);assert.equal(edge.material.depthWrite,false);assert.equal(edge.material.useLighting,false);
   }
   for(const state of [result.offState,result.zero,result.lost]){assert.equal(state.wires,0);assert.deepEqual(state.pixels,{changed:0,dark:0});}
@@ -75,5 +75,5 @@ try{
   await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const restored=await page.evaluate(()=>{const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0];const frame={presentation:"boxing_collider",nowMs:1000,targets:[],colliderSettings:{colliderVisible:true,colliderScale:.5,colliderDepthForward:1,colliderDepthBackward:1},equipmentColliderAnchors:{left:{x:-.7,y:1,z:.45},right:{x:.7,y:1,z:.45}}};renderer.renderGameplayFrame(frame);const wires=renderer.boxingColliderWirePool??[];const state={count:wires.length,active:wires.filter((wire)=>wire.enabled).length,meshes:wires.map((wire)=>renderer.ownedMaterials.has(wire.render.meshInstances[0].mesh))};renderer.detach();return{...state,afterDetach:renderer.boxingColliderWirePool.length,remainingMeshes:wires.map((wire)=>renderer.ownedMaterials.has(wire.render?.meshInstances?.[0]?.mesh))};});
   assert.deepEqual(restored,{count:2,active:2,meshes:[true,true],afterDetach:0,remainingMeshes:[false,false]},"context restore rebuilds, detach disposes retained wires");
-  console.log("Boxer retained PlayCanvas 12-edge Show wires, post-World contrast, zero/lost/off, rescale, context restore and detach passed.");
+  console.log("Boxer retained PlayCanvas 12-edge Show wires, pre-World beat priority, zero/lost/off, rescale, context restore and detach passed.");
 }finally{await browser.close();await new Promise((done)=>server.close(done));}

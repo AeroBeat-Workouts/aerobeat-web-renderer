@@ -79,6 +79,32 @@ try{
     const solidBlade={count:solidPoints.length,box:{minX:Math.min(...solidPoints.map((point)=>point.x)),maxX:Math.max(...solidPoints.map((point)=>point.x)),minY:Math.min(...solidPoints.map((point)=>point.y)),maxY:Math.max(...solidPoints.map((point)=>point.y))}};
     snapshots.solidBlade=canvas.toDataURL("image/png");
     for(const record of solidRecords)record.meshInstance.visible=true;
+    // Same-frame blade-only, outline-only, and combined captures share a camera, pose root,
+    // and active named collider; do not compare independent staging/pool histories.
+    const sameFrame=renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[up]},[],null,[up],null).model;
+    const liveCollider=sameFrame.objects.find((object)=>object.id==="equipment-collider-volume-left");
+    if(!liveCollider)throw new Error("Same-frame left collider missing");
+    const liveOverlay=(renderer.flowColliderCapsulePool??[]).find((candidate)=>candidate.enabled&&candidate.name===liveCollider.id);
+    if(!liveOverlay)throw new Error("Same-frame active named overlay missing");
+    const liveBlade=(renderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")??[]).find((candidate)=>candidate.name==="equipment-left_wrist-model");
+    if(!liveBlade?.enabled)throw new Error("Same-frame authored GLB missing");
+    const bladeRecord=(renderer.assetMaterials.get(liveBlade)??[]).find((record)=>record.name==="mat/saber_blade");
+    if(!bladeRecord)throw new Error("Same-frame solid blade material missing");
+    const glbWorld=liveBlade.getWorldTransform(),bladeMesh=bladeRecord.meshInstance.mesh,bladeBuffer=bladeMesh.vertexBuffer,bladeElement=bladeBuffer.format.elements.find((element)=>element.name==="POSITION"),bladeView=new DataView(bladeBuffer.lock()),bladeVertices=[];
+    for(let index=0;index<bladeBuffer.numVertices;index++){const offset=index*bladeBuffer.format.size+bladeElement.offset;const local=new (liveBlade.getPosition().constructor)(bladeView.getFloat32(offset,true),bladeView.getFloat32(offset+4,true),bladeView.getFloat32(offset+8,true));const point=glbWorld.transformPoint(local);bladeVertices.push({x:point.x,y:point.y,z:point.z});}
+    bladeBuffer.unlock();
+    const glbAll=(renderer.assetMaterials.get(liveBlade)??[]);for(const record of glbAll)record.meshInstance.visible=record===bladeRecord;
+    for(const entry of renderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")??[])if(entry.name.includes("glow"))entry.enabled=false;
+    const sameCamera=renderer.cameraEntity.camera,vec=(p)=>new (liveBlade.getPosition().constructor)(p.x,p.y,p.z),screen=(p)=>{const value=sameCamera.worldToScreen(vec(p));return{x:value.x,y:value.y};};
+    const bounds=(points)=>({count:points.length,minX:Math.min(...points.map((p)=>p.x)),maxX:Math.max(...points.map((p)=>p.x)),minY:Math.min(...points.map((p)=>p.y)),maxY:Math.max(...points.map((p)=>p.y))});
+    liveOverlay.enabled=false;renderer.manualTick();const bladeOnly=silhouette(pixels(),base);
+    liveOverlay.enabled=true;bladeRecord.meshInstance.visible=false;renderer.manualTick();const overlayOnly=silhouette(pixels(),base);
+    bladeRecord.meshInstance.visible=true;renderer.manualTick();const combined=silhouette(pixels(),base);snapshots.sameFrameCombined=canvas.toDataURL("image/png");
+    const bladePixels=bladeOnly.filter((p)=>p.y<205),overlayPixels=overlayOnly.filter((p)=>p.y<205),combinedPixels=combined.filter((p)=>p.y<205);
+    const combinedSet=new Set(combinedPixels.map((p)=>p.y*canvas.width+p.x));
+    const bladeCovered=bladePixels.filter((p)=>{for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(combinedSet.has((p.y+dy)*canvas.width+p.x+dx))return true;return false;}).length;
+    const sameFrameEvidence={bladePixels:bounds(bladePixels),overlayPixels:bounds(overlayPixels),combinedPixels:bounds(combinedPixels),bladeCovered,bladeMeshWorld:bounds(bladeVertices),bladeMeshProjected:bounds(bladeVertices.map(screen)),overlayMeshProjected:bounds(meshVertices(liveOverlay).map(screen)),scoredStart:screen(liveCollider.capsule.start),scoredEnd:screen(liveCollider.capsule.end),bladeRoot:{position:{...liveBlade.parent.getPosition()},scale:{...liveBlade.parent.getLocalScale()},rotation:{...liveBlade.parent.getRotation()}},bladeChild:{rotation:{...liveBlade.getLocalRotation()}}};
+    for(const record of glbAll)record.meshInstance.visible=true;
     renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);
     for(const [name,pose,other,scale,front,rear] of [["up",up,false,1,1,0],["down",down,false,1,1,0],["diagonal",diagonal,false,1,1,0],["second-slot",right,true,1,1,0],["zero-length",up,false,1,0,0],["scaled",scaled,false,2,1,0],["tiny",up,false,.00001,.00001,0],["huge",up,false,9999999,9999999,0]]){
       // Prime a two-capsule pool first, then leave slot 0 disabled while the named right-hand
@@ -110,17 +136,28 @@ try{
     const missing=renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null).model.objects.filter((object)=>object.kind==="collider_volume").length;
     const lostPixels=delta(pixels(),base),enabled=(renderer.flowColliderCapsulePool??[]).some((entity)=>entity.enabled);
     renderer.destroyColliderOverlayPools();
-    return{rows,solidBlade,scaleZero,zeroPixels,zeroEnabled,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
+    return{rows,solidBlade,sameFrameEvidence,scaleZero,zeroPixels,zeroEnabled,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
   },{up,down,diagonal,right,scaled});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
   for(const [name,dataUrl] of Object.entries(evidence.snapshots)){
     assert.match(dataUrl,/^data:image\/png;base64,/);
     await writeFile(resolve(evidenceDirectory,`${name}-after.png`),Buffer.from(dataUrl.slice("data:image/png;base64,".length),"base64"));
   }
+  const aligned=evidence.sameFrameEvidence,alignmentReport=JSON.stringify(aligned);
+  console.log("Same-frame solid GLB/overlay projected bounds",alignmentReport);
   const [upRow,downRow,diagonalRow,secondSlotRow,zeroLengthRow,scaledRow,tinyRow,hugeRow]=evidence.rows;
-  assert.ok(evidence.solidBlade.count>20,`actual solid saber GLB material must render: ${JSON.stringify(evidence.solidBlade)}`);
+  assert.ok(aligned.bladePixels.count>20&&aligned.overlayPixels.count>20&&aligned.combinedPixels.count>20,`same-pose solid blade and active overlay render real pixels: ${alignmentReport}`);
   assert.ok(Math.abs(upRow.capsule.radius-.024)<1e-9,"Scale1 overlay uses same .024 radius as pinned solid GLB blade");
-  assert.ok(upRow.pixels.minY<=evidence.solidBlade.box.minY+12&&upRow.pixels.maxY>=evidence.solidBlade.box.maxY-12,`Scale1 collider silhouette covers the rendered solid blade, allowing perspective and hilt difference: ${JSON.stringify({overlay:upRow.pixels,solid:evidence.solidBlade})}`);
+  assert.ok(Math.abs(aligned.bladeRoot.position.x-upRow.capsule.start.x)<1e-6&&Math.abs(aligned.bladeRoot.position.y-upRow.capsule.start.y)<1e-6&&Math.abs(aligned.bladeRoot.position.z-upRow.capsule.start.z)<1e-6,`GLB and scored capsule share the identical pose root: ${alignmentReport}`);
+  assert.ok(Math.abs(aligned.bladeMeshWorld.minY-1.18)<1e-5&&Math.abs(aligned.bladeMeshWorld.maxY-1.726)<1e-5,`solid blade is authored hilt-inset and tip-rounded; no artificial renderer axial stretch: ${alignmentReport}`);
+  assert.ok(Math.abs(aligned.scoredStart.y-195)<.1&&Math.abs(aligned.scoredEnd.y-122.806)<.1,`scored hilt/tip project to the expected same-frame camera coordinates: ${alignmentReport}`);
+  for(const [name,pixel,mesh] of [["solid GLB",aligned.bladePixels,aligned.bladeMeshProjected],["scored overlay",aligned.overlayPixels,aligned.overlayMeshProjected]]){
+    assert.ok(Math.abs(pixel.minY-mesh.minY)<=2&&Math.abs(pixel.maxY-mesh.maxY)<=2,`${name} actual framebuffer endpoints follow its own projected GPU mesh, without clipping: ${alignmentReport}`);
+    assert.ok(Math.abs(pixel.minX-mesh.minX)<=2&&Math.abs(pixel.maxX-mesh.maxX)<=2,`${name} actual framebuffer cross-section follows its own projected GPU mesh: ${alignmentReport}`);
+  }
+  assert.ok(aligned.overlayMeshProjected.minY<aligned.bladeMeshProjected.minY&&aligned.overlayMeshProjected.maxY>aligned.bladeMeshProjected.maxY,`scored capsule encloses the authored inset solid blade at both endpoints: ${alignmentReport}`);
+  assert.ok(aligned.bladeCovered/aligned.bladePixels.count>.98,`combined same-frame render retains at least 98% of bright solid blade pixels: ${alignmentReport}`);
+  assert.ok(Math.abs(aligned.combinedPixels.minY-aligned.overlayPixels.minY)<=1&&Math.abs(aligned.combinedPixels.maxY-aligned.overlayPixels.maxY)<=1,`combined same-frame silhouette retains both scored overlay poles: ${alignmentReport}`);
   for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>0||row.name==="tiny"||row.name==="huge",`${row.name} must render actual browser pixels or truthfully be subpixel/offscreen: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,["up","down","diagonal"].includes(row.name)?1:2);assert.equal(row.capsule.start.y,1);assert.ok(Math.abs(row.capsule.radius-.024*(row.name==="scaled"?2:1)*row.scale)<1e-6,`${row.name} scored solid blade radius times Flow Scale and pose scale`);}
   assert.equal(secondSlotRow.entityName,"equipment-collider-volume-right");
   assert.deepEqual(secondSlotRow.activeCapsules,[secondSlotRow.entityName],"inactive slot 0 must not substitute for the active right collider");

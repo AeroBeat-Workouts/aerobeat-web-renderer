@@ -34,7 +34,8 @@ try{
   const up={role:"left_wrist",mode:"flow",anchor:{x:1.5,y:1,z:.45},scale:1,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:90}),geometryIdentity:saberCapsuleGeometry.identity,configIdentity};
   const down={...up,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:-90})};
   const diagonal={...up,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:45})};
-  const evidence=await page.evaluate(({up,down,diagonal})=>{
+  const right={...up,role:"right_wrist",anchor:{...up.anchor,x:2.5},orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:-45})};
+  const evidence=await page.evaluate(({up,down,diagonal,right})=>{
     const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0],canvas=document.querySelector("#primary canvas");
     renderer.resize({widthCssPx:844,heightCssPx:390,devicePixelRatio:1});renderer.setEnvironmentVisible(false);
     renderer.setBackgroundProjection({kind:"solid",colors:["#102030"],angleDeg:180});
@@ -63,11 +64,17 @@ try{
       buffer.unlock();return vertices;
     };
     renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);const base=pixels(),rows=[];
-    for(const [name,pose] of [["up",up],["down",down],["diagonal",diagonal]]){
-      const model=renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[pose]},[],null,[],null).model;
-      const entity=(renderer.flowColliderCapsulePool??[])[0];
-      const capsule=model.objects.find((object)=>object.kind==="collider_volume")?.capsule;
-      const vertices=meshVertices(entity),axis={x:(capsule.end.x-capsule.start.x)/.75,y:(capsule.end.y-capsule.start.y)/.75,z:(capsule.end.z-capsule.start.z)/.75};
+    for(const [name,pose,other] of [["up",up,false],["down",down,false],["diagonal",diagonal,false],["second-slot",right,true]]){
+      // Prime a two-capsule pool first, then leave slot 0 disabled while the named right-hand
+      // collider occupies slot 1 alongside an independent wrist-bomb overlay entity.
+      if(name==="second-slot")renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[up,right]},[],null,[],null);
+      const request={...frame,equipmentColliderPoses:[pose],...(other?{colliderSettings:{...settings,visibleWristObstacleRadius:true,wristBombColliderScale:1},equipmentColliderAnchors:{left:null,right:{x:1,y:1,z:.45}}}:{})};
+      const model=renderer.renderGameplayFrameWithCursorsAndEquipment(request,[],null,[],null).model;
+      const visibleCollider=model.objects.find((object)=>object.kind==="collider_volume"&&object.role===pose.role.replace("_wrist",""));
+      const entity=(renderer.flowColliderCapsulePool??[]).find((candidate)=>candidate.enabled&&candidate.name===visibleCollider?.id);
+      if(!entity)throw new Error(`No active named capsule for ${name}`);
+      const capsule=visibleCollider.capsule,length=Math.hypot(capsule.end.x-capsule.start.x,capsule.end.y-capsule.start.y,capsule.end.z-capsule.start.z);
+      const vertices=meshVertices(entity),axis={x:(capsule.end.x-capsule.start.x)/length,y:(capsule.end.y-capsule.start.y)/length,z:(capsule.end.z-capsule.start.z)/length};
       const coordinate=(point)=>point.x*axis.x+point.y*axis.y+point.z*axis.z;
       const meshAxis=[Math.min(...vertices.map(coordinate)),Math.max(...vertices.map(coordinate))];
       const meshRadius=Math.max(...vertices.map((point)=>{const axial=coordinate(point)-coordinate(capsule.start),center={x:capsule.start.x+axial*axis.x,y:capsule.start.y+axial*axis.y,z:capsule.start.z+axial*axis.z};return Math.hypot(point.x-center.x,point.y-center.y,point.z-center.z);}));
@@ -78,17 +85,20 @@ try{
       const projected=points.map((point)=>(point.x-near.x)*unit.x+(point.y-near.y)*unit.y);
       const radiusProbe=project({x:capsule.start.x+capsule.radius,y:capsule.start.y,z:capsule.start.z});
       const screenRadius=Math.hypot(radiusProbe.x-near.x,radiusProbe.y-near.y);
-      rows.push({name,capsule,entityEnabled:entity?.enabled??false,material:{depthTest:entity?.render?.meshInstances?.[0]?.material?.depthTest,depthWrite:entity?.render?.meshInstances?.[0]?.material?.depthWrite,opacity:entity?.render?.meshInstances?.[0]?.material?.opacity},pixels:delta(image,base),silhouette:{min:Math.min(...projected),max:Math.max(...projected),span,radius:screenRadius,count:points.length},meshAxis,expectedMeshAxis:[coordinate(capsule.start)-capsule.radius,coordinate(capsule.end)+capsule.radius],meshRadius,pool:(renderer.flowColliderCapsulePool??[]).length});
+      rows.push({name,capsule,entityEnabled:entity.enabled,entityName:entity.name,activeCapsules:(renderer.flowColliderCapsulePool??[]).filter((candidate)=>candidate.enabled).map((candidate)=>candidate.name),otherOverlayEnabled:(renderer.wristBombColliderPool??[]).some((candidate)=>candidate.enabled),material:{depthTest:entity.render.meshInstances[0].material.depthTest,depthWrite:entity.render.meshInstances[0].material.depthWrite,opacity:entity.render.meshInstances[0].material.opacity},pixels:delta(image,base),silhouette:{min:Math.min(...projected),max:Math.max(...projected),span,radius:screenRadius,count:points.length},meshAxis,expectedMeshAxis:[coordinate(capsule.start)-capsule.radius,coordinate(capsule.end)+capsule.radius],meshRadius,pool:(renderer.flowColliderCapsulePool??[]).length});
     }
     const held=renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[down]},[],null,[],null).model.objects.find((object)=>object.kind==="collider_volume")?.capsule;
     const missing=renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null).model.objects.filter((object)=>object.kind==="collider_volume").length;
     const lostPixels=delta(pixels(),base),enabled=(renderer.flowColliderCapsulePool??[]).some((entity)=>entity.enabled);
     renderer.destroyColliderOverlayPools();
     return{rows,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length};
-  },{up,down,diagonal});
+  },{up,down,diagonal,right});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
-  const [upRow,downRow,diagonalRow]=evidence.rows;
-  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>40,`${row.name} capsule must alter real browser pixels: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,1);assert.equal(row.capsule.start.y,1);}
+  const [upRow,downRow,diagonalRow,secondSlotRow]=evidence.rows;
+  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>40,`${row.name} capsule must alter real browser pixels: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,row.name==="second-slot"?2:1);assert.equal(row.capsule.start.y,1);}
+  assert.equal(secondSlotRow.entityName,"equipment-collider-volume-right");
+  assert.deepEqual(secondSlotRow.activeCapsules,[secondSlotRow.entityName],"inactive slot 0 must not substitute for the active right collider");
+  assert.equal(secondSlotRow.otherOverlayEnabled,true,"wrist bomb overlay coexists with the named capsule");
   for(const row of evidence.rows){
     const error=Math.max(Math.abs(row.meshAxis[0]-row.expectedMeshAxis[0]),Math.abs(row.meshAxis[1]-row.expectedMeshAxis[1]));
     assert.ok(error<.005,`${row.name} actual PlayCanvas world mesh poles must lie at scored centerline ± radius; ${JSON.stringify(row)}`);
@@ -102,6 +112,6 @@ try{
   assert.equal(evidence.enabled,false,"old pooled overlay is disabled synchronously");
   assert.equal(evidence.lostPixels.count,0,"lost pose restores exact baseline pixels, no stale overlay");
   assert.equal(evidence.poolAfterDestroy,0);
-  console.log("Flow scored-cap real mesh/framebuffer silhouettes for up/down/diagonal, held/lost absence, material and pool passed.");
+  console.log("Flow named active capsule mesh/framebuffer silhouettes for up/down/diagonal and second pooled slot, held/lost absence passed.");
   await page.close();
 }finally{await browser.close();await new Promise((done)=>server.close(done));}

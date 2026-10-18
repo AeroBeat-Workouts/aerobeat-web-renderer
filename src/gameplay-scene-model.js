@@ -191,7 +191,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
         const length=saberGeometry.length*pose.scale;
         const start={x:capsule.start.x-capsule.axis.x*length*colliderSettings.colliderDepthBackward-1.5,y:capsule.start.y-capsule.axis.y*length*colliderSettings.colliderDepthBackward,z:capsule.start.z-capsule.axis.z*length*colliderSettings.colliderDepthBackward};
         const end={x:capsule.start.x+capsule.axis.x*length*colliderSettings.colliderDepthForward-1.5,y:capsule.start.y+capsule.axis.y*length*colliderSettings.colliderDepthForward,z:capsule.start.z+capsule.axis.z*length*colliderSettings.colliderDepthForward};
-        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius:capsule.radius*colliderSettings.colliderScale,orientation:Object.freeze({...pose.orientation})});
+        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius:capsule.radius,orientation:Object.freeze({...pose.orientation})});
         const object=sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,{x:(start.x+end.x)/2,y:(start.y+end.y)/2,z:(start.z+end.z)/2},{x:Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z)+2*geometry.radius,y:2*geometry.radius,z:2*geometry.radius},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
         objects.push(Object.freeze({...object,shape:"capsule",capsule:geometry}));
       }else{

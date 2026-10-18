@@ -53,6 +53,10 @@ for(const [resolved,sign] of [[down,-1],[up,1]]){
 }
 const rear=flowVolume(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1,1,.5),equipmentColliderPoses:[up]}));
 assert.ok(Math.abs(rear.capsule.start.y-.25)<1e-12,"positive rear extends behind hilt on rotated axis");
+const scaledTarget=flowVolume(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1.5,1,0),equipmentColliderPoses:[up]}));
+assert.equal(scaledTarget.capsule.radius,.18*up.scale,"colliderScale inflates scored target box, not the scored saber radius");
+assert.deepEqual(scaledTarget.capsule.start,flowVolume(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[up]})).capsule.start);
+assert.deepEqual(scaledTarget.capsule.end,flowVolume(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[up]})).capsule.end);
 assert.deepEqual(boxes(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[]})),[],"lost pose hides previous volume");
 for(const invalid of [null,{},[pose("left_wrist","boxing",{x:0,y:0,z:0})],[{...up,scale:0}],[up,up]])assert.throws(()=>buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:invalid}),/Equipment collider poses are invalid/);
 for(const mode of ["flow","boxing"]){

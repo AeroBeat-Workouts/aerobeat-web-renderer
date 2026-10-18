@@ -153,8 +153,12 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   // Normalized six-field settings are authoritative; the optional top-level flag remains a legacy frame fallback.
   const visibleWristObstacleRadius=colliderSettings.visibleWristObstacleRadius||frame.visibleWristObstacleRadius===true;
   const wristBombColliderScale=colliderSettings.wristBombColliderScale;
-  const startZ=window.afterMs*tuning.worldUnitsPerMs*colliderSettings.colliderDepthBackward;
-  const endZ=-window.beforeMs*tuning.worldUnitsPerMs*colliderSettings.colliderDepthForward;
+  // Flow depth controls extend only the rotating saber, never the note-time window.
+  // Boxing retains its independent front/back timing depth factors.
+  const timingDepthBackward=frame.presentation==="flow"?1:colliderSettings.colliderDepthBackward;
+  const timingDepthForward=frame.presentation==="flow"?1:colliderSettings.colliderDepthForward;
+  const startZ=window.afterMs*tuning.worldUnitsPerMs*timingDepthBackward;
+  const endZ=-window.beforeMs*tuning.worldUnitsPerMs*timingDepthForward;
   const activeHalf=Math.min(0.12,Math.max(0,Math.abs(endZ-startZ)/12));
   const segments=Object.freeze([
     zone("late",startZ,activeHalf,"#e5484d",0.48),

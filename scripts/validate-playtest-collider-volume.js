@@ -41,6 +41,24 @@ const down=pose("left_wrist","flow",{x:1.5,y:1,z:.45},{x:0,y:0,z:-90},2);
 const up=pose("left_wrist","flow",{x:1.5,y:1,z:.45},{x:0,y:0,z:90},2);
 const flowFrame={presentation:"flow",nowMs:1000,targets:[],colliderSettings:settings(true,1,1,0)};
 assert.deepEqual(boxes(buildGameplaySceneModel(flowFrame)),[],"absent Flow poses never create fallback colliders");
+// Flow rear/front settings move only the blade capsule; timing retains the caller's base window.
+const flowTimingFrame={...flowFrame,timingWindowBeforeMs:120,timingWindowAfterMs:240};
+const flowBaseTiming=buildGameplaySceneModel({...flowTimingFrame,colliderSettings:settings(false,1,1,1)}).timingZone;
+for(const [front,rear] of [[1,0],[2,.5],[3,2]]){
+  for(const visible of [false,true]){
+    const model=buildGameplaySceneModel({...flowTimingFrame,colliderSettings:settings(visible,1,front,rear),equipmentColliderPoses:visible?[up]:[]});
+    assert.deepEqual(model.timingZone,flowBaseTiming,"Flow reach controls do not change independent note timing or zone segments");
+    assert.equal(model.timingZone.startZ,1.44);
+    assert.equal(model.timingZone.endZ,-.72);
+    assert.ok(model.timingZone.segments.every((segment)=>segment.startZ<=segment.endZ&&segment.startZ>=model.timingZone.endZ&&segment.endZ<=model.timingZone.startZ),"all timing segments remain within their canonical bounds");
+    assert.equal(model.objects.some((object)=>object.kind==="timing"),false,"configured Flow still renders no legacy timing tiles");
+  }
+}
+const boxingTimingFrame={presentation:"boxing_collider",nowMs:1000,targets:[],timingWindowBeforeMs:120,timingWindowAfterMs:240,colliderSettings:settings(false,1,2,3)};
+const boxingTiming=buildGameplaySceneModel(boxingTimingFrame).timingZone;
+assert.equal(boxingTiming.startZ,4.32,"Boxing rear factor retains timing depth");
+assert.equal(boxingTiming.endZ,-1.44,"Boxing front factor retains timing depth");
+assert.notDeepEqual(boxingTiming,buildGameplaySceneModel({...boxingTimingFrame,colliderSettings:settings(false,1,1,1)}).timingZone,"Boxing depth settings still affect timing segments");
 for(const [resolved,sign] of [[down,-1],[up,1]]){
   const model=buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[resolved]});
   assert.equal(boxes(model).length,1,"only tracked Flow hands have a volume");

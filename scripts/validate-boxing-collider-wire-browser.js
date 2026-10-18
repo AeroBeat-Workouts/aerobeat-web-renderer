@@ -43,7 +43,7 @@ try{
     const edges=wires.map((wire,index)=>{
       const mesh=wire.render.meshInstances[0].mesh,material=wire.render.meshInstances[0].material,buffer=mesh.vertexBuffer,element=buffer.format.elements.find((entry)=>entry.name==="POSITION"),view=new DataView(buffer.lock()),vertices=[];
       for(let vertex=0;vertex<buffer.numVertices;vertex++){const offset=vertex*buffer.format.size+element.offset;vertices.push([view.getFloat32(offset,true),view.getFloat32(offset+4,true),view.getFloat32(offset+8,true)]);}buffer.unlock();
-      return{vertices,indices:mesh.indexBuffer[0].numIndices,primitive:mesh.primitive[0].type,position:{...wire.getPosition()},scale:{...wire.getLocalScale()},boxPosition:boxes[index].position,boxScale:boxes[index].scale,fillLayer:fill[index].render.layers[0],wireLayer:wire.render.layers[0],outlineLayer:layer.id,worldTransparentIndex:composition.getTransparentIndex(world),outlineTransparentIndex:composition.getTransparentIndex(layer),material:{diffuse:[material.diffuse.r,material.diffuse.g,material.diffuse.b],emissive:[material.emissive.r,material.emissive.g,material.emissive.b],opacity:material.opacity,depthTest:material.depthTest,depthWrite:material.depthWrite,useLighting:material.useLighting,blendType:material.blendType},fillOpacity:fill[index].render.meshInstances[0].material.opacity};
+      return{name:wire.name,vertices,indices:mesh.indexBuffer[0].numIndices,primitive:mesh.primitive[0].type,position:{...wire.getPosition()},scale:{...wire.getLocalScale()},boxPosition:boxes[index].position,boxScale:boxes[index].scale,fillLayer:fill[index].render.layers[0],wireLayer:wire.render.layers[0],outlineLayer:layer.id,worldTransparentIndex:composition.getTransparentIndex(world),outlineTransparentIndex:composition.getTransparentIndex(layer),material:{diffuse:[material.diffuse.r,material.diffuse.g,material.diffuse.b],emissive:[material.emissive.r,material.emissive.g,material.emissive.b],opacity:material.opacity,depthTest:material.depthTest,depthWrite:material.depthWrite,useLighting:material.useLighting,blendType:material.blendType},fillOpacity:fill[index].render.meshInstances[0].material.opacity};
     });
     for(const wire of wires)wire.enabled=false;renderer.manualTick();const withoutWire=sample();
     for(const wire of wires)wire.enabled=true;renderer.manualTick();const withWire=sample();
@@ -60,6 +60,7 @@ try{
   },{left:pose("left_wrist",1.5),right:pose("right_wrist",2.5)});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
   assert.ok(result.preview.show.changed>100&&result.preview.wireContrast.dark>15,`Boxer wire must add dark framebuffer contrast over retained fill and GLBs: ${JSON.stringify(result.preview)}`);
+  assert.deepEqual(result.edges.map((edge)=>edge.name),["boxing-collider-wire-0","boxing-collider-wire-1"],"stable named hand slots are inspectable in the real PlayCanvas scene");
   for(const edge of result.edges){
     assert.equal(edge.vertices.length,8);assert.equal(edge.indices,24);assert.equal(edge.primitive,1,"PlayCanvas wire must use line primitives");
     assert.deepEqual([...edge.vertices].sort((a,b)=>a.join().localeCompare(b.join())),Array.from({length:8},(_,i)=>[i&4?.5:-.5,i&2?.5:-.5,i&1?.5:-.5]).sort((a,b)=>a.join().localeCompare(b.join())));

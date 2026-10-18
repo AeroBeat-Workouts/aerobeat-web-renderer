@@ -754,7 +754,7 @@ export class AeroPlayCanvasRenderer {
       wire.enabled=false;this.app.root.addChild(wire);pool.push(wire);
     }
     this.boxingColliderWirePool=pool;
-    const wire=pool[index];wire.enabled=true;wire.name=`${object.id}-wire`;
+    const wire=pool[index];wire.enabled=true;
     wire.setPosition(object.position.x,object.position.y,object.position.z);
     wire.setLocalScale(object.scale.x,object.scale.y,object.scale.z);
     wire.setEulerAngles(0,0,0);

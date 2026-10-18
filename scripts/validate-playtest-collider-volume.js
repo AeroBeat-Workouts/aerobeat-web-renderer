@@ -111,7 +111,7 @@ for(const presentation of ["flow","boxing_collider"]){
       assert.deepEqual(material.diffuse.rgb,rgb,`${presentation} ${index===0?"left":"right"} collider follows its equipment color`);
       assert.deepEqual(material.emissive.rgb,rgb);
       assert.equal(material.opacity,.16,"collider transparency stays unchanged");
-      assert.equal(material.depthTest,true);
+      assert.equal(material.depthTest,presentation!=="flow","Flow Show composites over the saber; Boxing retains depth testing");
       assert.equal(material.depthWrite,false);
     }
   }

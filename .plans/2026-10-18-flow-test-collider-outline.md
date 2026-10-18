@@ -1,0 +1,17 @@
+# Flow Test scored collider edge
+
+**Status:** Renderer correction and framebuffer regression implemented; source/browser checks green; renderer commit and push pending. **Owner:** renderer on main. **Assigned Bead:** `aerobeat-web-assembly-glx4`; parent assembly plan `.plans/2026-10-18-flow-test-collider-visibility.md`. **Next acceptance:** Review paired renderer Test-style GLB screenshots and rerun checks after final edits, then commit/push. Assembly owns signed Test/public acceptance; no service or snapshot changes here.
+
+## Goal and diagnosis
+
+Derrick saw a visible Flow saber with no discernible Show collider in public signed 0.0.131 Test. The signed same-frame GPU Show on/off differed by only 151 pixels because a same-radius, same-hand-color translucent volume was drawn before World transparency and depth-tested against the solid blade. Runtime-only post-World/depth-off comparison established compositing as the cause, but did not create a contrasting scored edge. Derrick explicitly chose a thin high-contrast edge at the true scored radius/endpoints, not a brighter same-hue tint or wider hit region. Full pre-edit causal report is in the parent assembly plan.
+
+## Implementation and verification
+
+1. Render the Flow-only capsule on a late transparent layer after World and the shadow receiver; keep Boxing overlays' original material/depth behavior. Keep the exact shared scored radius and endpoints, original translucent fill, authored solid GLB and same fixed-size per-hand pool. A bounded line mesh draws sparse charcoal longitudes and cap rims at that **same** capsule surface. Lines are 1 hardware pixel; there is no geometry inflation, regardless of rotation, Scale, or zero-length sphere.
+2. Extend the existing actual Chromium PlayCanvas browser test: stage the pinned solid GLB with equipment-preview-style Flow poses; compare Show on/off on the same active frame for up, diagonal, right, and both hands; assert high-contrast pixels, active second line mesh and its no-depth-write material, plus Scale0 and missing-pose off. Preserve existing model/mesh vertex, tiny/huge, zero-length and pooled-slot checks. Write paired `testStyleShowOn-after.png` and `testStyleShowOff-after.png` under ignored `.tmp/renderer-browser-evidence/flow-capsule-before-after/`.
+3. Update README; run `npm test`, focused `node scripts/validate-flow-collider-volume-browser.js`, and `npm run test:browser`; commit and push renderer only. Documentation outside renderer and signed/public run deliberately deferred to assembly owner.
+
+**Observed boundary (844×390 Chromium, genuine PlayCanvas/pinned saber GLB):** Flow Show on/off 454/480/487 pixels differ for left up/left diagonal/right diagonal and 941 for both hands; >300 high-contrast pixels for each individual pose. Scale0 and lost collider pose differ by zero pixels from the same GLB Show-off frame. Actual screenshot on shows thin charcoal/dark contour and glowing blade retained; the dark wire uses fixed 1-pixel lines and intentionally differs from hand color. This is renderer-boundary evidence, not signed Test or physical-phone acceptance.
+
+**Design tradeoff:** High contrast wins on a bright blade without widening hit geometry, but 1-pixel lines and coincident radius are less pronounced at small/mobile viewports, and post-World depth-off shows diagnostic outlines through intervening art. This is deliberate Test/Show diagnostic presentation; Boxing remains depth-tested. Parent will judge signed Test appearance.

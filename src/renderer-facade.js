@@ -527,7 +527,7 @@ export class AeroPlayCanvasRenderer {
   createGameplayLayers(){
     if(!this.app||!this.cameraEntity?.camera)return;const composition=this.app.scene.layers,world=composition.getLayerById(pc.LAYERID_WORLD);if(!world)throw new Error("PlayCanvas World layer is unavailable");
     const gridLayer=new pc.Layer({name:"Aero Gameplay Grid",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,opaqueSortMode:pc.SORTMODE_MANUAL,transparentSortMode:pc.SORTMODE_MANUAL}),guidanceLayer=new pc.Layer({name:"Aero Gameplay Guidance Bands",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,opaqueSortMode:pc.SORTMODE_MANUAL,transparentSortMode:pc.SORTMODE_MANUAL}),targetLayer=new pc.Layer({name:"Aero Gameplay Targets",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,opaqueSortMode:pc.SORTMODE_FRONT2BACK,transparentSortMode:pc.SORTMODE_BACK2FRONT}),colliderOverlayLayer=new pc.Layer({name:"Aero Gameplay Collider Overlays",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,opaqueSortMode:pc.SORTMODE_MANUAL,transparentSortMode:pc.SORTMODE_MANUAL}),hazardGlowLayer=new pc.Layer({name:"Aero Hazard Glow Vignette",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,opaqueSortMode:pc.SORTMODE_MANUAL,transparentSortMode:pc.SORTMODE_MANUAL});
-    const worldTransparentIndex=composition.getTransparentIndex(world);if(worldTransparentIndex<0)throw new Error("PlayCanvas World transparent layer is unavailable");composition.insertTransparent(gridLayer,worldTransparentIndex);composition.insertTransparent(guidanceLayer,worldTransparentIndex+1);composition.insert(targetLayer,worldTransparentIndex+2);composition.insertTransparent(colliderOverlayLayer,worldTransparentIndex+3);composition.insertTransparent(hazardGlowLayer,worldTransparentIndex+4);this.gameplayGridLayer=gridLayer;this.gameplayGuidanceLayer=guidanceLayer;this.gameplayTargetLayer=targetLayer;this.gameplayColliderOverlayLayer=colliderOverlayLayer;this.gameplayHazardGlowLayer=hazardGlowLayer;const receiverLayer=new pc.Layer({name:"Aero Shadow Receiver",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,transparentSortMode:pc.SORTMODE_MANUAL});composition.insertTransparent(receiverLayer,composition.getTransparentIndex(world)+1);this.shadowReceiverLayer=receiverLayer;this.cameraEntity.camera.layers=[...this.cameraEntity.camera.layers,gridLayer.id,guidanceLayer.id,targetLayer.id,colliderOverlayLayer.id,hazardGlowLayer.id,receiverLayer.id];
+    const worldTransparentIndex=composition.getTransparentIndex(world);if(worldTransparentIndex<0)throw new Error("PlayCanvas World transparent layer is unavailable");composition.insertTransparent(gridLayer,worldTransparentIndex);composition.insertTransparent(guidanceLayer,worldTransparentIndex+1);composition.insert(targetLayer,worldTransparentIndex+2);composition.insertTransparent(hazardGlowLayer,worldTransparentIndex+3);composition.insertTransparent(colliderOverlayLayer,composition.getTransparentIndex(world)+1);this.gameplayGridLayer=gridLayer;this.gameplayGuidanceLayer=guidanceLayer;this.gameplayTargetLayer=targetLayer;this.gameplayColliderOverlayLayer=colliderOverlayLayer;this.gameplayHazardGlowLayer=hazardGlowLayer;const receiverLayer=new pc.Layer({name:"Aero Shadow Receiver",clearColorBuffer:false,clearDepthBuffer:false,clearStencilBuffer:false,transparentSortMode:pc.SORTMODE_MANUAL});composition.insertTransparent(receiverLayer,composition.getTransparentIndex(world)+1);this.shadowReceiverLayer=receiverLayer;this.cameraEntity.camera.layers=[...this.cameraEntity.camera.layers,gridLayer.id,guidanceLayer.id,targetLayer.id,colliderOverlayLayer.id,hazardGlowLayer.id,receiverLayer.id];
     this.createHazardGlowQuad();
   }
   removeGameplayLayers(){const gridLayer=this.gameplayGridLayer,guidanceLayer=this.gameplayGuidanceLayer,targetLayer=this.gameplayTargetLayer,colliderOverlayLayer=this.gameplayColliderOverlayLayer,hazardGlowLayer=this.gameplayHazardGlowLayer,receiverLayer=this.shadowReceiverLayer;this.shadowReceiverLayer=null;this.gameplayGridLayer=null;this.gameplayGuidanceLayer=null;this.gameplayTargetLayer=null;this.gameplayColliderOverlayLayer=null;this.gameplayHazardGlowLayer=null;if(this.cameraEntity?.camera)this.cameraEntity.camera.layers=this.cameraEntity.camera.layers.filter((id)=>![gridLayer?.id,guidanceLayer?.id,targetLayer?.id,colliderOverlayLayer?.id,hazardGlowLayer?.id,receiverLayer?.id].includes(id));if(gridLayer)this.app?.scene.layers.removeTransparent(gridLayer);if(guidanceLayer)this.app?.scene.layers.removeTransparent(guidanceLayer);if(targetLayer)this.app?.scene.layers.remove(targetLayer);if(colliderOverlayLayer)this.app?.scene.layers.removeTransparent(colliderOverlayLayer);if(hazardGlowLayer)this.app?.scene.layers.removeTransparent(hazardGlowLayer);if(receiverLayer)this.app?.scene.layers.removeTransparent(receiverLayer);}
@@ -690,9 +690,12 @@ export class AeroPlayCanvasRenderer {
       while(pool.length<=index){
         const entity=new pc.Entity(`flow-collider-capsule-${pool.length}`,this.app);
         const material=this.makeMaterial(),mesh=createUnitFlowCapsuleMesh(this.app.graphicsDevice,0);
-        this.ownedMaterials.add(mesh);
+        // The shell preserves the translucent volume; a line mesh at the
+        // same scored surface exposes its true radius and endpoint caps.
+        const edgeMaterial=this.makeMaterial(),edgeMesh=createUnitFlowCapsuleEdgeMesh(this.app.graphicsDevice,0);
+        this.ownedMaterials.add(mesh);this.ownedMaterials.add(edgeMesh);
         entity.addComponent("render",{material});
-        entity.render.meshInstances=[new pc.MeshInstance(mesh,material)];
+        entity.render.meshInstances=[new pc.MeshInstance(mesh,material),new pc.MeshInstance(edgeMesh,edgeMaterial)];
         this.entityMaterials.set(entity,material);
         this.app.root.addChild(entity);
         pool.push(entity);
@@ -751,7 +754,7 @@ export class AeroPlayCanvasRenderer {
     // 0.0.54 W1-C: depth-test OFF so the overlays (which ride the beat with a camera-side Z offset)
     // stay visible ON TOP of the approaching beat glyph; the dedicated transparent layer + render
     // orders 45/46/47 keep them above the targets layer.
-    material.depthTest=object.kind==="collider_volume"||object.kind==="wrist_bomb_collider";
+    material.depthTest=object.kind==="wrist_bomb_collider"||object.kind==="collider_volume"&&object.shape!=="capsule";
     material.useLighting=false;
     material.cull=pc.CULLFACE_NONE;
     if(object.kind==="wrist_bomb_collider"){
@@ -772,6 +775,8 @@ export class AeroPlayCanvasRenderer {
         const mesh=entity.render?.meshInstances?.[0]?.mesh;
         if(mesh&&this.flowColliderAxialScales?.get(entity)!==axialScale){
           setFlowCapsuleMeshGeometry(mesh,axialScale);
+          const edgeMesh=entity.render.meshInstances[1]?.mesh;
+          if(edgeMesh)setFlowCapsuleEdgeGeometry(edgeMesh,axialScale);
           if(!this.flowColliderAxialScales)this.flowColliderAxialScales=new WeakMap();
           this.flowColliderAxialScales.set(entity,axialScale);
         }
@@ -812,6 +817,17 @@ export class AeroPlayCanvasRenderer {
       entity.setEulerAngles(0,0,0);
     }
     material.update();
+    if(object.kind==="collider_volume"&&object.shape==="capsule"){
+      const edge=entity.render?.meshInstances?.[1]?.material;
+      if(edge){
+        // Charcoal contrasts with both handed blade pigments without
+        // changing the scored radius or the GLB's luminous solid blade.
+        edge.diffuse.set(.025,.032,.045);edge.emissive.set(.025,.032,.045);
+        edge.opacity=.8;edge.blendType=pc.BLEND_NORMAL;
+        edge.depthTest=false;edge.depthWrite=false;edge.useLighting=false;
+        edge.cull=pc.CULLFACE_NONE;edge.update();
+      }
+    }
   }
   /** Fixed complementary local-X masks split each authored GLB from tail to tip; scored contact affects gameplay, never shader variants. */
   applyAftermathAppearance(object,entity){
@@ -984,7 +1000,7 @@ export class AeroPlayCanvasRenderer {
   destroyColliderOverlayPools(){
     for(const entity of this.colliderOverlayPrimitivePool??[]){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
     this.colliderOverlayPrimitivePool=[];
-    for(const entity of this.flowColliderCapsulePool??[]){const mesh=entity.render?.meshInstances?.[0]?.mesh;if(mesh&&this.ownedMaterials.delete(mesh))mesh.destroy();this.destroyPrimitiveEntity(entity);}
+    for(const entity of this.flowColliderCapsulePool??[]){for(const instance of entity.render?.meshInstances??[]){if(instance.mesh&&this.ownedMaterials.delete(instance.mesh))instance.mesh.destroy();if(instance.material&&this.ownedMaterials.delete(instance.material))instance.material.destroy();}entity.destroy();}
     this.flowColliderCapsulePool=[];
     for(const entity of this.wristBombColliderPool??[])this.destroyPrimitiveEntity(entity);
     this.wristBombColliderPool=[];
@@ -1046,6 +1062,39 @@ function setFlowCapsuleMeshGeometry(mesh,axialScale){
     indices.push(a,c,b,b,c,d);
   }
   mesh.setPositions(positions);mesh.setIndices(indices);mesh.update();
+}
+/** A fixed-size wireframe at the same capsule surface: longitude contours and
+ * cap/cylinder rings (no inflated halo or screen-space offset). */
+function createUnitFlowCapsuleEdgeMesh(device,axialScale){
+  const mesh=new pc.Mesh(device);
+  setFlowCapsuleEdgeGeometry(mesh,axialScale);
+  return mesh;
+}
+/** @param {pc.Mesh} mesh @param {number} axialScale */
+function setFlowCapsuleEdgeGeometry(mesh,axialScale){
+  const positions=[],indices=[],segments=20,capSteps=8,rings=[];
+  for(let step=0;step<=capSteps;step++){
+    const theta=-Math.PI/2+step*Math.PI/(2*capSteps);
+    rings.push({x:-axialScale/2+Math.sin(theta),r:Math.cos(theta)});
+  }
+  rings.push({x:axialScale/2,r:1});
+  for(let step=1;step<=capSteps;step++){
+    const theta=step*Math.PI/(2*capSteps);
+    rings.push({x:axialScale/2+Math.sin(theta),r:Math.cos(theta)});
+  }
+  for(const ring of rings)for(let side=0;side<segments;side++){
+    const angle=side*2*Math.PI/segments;
+    positions.push(ring.x,ring.r*Math.cos(angle),ring.r*Math.sin(angle));
+  }
+  // Four longitudes show the cross-section through arbitrary rotations;
+  // the two cap rims delimit scored rear/front reach, including a sphere.
+  for(let ring=0;ring<rings.length;ring++)for(let side=0;side<segments;side++){
+    const current=ring*segments+side;
+    if(ring<rings.length-1&&side%5===0)indices.push(current,current+segments);
+    if(ring===capSteps||ring===capSteps+1)
+      indices.push(current,ring*segments+(side+1)%segments);
+  }
+  mesh.setPositions(positions);mesh.setIndices(indices);mesh.update(pc.PRIMITIVE_LINES);
 }
 function gridPositionForNormalized(x,y,z=0){return{x:GRID_LEFT+clamp(x,0,1)*gameplayWorldGrid.columns*GRID_COLUMN_PITCH,y:GRID_TOP-clamp(y,0,1)*gameplayWorldGrid.rows*GRID_ROW_PITCH,z};}
 function normalizeCursorGrid(value){if(!plainData(value)||![value.x,value.y,value.width,value.height].every(Number.isFinite)||value.width<=0||value.height<=0||value.x<0||value.y<0||value.x+value.width>1||value.y+value.height>1)throw new TypeError("Gameplay cursor grid is required");return value;}

@@ -45,6 +45,7 @@ try{
     const settings={colliderVisible:true,colliderScale:1,colliderDepthForward:1,colliderDepthBackward:0};
     const frame={presentation:"flow",nowMs:1000,targets:[],colliderSettings:settings,equipmentColliderPoses:[]};
     const pixels=()=>{const buffer=new OffscreenCanvas(canvas.width,canvas.height),context=buffer.getContext("2d",{willReadFrequently:true});context.drawImage(canvas,0,0);return context.getImageData(0,0,canvas.width,canvas.height).data;};
+    const compare=(on,off)=>{let changed=0,contrasting=0;for(let offset=0;offset<on.length;offset+=4){const difference=Math.abs(on[offset]-off[offset])+Math.abs(on[offset+1]-off[offset+1])+Math.abs(on[offset+2]-off[offset+2]);if(difference>12)changed++;if(difference>80)contrasting++;}return{changed,contrasting};};
     const delta=(current,previous)=>{const points=[];for(let pixel=0;pixel<current.length;pixel+=4){const shift=Math.abs(current[pixel]-previous[pixel])+Math.abs(current[pixel+1]-previous[pixel+1])+Math.abs(current[pixel+2]-previous[pixel+2]);if(shift>9)points.push(pixel/4);}const ys=points.map((point)=>Math.floor(point/canvas.width));return{count:points.length,minY:Math.min(...ys),maxY:Math.max(...ys)};};
     const silhouette=(current,previous)=>{
       const points=[];
@@ -104,6 +105,26 @@ try{
     const combinedSet=new Set(combinedPixels.map((p)=>p.y*canvas.width+p.x));
     const bladeCovered=bladePixels.filter((p)=>{for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(combinedSet.has((p.y+dy)*canvas.width+p.x+dx))return true;return false;}).length;
     const sameFrameEvidence={bladePixels:bounds(bladePixels),overlayPixels:bounds(overlayPixels),combinedPixels:bounds(combinedPixels),bladeCovered,bladeMeshWorld:bounds(bladeVertices),bladeMeshProjected:bounds(bladeVertices.map(screen)),overlayMeshProjected:bounds(meshVertices(liveOverlay).map(screen)),scoredStart:screen(liveCollider.capsule.start),scoredEnd:screen(liveCollider.capsule.end),bladeRoot:{position:{...liveBlade.parent.getPosition()},scale:{...liveBlade.parent.getLocalScale()},rotation:{...liveBlade.parent.getRotation()}},bladeChild:{rotation:{...liveBlade.getLocalRotation()}}};
+    // Test-style equipment preview: compare Show on/off on the SAME authored
+    // GLB frame, not a collider-only scene or a comparison across pose histories.
+    const previewCases=[];
+    for(const [name,pose] of [["left-up",up],["left-diagonal",diagonal],["right-diagonal",right]]){
+      for(const record of glbAll)record.meshInstance.visible=true;
+      renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,colliderSettings:{...settings,colliderVisible:false},equipmentColliderPoses:[pose]},[],null,[pose],null);
+      const off=pixels();
+      renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[pose]},[],null,[pose],null);
+      const on=pixels(),outline=(renderer.flowColliderCapsulePool??[]).find((candidate)=>candidate.enabled&&candidate.name===`equipment-collider-volume-${pose.role.replace("_wrist","")}`);
+      if(!outline)throw new Error(`Missing active Test preview collider for ${name}`);
+      if(name==="left-diagonal"){snapshots.testStyleShowOff=(()=>{renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,colliderSettings:{...settings,colliderVisible:false},equipmentColliderPoses:[pose]},[],null,[pose],null);return canvas.toDataURL("image/png");})();renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[pose]},[],null,[pose],null);snapshots.testStyleShowOn=canvas.toDataURL("image/png");}
+      previewCases.push({name,...compare(on,off),edgeMaterial:{opacity:outline.render.meshInstances[1].material.opacity,depthTest:outline.render.meshInstances[1].material.depthTest},edgeMeshVertices:outline.render.meshInstances[1].mesh.vertexBuffer.numVertices});
+    }
+    const twoHandFrame={...frame,equipmentColliderPoses:[up,right]};
+    renderer.renderGameplayFrameWithCursorsAndEquipment({...twoHandFrame,colliderSettings:{...settings,colliderVisible:false}},[],null,[up,right],null);const twoHandOff=pixels();
+    renderer.renderGameplayFrameWithCursorsAndEquipment(twoHandFrame,[],null,[up,right],null);const twoHandOn=pixels();
+    previewCases.push({name:"both-hands",...compare(twoHandOn,twoHandOff)});
+    renderer.renderGameplayFrameWithCursorsAndEquipment({...twoHandFrame,colliderSettings:{...settings,colliderScale:0}},[],null,[up,right],null);const zeroPreview=compare(pixels(),twoHandOff);
+    renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[]},[],null,[up,right],null);const lostPreview=compare(pixels(),twoHandOff);
+    const preview={cases:previewCases,zeroPreview,lostPreview};
     for(const record of glbAll)record.meshInstance.visible=true;
     renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);
     for(const [name,pose,other,scale,front,rear] of [["up",up,false,1,1,0],["down",down,false,1,1,0],["diagonal",diagonal,false,1,1,0],["second-slot",right,true,1,1,0],["zero-length",up,false,1,0,0],["scaled",scaled,false,2,1,0],["tiny",up,false,.00001,.00001,0],["huge",up,false,9999999,9999999,0],["huge-both",up,false,1,9999999,9999999]]){
@@ -136,7 +157,7 @@ try{
     const missing=renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null).model.objects.filter((object)=>object.kind==="collider_volume").length;
     const lostPixels=delta(pixels(),base),enabled=(renderer.flowColliderCapsulePool??[]).some((entity)=>entity.enabled);
     renderer.destroyColliderOverlayPools();
-    return{rows,solidBlade,sameFrameEvidence,scaleZero,zeroPixels,zeroEnabled,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
+    return{rows,solidBlade,sameFrameEvidence,preview,scaleZero,zeroPixels,zeroEnabled,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
   },{up,down,diagonal,right,scaled});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
   for(const [name,dataUrl] of Object.entries(evidence.snapshots)){
@@ -144,6 +165,13 @@ try{
     await writeFile(resolve(evidenceDirectory,`${name}-after.png`),Buffer.from(dataUrl.slice("data:image/png;base64,".length),"base64"));
   }
   const aligned=evidence.sameFrameEvidence,alignmentReport=JSON.stringify(aligned);
+  console.log("GLB Test-style Show on/off GPU pixels",JSON.stringify(evidence.preview));
+  for(const preview of evidence.preview.cases){
+    assert.ok(preview.changed>180&&preview.contrasting>100,`${preview.name} must show high-contrast true-radius edges over real GLB: ${JSON.stringify(preview)}`);
+    if(preview.edgeMaterial){assert.equal(preview.edgeMaterial.depthTest,false);assert.equal(preview.edgeMaterial.opacity,.8);assert.equal(preview.edgeMeshVertices,360);}
+  }
+  assert.deepEqual(evidence.preview.zeroPreview,{changed:0,contrasting:0},"Scale0 removes Show without hiding either GLB");
+  assert.deepEqual(evidence.preview.lostPreview,{changed:0,contrasting:0},"lost pose removes Show while GLB equipment preview is still staged");
   console.log("Same-frame solid GLB/overlay projected bounds",alignmentReport);
   const [upRow,downRow,diagonalRow,secondSlotRow,zeroLengthRow,scaledRow,tinyRow,hugeRow,hugeBothRow]=evidence.rows;
   assert.ok(aligned.bladePixels.count>20&&aligned.overlayPixels.count>20&&aligned.combinedPixels.count>20,`same-pose solid blade and active overlay render real pixels: ${alignmentReport}`);
@@ -158,7 +186,7 @@ try{
   assert.ok(aligned.overlayMeshProjected.minY<aligned.bladeMeshProjected.minY&&aligned.overlayMeshProjected.maxY>aligned.bladeMeshProjected.maxY,`scored capsule encloses the authored inset solid blade at both endpoints: ${alignmentReport}`);
   assert.ok(aligned.bladeCovered/aligned.bladePixels.count>.98,`combined same-frame render retains at least 98% of bright solid blade pixels: ${alignmentReport}`);
   assert.ok(Math.abs(aligned.combinedPixels.minY-aligned.overlayPixels.minY)<=1&&Math.abs(aligned.combinedPixels.maxY-aligned.overlayPixels.maxY)<=1,`combined same-frame silhouette retains both scored overlay poles: ${alignmentReport}`);
-  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>0||row.name==="tiny"||row.name==="huge"||row.name==="huge-both",`${row.name} must render actual browser pixels or truthfully be subpixel/offscreen: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,["up","down","diagonal"].includes(row.name)?1:2);assert.equal(row.capsule.start.y,1-.75*(row.name==="scaled"?2:1)*row.rear);assert.ok(Math.abs(row.capsule.radius-.024*(row.name==="scaled"?2:1)*row.scale)<1e-6,`${row.name} scored solid blade radius times Flow Scale and pose scale`);}
+  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>0||row.name==="tiny"||row.name==="huge"||row.name==="huge-both",`${row.name} must render actual browser pixels or truthfully be subpixel/offscreen: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,false);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,2);assert.equal(row.capsule.start.y,1-.75*(row.name==="scaled"?2:1)*row.rear);assert.ok(Math.abs(row.capsule.radius-.024*(row.name==="scaled"?2:1)*row.scale)<1e-6,`${row.name} scored solid blade radius times Flow Scale and pose scale`);}
   assert.equal(secondSlotRow.entityName,"equipment-collider-volume-right");
   assert.deepEqual(secondSlotRow.activeCapsules,[secondSlotRow.entityName],"inactive slot 0 must not substitute for the active right collider");
   assert.equal(secondSlotRow.otherOverlayEnabled,true,"wrist bomb overlay coexists with the named capsule");

@@ -34,6 +34,7 @@ for(const presentation of ["boxing_collider","boxing_lanes"]){
   assert.equal(boxes(partial)[0].position.x,anchors.left.x);
   assert.equal(boxes(partial).length,1,"missing right pose does not invent a hand");
   assert.equal(buildGameplaySceneModel({...frame,colliderSettings:settings(false),equipmentColliderAnchors:anchors}).objects.some((object)=>object.kind==="collider_volume"),false);
+  assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true,0),equipmentColliderAnchors:anchors})).length,0,"Boxer Scale0 omits both hand volumes even with valid tracked anchors");
 }
 const configIdentity=createEquipmentConfigIdentity({schema:"aerobeat/equipment_config_identity",version:1,algorithm:"sha256",value:"1".repeat(64)});
 const pose=(role,mode,anchor,euler={x:0,y:0,z:0},scale=1)=>({role,mode,anchor,scale,orientation:equipmentEulerDegreesToQuaternion(euler),geometryIdentity:mode==="flow"?saberCapsuleGeometry.identity:gloveObbGeometry.identity,configIdentity});

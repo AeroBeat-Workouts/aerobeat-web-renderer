@@ -207,7 +207,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
         objects.push(Object.freeze({...object,shape:"capsule",capsule:geometry}));
       }else{
         const anchor=anchors[hand];
-        if(!anchor)continue;
+        if(!anchor||colliderSettings.colliderScale===0)continue;
         const bounds=resolveColliderBounds({mode:"boxing",center:anchor,halfWidth:.45,halfHeight:.45,settings:colliderSettings,timingWindowMs:180,speedWuPerMs:tuning.worldUnitsPerMs});
         objects.push(sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,{x:(bounds.minX+bounds.maxX)/2,y:(bounds.minY+bounds.maxY)/2,z:(bounds.minZ+bounds.maxZ)/2},{x:bounds.maxX-bounds.minX,y:bounds.maxY-bounds.minY,z:bounds.maxZ-bounds.minZ},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color));
       }

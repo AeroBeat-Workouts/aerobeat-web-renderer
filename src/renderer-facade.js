@@ -684,12 +684,12 @@ export class AeroPlayCanvasRenderer {
   /** Acquire dedicated wrist spheres or the existing box/cone collider overlay geometry. */
   acquireColliderOverlayEntity(object,index){
     if(object.kind==="collider_volume"&&object.shape==="capsule"){
-      // One retained mesh per hand. Only the cylinder centerline is stretched by L;
-      // cap vertices are rebuilt at their scored radius r when r/L changes.
+      // One retained mesh per hand; local cylinder centerline is L/r and caps
+      // are unit hemispheres. Uniform world scale r also supports L=0.
       const pool=this.flowColliderCapsulePool??=[];
       while(pool.length<=index){
         const entity=new pc.Entity(`flow-collider-capsule-${pool.length}`,this.app);
-        const material=this.makeMaterial(),mesh=createUnitFlowCapsuleMesh(this.app.graphicsDevice,1);
+        const material=this.makeMaterial(),mesh=createUnitFlowCapsuleMesh(this.app.graphicsDevice,0);
         this.ownedMaterials.add(mesh);
         entity.addComponent("render",{material});
         entity.render.meshInstances=[new pc.MeshInstance(mesh,material)];
@@ -763,14 +763,19 @@ export class AeroPlayCanvasRenderer {
       if(object.shape==="capsule"&&object.capsule){
         const start=object.capsule.start,end=object.capsule.end;
         const length=Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z);
-        const radius=object.capsule.radius,capRatio=radius/length;
+        const radius=object.capsule.radius;
+        if(!(radius>0)||!Number.isFinite(length))throw new TypeError("Flow collider mesh geometry is invalid");
+        // Keep poles in radius-sized local X units and scale the entire mesh uniformly.
+        // Unlike r/L this also handles the zero-length centerline (a sphere) safely.
+        const axialScale=length/radius;
+        if(!Number.isFinite(axialScale))throw new TypeError("Flow collider mesh geometry is nonfinite");
         const mesh=entity.render?.meshInstances?.[0]?.mesh;
-        if(mesh&&this.flowColliderCapRatios?.get(entity)!==capRatio){
-          setFlowCapsuleMeshGeometry(mesh,capRatio);
-          if(!this.flowColliderCapRatios)this.flowColliderCapRatios=new WeakMap();
-          this.flowColliderCapRatios.set(entity,capRatio);
+        if(mesh&&this.flowColliderAxialScales?.get(entity)!==axialScale){
+          setFlowCapsuleMeshGeometry(mesh,axialScale);
+          if(!this.flowColliderAxialScales)this.flowColliderAxialScales=new WeakMap();
+          this.flowColliderAxialScales.set(entity,axialScale);
         }
-        entity.setLocalScale(length,radius,radius);
+        entity.setLocalScale(radius,radius,radius);
         const {x,y,z,w}=object.capsule.orientation;
         entity.setRotation(new pc.Quat(x,y,z,w));
       }else{
@@ -1012,25 +1017,25 @@ function feedbackGlyphPixels(text,width,height){const pixels=new Uint8Array(widt
 function normalizeCameraDeflection(value){if(value===null||value===undefined)return Object.freeze({active:false,xDeflection:0,yDeflection:0});if(!plainData(value)||Reflect.ownKeys(value).length!==3||!Object.hasOwn(value,"active")||!Object.hasOwn(value,"xDeflection")||!Object.hasOwn(value,"yDeflection")||typeof value.active!=="boolean"||![value.xDeflection,value.yDeflection].every((entry)=>typeof entry==="number"&&Number.isFinite(entry)&&entry>=-1&&entry<=1))throw new TypeError("Camera deflection must be an exact sanitized private record");return Object.freeze({active:value.active,xDeflection:Object.is(value.xDeflection,-0)?0:value.xDeflection,yDeflection:Object.is(value.yDeflection,-0)?0:value.yDeflection});}
 function applyAxialDeadzone(value,deadzone){const magnitude=Math.abs(value);return magnitude<=deadzone?0:Math.sign(value)*(magnitude-deadzone)/(1-deadzone);}
 function moveToward(from,to,maxDelta){return from+clamp(to-from,-maxDelta,maxDelta);}
-/** Local +X cylinder centerline ±0.5, radial radius 1; poles extend only r/L along X. */
-function createUnitFlowCapsuleMesh(device,capRatio){
+/** Local +X cylinder centerline ±axialScale/2 and unit-radius hemispheres. */
+function createUnitFlowCapsuleMesh(device,axialScale){
   const mesh=new pc.Mesh(device);
-  setFlowCapsuleMeshGeometry(mesh,capRatio);
+  setFlowCapsuleMeshGeometry(mesh,axialScale);
   return mesh;
 }
-/** @param {pc.Mesh} mesh @param {number} capRatio */
-function setFlowCapsuleMeshGeometry(mesh,capRatio){
+/** @param {pc.Mesh} mesh @param {number} axialScale */
+function setFlowCapsuleMeshGeometry(mesh,axialScale){
   const positions=[],indices=[],segments=20,capSteps=8;
   // Rings progress from the rear pole through the cylinder and front pole.
   const rings=[];
   for(let step=0;step<=capSteps;step++){
     const theta=-Math.PI/2+step*Math.PI/(2*capSteps);
-    rings.push({x:-.5+capRatio*Math.sin(theta),r:Math.cos(theta)});
+    rings.push({x:-axialScale/2+Math.sin(theta),r:Math.cos(theta)});
   }
-  rings.push({x:.5,r:1});
+  rings.push({x:axialScale/2,r:1});
   for(let step=1;step<=capSteps;step++){
     const theta=step*Math.PI/(2*capSteps);
-    rings.push({x:.5+capRatio*Math.sin(theta),r:Math.cos(theta)});
+    rings.push({x:axialScale/2+Math.sin(theta),r:Math.cos(theta)});
   }
   for(const ring of rings)for(let side=0;side<segments;side++){
     const angle=side*2*Math.PI/segments;

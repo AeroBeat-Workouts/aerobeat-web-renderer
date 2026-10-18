@@ -3,8 +3,8 @@
 import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-contracts/obstacle-contracts";
 import { isPrivateNoteAppearance } from "@aerobeat/web-contracts/note-palette-contracts";
 import { boxingColliderRowY } from "@aerobeat/web-contracts/gameplay-contracts";
-import { colliderSettingsDefaults, normalizeColliderSettings as normalizeSharedColliderSettings, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
-import { judgeToPresentationPoint, saberGeometry } from "@aerobeat/web-contracts/equipment-contracts";
+import { colliderSettingsDefaults, normalizeColliderSettings as normalizeSharedColliderSettings, normalizeFlowColliderSettings, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
+import { flowSolidBladeRadiusWu, judgeToPresentationPoint, saberGeometry } from "@aerobeat/web-contracts/equipment-contracts";
 import { isResolvedEquipmentPose, resolveSaberCapsule } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { defaultTestPresentationConfig, testPresentationBounceOffsetY, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
@@ -149,7 +149,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const colliderOverlay=normalizeColliderOverlay(frame);
   const window=timingWindow(frame);
   if(frame.visibleWristObstacleRadius!==undefined&&typeof frame.visibleWristObstacleRadius!=="boolean")throw new TypeError("Wrist bomb collider visibility is invalid");
-  const colliderSettings=frame.colliderSettings===undefined?colliderSettingsDefaults[frame.presentation==="flow"?"flow":"boxing"]:normalizeSharedColliderSettings(frame.colliderSettings);
+  const colliderSettings=frame.colliderSettings===undefined?colliderSettingsDefaults[frame.presentation==="flow"?"flow":"boxing"]:frame.presentation==="flow"?normalizeFlowColliderSettings(frame.colliderSettings):normalizeSharedColliderSettings(frame.colliderSettings);
   // Normalized six-field settings are authoritative; the optional top-level flag remains a legacy frame fallback.
   const visibleWristObstacleRadius=colliderSettings.visibleWristObstacleRadius||frame.visibleWristObstacleRadius===true;
   const wristBombColliderScale=colliderSettings.wristBombColliderScale;
@@ -188,15 +188,22 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
       const color=hand==="left"?"#2693ff":"#39c96b";
       if(frame.presentation==="flow"){
         const pose=flowPoses[hand];
-        if(!pose)continue;
+        if(!pose||colliderSettings.colliderScale===0)continue;
         const capsule=resolveSaberCapsule(pose);
         // Match gameplay's reach: the hilt is zero, +X reaches the visible tip at front 1,
         // and positive rear extends behind the hilt. Both endpoints use the same pose quaternion.
         const length=saberGeometry.length*pose.scale;
-        const start={x:capsule.start.x-capsule.axis.x*length*colliderSettings.colliderDepthBackward-1.5,y:capsule.start.y-capsule.axis.y*length*colliderSettings.colliderDepthBackward,z:capsule.start.z-capsule.axis.z*length*colliderSettings.colliderDepthBackward};
-        const end={x:capsule.start.x+capsule.axis.x*length*colliderSettings.colliderDepthForward-1.5,y:capsule.start.y+capsule.axis.y*length*colliderSettings.colliderDepthForward,z:capsule.start.z+capsule.axis.z*length*colliderSettings.colliderDepthForward};
-        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius:capsule.radius,orientation:Object.freeze({...pose.orientation})});
-        const object=sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,{x:(start.x+end.x)/2,y:(start.y+end.y)/2,z:(start.z+end.z)/2},{x:Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z)+2*geometry.radius,y:2*geometry.radius,z:2*geometry.radius},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
+        const rear=length*colliderSettings.colliderDepthBackward,front=length*colliderSettings.colliderDepthForward;
+        const radius=flowSolidBladeRadiusWu*pose.scale*colliderSettings.colliderScale;
+        if(![rear,front,radius].every(Number.isFinite))throw new TypeError("Flow collider geometry is nonfinite");
+        const start={x:capsule.start.x-capsule.axis.x*rear-1.5,y:capsule.start.y-capsule.axis.y*rear,z:capsule.start.z-capsule.axis.z*rear};
+        const end={x:capsule.start.x+capsule.axis.x*front-1.5,y:capsule.start.y+capsule.axis.y*front,z:capsule.start.z+capsule.axis.z*front};
+        if(!Object.values(start).every(Number.isFinite)||!Object.values(end).every(Number.isFinite))throw new TypeError("Flow collider geometry is nonfinite");
+        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius,orientation:Object.freeze({...pose.orientation})});
+        const distance=Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z),diameter=2*radius;
+        const position={x:start.x+(end.x-start.x)/2,y:start.y+(end.y-start.y)/2,z:start.z+(end.z-start.z)/2};
+        if(!Number.isFinite(distance+diameter)||!Object.values(position).every(Number.isFinite))throw new TypeError("Flow collider geometry is nonfinite");
+        const object=sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,position,{x:distance+diameter,y:diameter,z:diameter},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
         objects.push(Object.freeze({...object,shape:"capsule",capsule:geometry}));
       }else{
         const anchor=anchors[hand];

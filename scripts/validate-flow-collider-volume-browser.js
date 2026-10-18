@@ -35,9 +35,10 @@ try{
   const down={...up,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:-90})};
   const diagonal={...up,orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:45})};
   const right={...up,role:"right_wrist",anchor:{...up.anchor,x:2.5},orientation:equipmentEulerDegreesToQuaternion({x:0,y:0,z:-45})};
+  const scaled={...up,scale:2};
   const evidenceDirectory=resolve(root,".tmp/renderer-browser-evidence/flow-capsule-before-after");
   await mkdir(evidenceDirectory,{recursive:true});
-  const evidence=await page.evaluate(({up,down,diagonal,right})=>{
+  const evidence=await page.evaluate(({up,down,diagonal,right,scaled})=>{
     const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0],canvas=document.querySelector("#primary canvas");
     renderer.resize({widthCssPx:844,heightCssPx:390,devicePixelRatio:1});renderer.setEnvironmentVisible(false);
     renderer.setBackgroundProjection({kind:"solid",colors:["#102030"],angleDeg:180});
@@ -67,17 +68,29 @@ try{
     };
     renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);const base=pixels(),rows=[];
     const snapshots={baseline:canvas.toDataURL("image/png")};
-    for(const [name,pose,other] of [["up",up,false],["down",down,false],["diagonal",diagonal,false],["second-slot",right,true]]){
+    renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,colliderSettings:{...settings,colliderVisible:false}},[],null,[up],null);
+    const saberEntries=renderer.equipmentPools.get("equipment/flow-saber-v1:left_wrist")??[],solidModel=saberEntries.find((candidate)=>candidate.name==="equipment-left_wrist-model");
+    if(!solidModel?.enabled)throw new Error("No authored solid Flow saber GLB in browser scene");
+    const solidRecords=renderer.assetMaterials.get(solidModel)??[];
+    for(const record of solidRecords)record.meshInstance.visible=record.name==="mat/saber_blade";
+    for(const entry of saberEntries)if(entry.name.includes("glow"))entry.enabled=false;
+    renderer.manualTick();
+    const solidImage=pixels(),solidPoints=silhouette(solidImage,base).filter((point)=>point.y<205);
+    const solidBlade={count:solidPoints.length,box:{minX:Math.min(...solidPoints.map((point)=>point.x)),maxX:Math.max(...solidPoints.map((point)=>point.x)),minY:Math.min(...solidPoints.map((point)=>point.y)),maxY:Math.max(...solidPoints.map((point)=>point.y))}};
+    snapshots.solidBlade=canvas.toDataURL("image/png");
+    for(const record of solidRecords)record.meshInstance.visible=true;
+    renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);
+    for(const [name,pose,other,scale,front,rear] of [["up",up,false,1,1,0],["down",down,false,1,1,0],["diagonal",diagonal,false,1,1,0],["second-slot",right,true,1,1,0],["zero-length",up,false,1,0,0],["scaled",scaled,false,2,1,0],["tiny",up,false,.00001,.00001,0],["huge",up,false,9999999,9999999,0]]){
       // Prime a two-capsule pool first, then leave slot 0 disabled while the named right-hand
       // collider occupies slot 1 alongside an independent wrist-bomb overlay entity.
       if(name==="second-slot")renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[up,right]},[],null,[],null);
-      const request={...frame,equipmentColliderPoses:[pose],...(other?{colliderSettings:{...settings,visibleWristObstacleRadius:true,wristBombColliderScale:1},equipmentColliderAnchors:{left:null,right:{x:1,y:1,z:.45}}}:{})};
+      const request={...frame,equipmentColliderPoses:[pose],colliderSettings:{...settings,colliderScale:scale,colliderDepthForward:front,colliderDepthBackward:rear,...(other?{visibleWristObstacleRadius:true,wristBombColliderScale:1}:{})},...(other?{equipmentColliderAnchors:{left:null,right:{x:1,y:1,z:.45}}}:{})};
       const model=renderer.renderGameplayFrameWithCursorsAndEquipment(request,[],null,[],null).model;
       const visibleCollider=model.objects.find((object)=>object.kind==="collider_volume"&&object.role===pose.role.replace("_wrist",""));
       const entity=(renderer.flowColliderCapsulePool??[]).find((candidate)=>candidate.enabled&&candidate.name===visibleCollider?.id);
       if(!entity)throw new Error(`No active named capsule for ${name}`);
       const capsule=visibleCollider.capsule,length=Math.hypot(capsule.end.x-capsule.start.x,capsule.end.y-capsule.start.y,capsule.end.z-capsule.start.z);
-      const vertices=meshVertices(entity),axis={x:(capsule.end.x-capsule.start.x)/length,y:(capsule.end.y-capsule.start.y)/length,z:(capsule.end.z-capsule.start.z)/length};
+      const vertices=meshVertices(entity),axis=length===0?{x:0,y:1,z:0}:{x:(capsule.end.x-capsule.start.x)/length,y:(capsule.end.y-capsule.start.y)/length,z:(capsule.end.z-capsule.start.z)/length};
       const coordinate=(point)=>point.x*axis.x+point.y*axis.y+point.z*axis.z;
       const meshAxis=[Math.min(...vertices.map(coordinate)),Math.max(...vertices.map(coordinate))];
       const meshRadius=Math.max(...vertices.map((point)=>{const axial=coordinate(point)-coordinate(capsule.start),center={x:capsule.start.x+axial*axis.x,y:capsule.start.y+axial*axis.y,z:capsule.start.z+axial*axis.z};return Math.hypot(point.x-center.x,point.y-center.y,point.z-center.z);}));
@@ -85,33 +98,49 @@ try{
       if(name==="up"||name==="diagonal")snapshots[name]=canvas.toDataURL("image/png");
       const camera=renderer.cameraEntity.camera;
       const project=(point)=>{const p=camera.worldToScreen(new (entity.getPosition().constructor)(point.x,point.y,point.z));return{x:p.x,y:p.y};};
-      const near=project(capsule.start),far=project(capsule.end),axisScreen={x:far.x-near.x,y:far.y-near.y},span=Math.hypot(axisScreen.x,axisScreen.y),unit={x:axisScreen.x/span,y:axisScreen.y/span};
+      const near=project(capsule.start),far=project(capsule.end),axisScreen={x:far.x-near.x,y:far.y-near.y},span=Math.hypot(axisScreen.x,axisScreen.y),unit=span===0?{x:0,y:-1}:{x:axisScreen.x/span,y:axisScreen.y/span};
       const projected=points.map((point)=>(point.x-near.x)*unit.x+(point.y-near.y)*unit.y);
       const radiusProbe=project({x:capsule.start.x+capsule.radius,y:capsule.start.y,z:capsule.start.z});
       const screenRadius=Math.hypot(radiusProbe.x-near.x,radiusProbe.y-near.y);
-      rows.push({name,capsule,entityEnabled:entity.enabled,entityName:entity.name,activeCapsules:(renderer.flowColliderCapsulePool??[]).filter((candidate)=>candidate.enabled).map((candidate)=>candidate.name),otherOverlayEnabled:(renderer.wristBombColliderPool??[]).some((candidate)=>candidate.enabled),material:{depthTest:entity.render.meshInstances[0].material.depthTest,depthWrite:entity.render.meshInstances[0].material.depthWrite,opacity:entity.render.meshInstances[0].material.opacity},pixels:delta(image,base),silhouette:{min:Math.min(...projected),max:Math.max(...projected),span,radius:screenRadius,count:points.length},meshAxis,expectedMeshAxis:[coordinate(capsule.start)-capsule.radius,coordinate(capsule.end)+capsule.radius],meshRadius,pool:(renderer.flowColliderCapsulePool??[]).length});
+      rows.push({name,scale,front,rear,capsule,entityEnabled:entity.enabled,entityName:entity.name,activeCapsules:(renderer.flowColliderCapsulePool??[]).filter((candidate)=>candidate.enabled).map((candidate)=>candidate.name),otherOverlayEnabled:(renderer.wristBombColliderPool??[]).some((candidate)=>candidate.enabled),material:{depthTest:entity.render.meshInstances[0].material.depthTest,depthWrite:entity.render.meshInstances[0].material.depthWrite,opacity:entity.render.meshInstances[0].material.opacity},pixels:delta(image,base),silhouette:{min:Math.min(...projected),max:Math.max(...projected),span,radius:screenRadius,count:points.length},meshAxis,expectedMeshAxis:[coordinate(capsule.start)-capsule.radius,coordinate(capsule.end)+capsule.radius],meshRadius,pool:(renderer.flowColliderCapsulePool??[]).length});
     }
+    const scaleZero=renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,colliderSettings:{...settings,colliderScale:0},equipmentColliderPoses:[up]},[],null,[],null).model.objects.filter((object)=>object.kind==="collider_volume").length;
+    const zeroPixels=delta(pixels(),base),zeroEnabled=(renderer.flowColliderCapsulePool??[]).some((entity)=>entity.enabled);
     const held=renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[down]},[],null,[],null).model.objects.find((object)=>object.kind==="collider_volume")?.capsule;
     const missing=renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null).model.objects.filter((object)=>object.kind==="collider_volume").length;
     const lostPixels=delta(pixels(),base),enabled=(renderer.flowColliderCapsulePool??[]).some((entity)=>entity.enabled);
     renderer.destroyColliderOverlayPools();
-    return{rows,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
-  },{up,down,diagonal,right});
+    return{rows,solidBlade,scaleZero,zeroPixels,zeroEnabled,held,missing,lostPixels,enabled,poolAfterDestroy:renderer.flowColliderCapsulePool.length,snapshots};
+  },{up,down,diagonal,right,scaled});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
   for(const [name,dataUrl] of Object.entries(evidence.snapshots)){
     assert.match(dataUrl,/^data:image\/png;base64,/);
     await writeFile(resolve(evidenceDirectory,`${name}-after.png`),Buffer.from(dataUrl.slice("data:image/png;base64,".length),"base64"));
   }
-  const [upRow,downRow,diagonalRow,secondSlotRow]=evidence.rows;
-  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>40,`${row.name} capsule must alter real browser pixels: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,row.name==="second-slot"?2:1);assert.equal(row.capsule.start.y,1);}
+  const [upRow,downRow,diagonalRow,secondSlotRow,zeroLengthRow,scaledRow,tinyRow,hugeRow]=evidence.rows;
+  assert.ok(evidence.solidBlade.count>20,`actual solid saber GLB material must render: ${JSON.stringify(evidence.solidBlade)}`);
+  assert.ok(Math.abs(upRow.capsule.radius-.024)<1e-9,"Scale1 overlay uses same .024 radius as pinned solid GLB blade");
+  assert.ok(upRow.pixels.minY<=evidence.solidBlade.box.minY+12&&upRow.pixels.maxY>=evidence.solidBlade.box.maxY-12,`Scale1 collider silhouette covers the rendered solid blade, allowing perspective and hilt difference: ${JSON.stringify({overlay:upRow.pixels,solid:evidence.solidBlade})}`);
+  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>0||row.name==="tiny"||row.name==="huge",`${row.name} must render actual browser pixels or truthfully be subpixel/offscreen: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,["up","down","diagonal"].includes(row.name)?1:2);assert.equal(row.capsule.start.y,1);assert.ok(Math.abs(row.capsule.radius-.024*(row.name==="scaled"?2:1)*row.scale)<1e-6,`${row.name} scored solid blade radius times Flow Scale and pose scale`);}
   assert.equal(secondSlotRow.entityName,"equipment-collider-volume-right");
   assert.deepEqual(secondSlotRow.activeCapsules,[secondSlotRow.entityName],"inactive slot 0 must not substitute for the active right collider");
   assert.equal(secondSlotRow.otherOverlayEnabled,true,"wrist bomb overlay coexists with the named capsule");
+  assert.deepEqual(zeroLengthRow.capsule.start,zeroLengthRow.capsule.end,"front0+rear0 keeps scored centerline at the hilt");
+  assert.ok(zeroLengthRow.pixels.count>0,"positive-radius zero-length capsule renders a safe sphere");
+  assert.ok(scaledRow.meshRadius>upRow.meshRadius*3.9,"Scale2 and pose.scale2 enlarge real mesh cross-section fourfold");
+  assert.ok(tinyRow.meshRadius>0&&hugeRow.meshRadius>0&&Number.isFinite(hugeRow.meshAxis[1]),"tiny/huge values retain finite pooled geometry");
+  assert.equal(evidence.scaleZero,0,"Scale0 has no model volume");
+  assert.equal(evidence.zeroEnabled,false,"Scale0 synchronously disables the pooled hit outline");
+  assert.equal(evidence.zeroPixels.count,0,"Scale0 restores baseline framebuffer pixels");
   for(const row of evidence.rows){
     const error=Math.max(Math.abs(row.meshAxis[0]-row.expectedMeshAxis[0]),Math.abs(row.meshAxis[1]-row.expectedMeshAxis[1]));
-    assert.ok(error<.005,`${row.name} actual PlayCanvas world mesh poles must lie at scored centerline ± radius; ${JSON.stringify(row)}`);
-    assert.ok(Math.abs(row.meshRadius-row.capsule.radius)<.005,`${row.name} real mesh cross-section matches scored radius`);
-    assert.ok(row.silhouette.count>40&&row.silhouette.min>=-row.silhouette.radius-9&&row.silhouette.max<=row.silhouette.span+row.silhouette.radius+9,`${row.name} framebuffer must stay within projected scored capsule endpoints ± radius; ${JSON.stringify(row)}`);
+    const vertexTolerance=Math.max(.005,(row.front+row.rear)*.75*row.scale*1e-7,row.capsule.radius*1e-7);
+    assert.ok(error<vertexTolerance,`${row.name} actual Float32 PlayCanvas mesh poles must lie at scored centerline ± radius; ${JSON.stringify(row)}`);
+    assert.ok(Math.abs(row.meshRadius-row.capsule.radius)<vertexTolerance,`${row.name} real mesh cross-section matches scored radius`);
+    if(row.name!=="tiny"&&row.name!=="huge"){
+      const overlayAllowance=row.otherOverlayEnabled?16:9;
+      assert.ok(row.silhouette.count>0&&row.silhouette.min>=-row.silhouette.radius-overlayAllowance&&row.silhouette.max<=row.silhouette.span+row.silhouette.radius+overlayAllowance,`${row.name} framebuffer must stay within projected scored capsule endpoints ± radius, accounting for independent wrist overlay; ${JSON.stringify(row)}`);
+    }
   }
   assert.ok(upRow.capsule.end.y>1.74&&downRow.capsule.end.y<.26&&diagonalRow.capsule.end.y>1.5,"oriented volume tip follows hand up/down/diagonal");
   assert.ok(upRow.pixels.minY<downRow.pixels.minY-35&&downRow.pixels.maxY>upRow.pixels.maxY+35,`opposite real framebuffer silhouettes: ${JSON.stringify(evidence.rows)}`);

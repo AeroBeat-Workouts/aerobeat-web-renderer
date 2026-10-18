@@ -65,14 +65,22 @@ for(const [resolved,sign] of [[down,-1],[up,1]]){
   assert.equal(flowVolume(model).shape,"capsule");
   assert.deepEqual(flowVolume(model).capsule.start,{x:0,y:1,z:.45},"rear zero begins at hilt");
   assert.ok(Math.abs(flowVolume(model).capsule.end.y-(1+sign*1.5))<1e-12,"front one ends at rotated visible tip");
-  assert.ok(Math.abs(flowVolume(model).capsule.radius-.36)<1e-12,"radius follows resolved scale");
+  assert.ok(Math.abs(flowVolume(model).capsule.radius-.024*resolved.scale)<1e-12,"Scale1 follows the solid GLB blade radius and resolved pose scale");
   const held=buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[resolved]});
   assert.deepEqual(flowVolume(held).capsule,flowVolume(model).capsule,"valid held pose retains exact position");
 }
 const rear=flowVolume(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1,1,.5),equipmentColliderPoses:[up]}));
 assert.ok(Math.abs(rear.capsule.start.y-.25)<1e-12,"positive rear extends behind hilt on rotated axis");
 const scaledTarget=flowVolume(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1.5,1,0),equipmentColliderPoses:[up]}));
-assert.equal(scaledTarget.capsule.radius,.18*up.scale,"colliderScale inflates scored target box, not the scored saber radius");
+assert.equal(scaledTarget.capsule.radius,.024*up.scale*1.5,"Flow Scale resizes the scored saber and debug capsule, not target boxes");
+assert.equal(boxes(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,0,1,0),equipmentColliderPoses:[up]})).length,0,"Scale0 draws no scored Flow hit volume");
+for(const [scale,front,rear] of [[.00001,.00001,0],[1,0,0],[9999999,9999999,0]]){
+  const model=buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,scale,front,rear),equipmentColliderPoses:[up]});
+  assert.equal(boxes(model).length,1,"finite nonnegative Flow settings retain a valid posed volume");
+  const capsule=flowVolume(model).capsule;
+  assert.ok(Number.isFinite(capsule.radius)&&Object.values(capsule.start).every(Number.isFinite)&&Object.values(capsule.end).every(Number.isFinite),"extreme Flow geometry must remain finite");
+  assert.ok(Math.abs(capsule.radius-.024*up.scale*scale)<1e-7,"Flow radius follows shared solid blade and Scale");
+}
 assert.deepEqual(scaledTarget.capsule.start,flowVolume(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[up]})).capsule.start);
 assert.deepEqual(scaledTarget.capsule.end,flowVolume(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[up]})).capsule.end);
 assert.deepEqual(boxes(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[]})),[],"lost pose hides previous volume");
@@ -83,7 +91,9 @@ for(const mode of ["flow","boxing"]){
   assert.deepEqual(projectEquipmentColliderAnchors([pose("left_wrist",mode,{x:1.5,y:2,z:.45})],mode==="flow"?"flow":"boxing_lanes"),{left:{x:0,y:2,z:.45},right:null},"missing equipment pose falls back only for its hand");
 }
 assert.equal(colliderSettingsDefaults.flow.colliderDepthForward,1);
-for(const bad of [null,settings(true,0),settings(true,1,.9),settings(true,1,Infinity),{...settings(true),extra:1},{...settings(true),colliderVisible:1}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:[],colliderSettings:bad}),/collider_settings_invalid/);
+for(const bad of [null,settings(true,-1),settings(true,1,-.9),settings(true,1,Infinity),{...settings(true),extra:1},{...settings(true),colliderVisible:1}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:[],colliderSettings:bad}),/flow_collider_settings_invalid/);
+assert.throws(()=>buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,Number.MAX_VALUE,1,0),equipmentColliderPoses:[pose("left_wrist","flow",up.anchor,{x:0,y:0,z:90},Number.MAX_VALUE)]}),/Flow collider geometry is nonfinite/,"unrepresentable derived Flow radius fails rather than clipping");
+assert.throws(()=>buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1,Number.MAX_VALUE,0),equipmentColliderPoses:[pose("left_wrist","flow",up.anchor,{x:0,y:0,z:90},Number.MAX_VALUE)]}),/Flow collider geometry is nonfinite/,"unrepresentable derived Flow reach fails rather than clipping");
 for(const bad of [null,{left:{x:0,y:1,z:0}},{left:{x:0,y:1,z:NaN},right:null}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:0,targets:[],colliderSettings:settings(true),equipmentColliderAnchors:bad}),/Equipment collider anchors are invalid/);
 // Exercise the actual collider material path with two different song palettes and modes.
 const renderer=createAeroPlayCanvasRenderer();

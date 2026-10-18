@@ -74,12 +74,13 @@ assert.ok(Math.abs(rear.capsule.start.y-.25)<1e-12,"positive rear extends behind
 const scaledTarget=flowVolume(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1.5,1,0),equipmentColliderPoses:[up]}));
 assert.equal(scaledTarget.capsule.radius,.024*up.scale*1.5,"Flow Scale resizes the scored saber and debug capsule, not target boxes");
 assert.equal(boxes(buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,0,1,0),equipmentColliderPoses:[up]})).length,0,"Scale0 draws no scored Flow hit volume");
-for(const [scale,front,rear] of [[.00001,.00001,0],[1,0,0],[9999999,9999999,0]]){
+for(const [scale,front,rear] of [[.00001,.00001,0],[1,0,0],[9999999,9999999,0],[1,9999999,9999999]]){
   const model=buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,scale,front,rear),equipmentColliderPoses:[up]});
   assert.equal(boxes(model).length,1,"finite nonnegative Flow settings retain a valid posed volume");
   const capsule=flowVolume(model).capsule;
   assert.ok(Number.isFinite(capsule.radius)&&Object.values(capsule.start).every(Number.isFinite)&&Object.values(capsule.end).every(Number.isFinite),"extreme Flow geometry must remain finite");
   assert.ok(Math.abs(capsule.radius-.024*up.scale*scale)<1e-7,"Flow radius follows shared solid blade and Scale");
+  assert.ok(Math.abs(capsule.start.y-(1-.75*up.scale*rear))<1e-7&&Math.abs(capsule.end.y-(1+.75*up.scale*front))<1e-7,"finite huge front and rear preserve signed rotated centerline endpoints");
 }
 assert.deepEqual(scaledTarget.capsule.start,flowVolume(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[up]})).capsule.start);
 assert.deepEqual(scaledTarget.capsule.end,flowVolume(buildGameplaySceneModel({...flowFrame,equipmentColliderPoses:[up]})).capsule.end);

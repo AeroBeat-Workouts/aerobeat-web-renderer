@@ -106,7 +106,7 @@ try{
     const sameFrameEvidence={bladePixels:bounds(bladePixels),overlayPixels:bounds(overlayPixels),combinedPixels:bounds(combinedPixels),bladeCovered,bladeMeshWorld:bounds(bladeVertices),bladeMeshProjected:bounds(bladeVertices.map(screen)),overlayMeshProjected:bounds(meshVertices(liveOverlay).map(screen)),scoredStart:screen(liveCollider.capsule.start),scoredEnd:screen(liveCollider.capsule.end),bladeRoot:{position:{...liveBlade.parent.getPosition()},scale:{...liveBlade.parent.getLocalScale()},rotation:{...liveBlade.parent.getRotation()}},bladeChild:{rotation:{...liveBlade.getLocalRotation()}}};
     for(const record of glbAll)record.meshInstance.visible=true;
     renderer.renderGameplayFrameWithCursorsAndEquipment(frame,[],null,[],null);
-    for(const [name,pose,other,scale,front,rear] of [["up",up,false,1,1,0],["down",down,false,1,1,0],["diagonal",diagonal,false,1,1,0],["second-slot",right,true,1,1,0],["zero-length",up,false,1,0,0],["scaled",scaled,false,2,1,0],["tiny",up,false,.00001,.00001,0],["huge",up,false,9999999,9999999,0]]){
+    for(const [name,pose,other,scale,front,rear] of [["up",up,false,1,1,0],["down",down,false,1,1,0],["diagonal",diagonal,false,1,1,0],["second-slot",right,true,1,1,0],["zero-length",up,false,1,0,0],["scaled",scaled,false,2,1,0],["tiny",up,false,.00001,.00001,0],["huge",up,false,9999999,9999999,0],["huge-both",up,false,1,9999999,9999999]]){
       // Prime a two-capsule pool first, then leave slot 0 disabled while the named right-hand
       // collider occupies slot 1 alongside an independent wrist-bomb overlay entity.
       if(name==="second-slot")renderer.renderGameplayFrameWithCursorsAndEquipment({...frame,equipmentColliderPoses:[up,right]},[],null,[],null);
@@ -145,7 +145,7 @@ try{
   }
   const aligned=evidence.sameFrameEvidence,alignmentReport=JSON.stringify(aligned);
   console.log("Same-frame solid GLB/overlay projected bounds",alignmentReport);
-  const [upRow,downRow,diagonalRow,secondSlotRow,zeroLengthRow,scaledRow,tinyRow,hugeRow]=evidence.rows;
+  const [upRow,downRow,diagonalRow,secondSlotRow,zeroLengthRow,scaledRow,tinyRow,hugeRow,hugeBothRow]=evidence.rows;
   assert.ok(aligned.bladePixels.count>20&&aligned.overlayPixels.count>20&&aligned.combinedPixels.count>20,`same-pose solid blade and active overlay render real pixels: ${alignmentReport}`);
   assert.ok(Math.abs(upRow.capsule.radius-.024)<1e-9,"Scale1 overlay uses same .024 radius as pinned solid GLB blade");
   assert.ok(Math.abs(aligned.bladeRoot.position.x-upRow.capsule.start.x)<1e-6&&Math.abs(aligned.bladeRoot.position.y-upRow.capsule.start.y)<1e-6&&Math.abs(aligned.bladeRoot.position.z-upRow.capsule.start.z)<1e-6,`GLB and scored capsule share the identical pose root: ${alignmentReport}`);
@@ -158,7 +158,7 @@ try{
   assert.ok(aligned.overlayMeshProjected.minY<aligned.bladeMeshProjected.minY&&aligned.overlayMeshProjected.maxY>aligned.bladeMeshProjected.maxY,`scored capsule encloses the authored inset solid blade at both endpoints: ${alignmentReport}`);
   assert.ok(aligned.bladeCovered/aligned.bladePixels.count>.98,`combined same-frame render retains at least 98% of bright solid blade pixels: ${alignmentReport}`);
   assert.ok(Math.abs(aligned.combinedPixels.minY-aligned.overlayPixels.minY)<=1&&Math.abs(aligned.combinedPixels.maxY-aligned.overlayPixels.maxY)<=1,`combined same-frame silhouette retains both scored overlay poles: ${alignmentReport}`);
-  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>0||row.name==="tiny"||row.name==="huge",`${row.name} must render actual browser pixels or truthfully be subpixel/offscreen: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,["up","down","diagonal"].includes(row.name)?1:2);assert.equal(row.capsule.start.y,1);assert.ok(Math.abs(row.capsule.radius-.024*(row.name==="scaled"?2:1)*row.scale)<1e-6,`${row.name} scored solid blade radius times Flow Scale and pose scale`);}
+  for(const row of evidence.rows){assert.equal(row.entityEnabled,true);assert.ok(row.pixels.count>0||row.name==="tiny"||row.name==="huge"||row.name==="huge-both",`${row.name} must render actual browser pixels or truthfully be subpixel/offscreen: ${JSON.stringify(row)}`);assert.equal(row.material.depthTest,true);assert.equal(row.material.depthWrite,false);assert.equal(row.material.opacity,.16);assert.equal(row.pool,["up","down","diagonal"].includes(row.name)?1:2);assert.equal(row.capsule.start.y,1-.75*(row.name==="scaled"?2:1)*row.rear);assert.ok(Math.abs(row.capsule.radius-.024*(row.name==="scaled"?2:1)*row.scale)<1e-6,`${row.name} scored solid blade radius times Flow Scale and pose scale`);}
   assert.equal(secondSlotRow.entityName,"equipment-collider-volume-right");
   assert.deepEqual(secondSlotRow.activeCapsules,[secondSlotRow.entityName],"inactive slot 0 must not substitute for the active right collider");
   assert.equal(secondSlotRow.otherOverlayEnabled,true,"wrist bomb overlay coexists with the named capsule");
@@ -166,6 +166,9 @@ try{
   assert.ok(zeroLengthRow.pixels.count>0,"positive-radius zero-length capsule renders a safe sphere");
   assert.ok(scaledRow.meshRadius>upRow.meshRadius*3.9,"Scale2 and pose.scale2 enlarge real mesh cross-section fourfold");
   assert.ok(tinyRow.meshRadius>0&&hugeRow.meshRadius>0&&Number.isFinite(hugeRow.meshAxis[1]),"tiny/huge values retain finite pooled geometry");
+  assert.ok(Math.abs(hugeBothRow.capsule.start.y-(1-.75*9999999))<1e-6&&Math.abs(hugeBothRow.capsule.end.y-(1+.75*9999999))<1e-6,"both huge front and rear remain signed around the actual pose hilt");
+  assert.ok(Number.isFinite(hugeBothRow.meshAxis[0])&&Number.isFinite(hugeBothRow.meshAxis[1])&&hugeBothRow.meshAxis[0]<0&&hugeBothRow.meshAxis[1]>0&&hugeBothRow.meshRadius>0,"both huge directions preserve finite bounded-size pooled GPU mesh");
+  assert.equal(hugeBothRow.pool,2,"both huge directions reuse the same bounded pooled GPU entities");
   assert.equal(evidence.scaleZero,0,"Scale0 has no model volume");
   assert.equal(evidence.zeroEnabled,false,"Scale0 synchronously disables the pooled hit outline");
   assert.equal(evidence.zeroPixels.count,0,"Scale0 restores baseline framebuffer pixels");
@@ -174,7 +177,7 @@ try{
     const vertexTolerance=Math.max(.005,(row.front+row.rear)*.75*row.scale*1e-7,row.capsule.radius*1e-7);
     assert.ok(error<vertexTolerance,`${row.name} actual Float32 PlayCanvas mesh poles must lie at scored centerline ± radius; ${JSON.stringify(row)}`);
     assert.ok(Math.abs(row.meshRadius-row.capsule.radius)<vertexTolerance,`${row.name} real mesh cross-section matches scored radius`);
-    if(row.name!=="tiny"&&row.name!=="huge"){
+    if(row.name!=="tiny"&&row.name!=="huge"&&row.name!=="huge-both"){
       const overlayAllowance=row.otherOverlayEnabled?16:9;
       assert.ok(row.silhouette.count>0&&row.silhouette.min>=-row.silhouette.radius-overlayAllowance&&row.silhouette.max<=row.silhouette.span+row.silhouette.radius+overlayAllowance,`${row.name} framebuffer must stay within projected scored capsule endpoints ± radius, accounting for independent wrist overlay; ${JSON.stringify(row)}`);
     }

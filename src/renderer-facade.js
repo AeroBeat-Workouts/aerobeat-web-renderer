@@ -16,7 +16,7 @@ import { AFTERMATH_CORPSE_DESATURATION, AFTERMATH_CORPSE_MIN_CHROMA, buildGamepl
 import { colorTokenToRgba, defaultRendererVisualProfile, normalizeBackgroundProjection, normalizeRendererTheme, normalizeRendererVisualProfile, rendererTuningFromVisualProfile } from "./visual-profiles.js";
 
 export const aeroPlayCanvasRendererServiceId="aero.renderer.playcanvas";
-export const equipmentPoseContractsCommit="51c2b42805f5aa008386dc8bc779cfad8542af34";
+export const equipmentPoseContractsCommit="9544415ee5e42deaa4de99967c961d158d6720d7";
 const cursorRoles=Object.freeze(["nose","left_wrist","right_wrist"]);
 const equipmentRoles=Object.freeze(["left_wrist","right_wrist"]);
 const equipmentModes=Object.freeze(["flow","boxing"]);
@@ -182,7 +182,7 @@ export class AeroPlayCanvasRenderer {
    * @param {unknown} equipmentOptions
    */
   renderGameplayFrameWithCursorsAndEquipment(frame,cursors,cursorOptions,equipment,equipmentOptions){return this.renderGameplayScene(/** @type {import("./gameplay-scene-model.js").AeroGameplayFrame} */(frame),cursors,cursorOptions,equipment,equipmentOptions);}
-  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentColliderPoses:frame.equipmentColliderPoses===undefined?(frame.presentation==="flow"&&Array.isArray(equipment)?equipment:undefined):frame.equipmentColliderPoses,equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.syncShadowReceiverToTrack(model.objects);this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();if(model.presentation==="flow")this.warmFlowSlicePrograms();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
+  renderGameplayScene(frame,cursors,cursorOptions,equipment,equipmentOptions){this.integrateDebugCameraMotion();const model=buildGameplaySceneModel({...frame,equipmentColliderAnchors:frame.equipmentColliderAnchors??projectEquipmentColliderAnchors(equipment,frame.presentation),equipmentColliderPoses:frame.equipmentColliderPoses===undefined?(Array.isArray(equipment)?equipment:undefined):frame.equipmentColliderPoses,equipmentShadowDirections:equipmentShadowDirectionsForFrame(equipment,frame.presentation)},this.theme,this.tuning,this.testPresentationConfig,this.gameplayVisualExperimentConfig),cameraDeflection=normalizeCameraDeflection(frame?.cameraDeflection??null);if(this.app&&!this.destroyed&&!this.contextLost)this.updateProductionCameraParallax(cameraDeflection);else this.resetProductionCameraParallax();this.activeGameplayCameraMode=model.presentation;this.lastModel=model;if(this.gameplayAssetLoader.describe().state==="error")this.gameplayAssetLoader.activateFallback("preload_error");if(!this.app||this.destroyed||this.contextLost)return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};try{this.clearOverlayEntities();this.syncShadowReceiverToTrack(model.objects);this.applyCamera(model);this.updateSceneObjects(model.objects,model.guidance);this.applyClearColor();if(model.presentation==="flow")this.warmFlowSlicePrograms();const cursorResult=cursors===null?null:(cursors.length===0?Object.freeze({cursorCount:0,roles:Object.freeze([])}):this.stageGameplayCursors(cursors,{...cursorOptions,noseMarkerVisible:frame.noseMarkerVisible,noseMarkerScale:frame.noseMarkerScale},false));const equipmentResult=equipment===null?null:(equipment.length===0?Object.freeze({equipmentCount:0,roles:Object.freeze([])}):this.stageGameplayEquipment(equipment,equipmentOptions,false));this.manualTick();this.frameCount+=1;this.drawCount+=model.objects.length+(cursorResult?.cursorCount??0)+(equipmentResult?.equipmentCount??0);this.state="running";return{status:this.describe(),model,...(cursorResult??{}),...(equipmentResult??{})};}catch(error){this.fail(error);return{status:this.describe(),model,...(cursors===null?{}:{cursorCount:0,roles:Object.freeze([])}),...(equipment===null?{}:{equipmentCount:0,roles:Object.freeze([])})};}}
   clear(options={}){if(!this.app||this.destroyed)return{status:this.describe()};const color=options.color??[0,0,0,0];this.cameraEntity.camera.clearColor=new pc.Color(...color);this.clearSceneObjects();this.clearOverlayEntities();this.manualTick();this.frameCount+=1;this.state="running";return{status:this.describe()};}
   renderFrame(options={}){return this.clear(options);}
   renderGameplayCursors(cursors,options){const result=this.stageGameplayCursors(cursors,options,true);if(!this.app||this.destroyed||this.contextLost)return Object.freeze({status:this.describe(),cursorCount:0,roles:Object.freeze([])});this.manualTick();this.drawCount+=result.cursorCount;this.state="running";return Object.freeze({status:this.describe(),...result});}
@@ -588,9 +588,9 @@ export class AeroPlayCanvasRenderer {
   useGameplayLayer(entity,kind){const layerId=kind==="grid"?this.gameplayGridLayer?.id:kind==="guidance"?this.gameplayGuidanceLayer?.id:kind==="target"?this.gameplayTargetLayer?.id:kind==="collider_overlay"?this.gameplayColliderOverlayLayer?.id:pc.LAYERID_WORLD;for(const component of entity.findComponents?.("render")??[])component.layers=[layerId??pc.LAYERID_WORLD];}
   updateSceneObjects(objects,guidance){
     const loader=this.gameplayAssetLoader.describe(),mode=loader.state;if(mode==="ready"&&this.assetPoolGeneration!==loader.generation){this.destroyInstantiatedPools();this.assetPoolGeneration=loader.generation;}
-    for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;for(const entity of this.colliderOverlayPrimitivePool??[])entity.enabled=false;for(const entity of this.flowColliderCapsulePool??[])entity.enabled=false;for(const entity of this.boxingColliderWirePool??[])entity.enabled=false;for(const entity of this.wristBombColliderPool??[])entity.enabled=false;for(const entity of this.colliderOverlayConePool??[])entity.enabled=false;
+    for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;for(const entity of this.colliderOverlayPrimitivePool??[])entity.enabled=false;for(const entity of this.flowColliderCapsulePool??[])entity.enabled=false;for(const entity of this.boxingColliderWirePool??[])entity.enabled=false;for(const entity of this.boxingColliderCylinderPool??[])entity.enabled=false;for(const entity of this.wristBombColliderPool??[])entity.enabled=false;for(const entity of this.colliderOverlayConePool??[])entity.enabled=false;
     const assetCounts=new Map(),aftermathCounts=new Map(),renderedCounts=new Map();let primitiveIndex=0,wristBombIndex=0,feedbackIndex=0,fallbackCount=0,drawIndex=0;
-    for(const object of objects){let entity=null;if(object.kind==="hazard_glow")continue;if(object.kind==="feedback"){entity=this.acquireFeedbackEntity(feedbackIndex++,object);if(entity)this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(entity)renderedCounts.set("world-feedback",(renderedCounts.get("world-feedback")??0)+1);continue;}if(object.kind==="aftermath"){const aftermathAsset=object.assetId??"any-note/outlined-circle-v1",index=aftermathCounts.get(aftermathAsset)??0;aftermathCounts.set(aftermathAsset,index+1);entity=mode==="ready"?this.acquireAftermathAssetEntity(aftermathAsset,index):this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.useGameplayLayer(entity,"target");this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(mode==="ready"&&object.aftermath?.sliceSign!=null)this.applyAftermathAppearance(object,entity);else if(mode==="ready"){this.restoreSliceMaterials(entity);for(const record of this.assetMaterials.get(entity)??[]){const m=record.meshInstance.material;const part=gameplayAssetMaterialRole(object.assetId??"",record.name);const base=this.aftermathCorpsePartColor(part,object,record);m.diffuse.set(base[0],base[1],base[2]);m.emissive.set(base[0]*.32,base[1]*.32,base[2]*.32);m.opacity=base[3]*object.alpha;m.blendType=base[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType;m.depthWrite=base[3]*object.alpha<1?false:record.depthWrite;m.depthTest=true;m.useLighting=false;m.cull=record.cull;m.update();}}else this.updateMaterial(entity,object.appearanceColor??this.roleColor(object.role),object.alpha,null,false,false);renderedCounts.set(aftermathAsset,(renderedCounts.get(aftermathAsset)??0)+1);continue;}if(object.kind==="collider_square"||object.kind==="collider_volume"||object.kind==="wrist_bomb_collider"||object.kind==="tolerance_cone"){entity=this.acquireColliderOverlayEntity(object,object.kind==="wrist_bomb_collider"?(wristBombIndex++):primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;this.applyColliderOverlayAppearance(object,entity);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(object.kind==="collider_volume"&&object.shape!=="capsule")this.stageBoxingColliderWire(object);renderedCounts.set(object.kind,(renderedCounts.get(object.kind)??0)+1);continue;}if(object.assetId){if(mode==="ready"){const index=assetCounts.get(object.assetId)??0;entity=this.acquireAssetEntity(object.assetId,index);assetCounts.set(object.assetId,index+1);}else if(mode==="fallback"){entity=this.acquirePrimitiveEntity(primitiveIndex++);fallbackCount+=1;}}else entity=this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;this.useGameplayLayer(entity,object.kind==="cell"||object.kind==="lane"||object.kind==="timing"?"grid":object.kind==="guidance_band"?"guidance":object.kind==="icon"?"target":"world");entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);const appearance=object.appearanceColor??this.roleColor(object.role);if(object.assetId&&mode==="ready"){this.applyAssetAppearance(entity,object.assetId,appearance,object.alpha,object.kind==="obstacle"&&object.tintMix>0);renderedCounts.set(object.assetId,(renderedCounts.get(object.assetId)??0)+1);}else this.updateMaterial(entity,appearance,object.alpha,null,object.state==="spent",false);}
+    for(const object of objects){let entity=null;if(object.kind==="hazard_glow")continue;if(object.kind==="feedback"){entity=this.acquireFeedbackEntity(feedbackIndex++,object);if(entity)this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(entity)renderedCounts.set("world-feedback",(renderedCounts.get("world-feedback")??0)+1);continue;}if(object.kind==="aftermath"){const aftermathAsset=object.assetId??"any-note/outlined-circle-v1",index=aftermathCounts.get(aftermathAsset)??0;aftermathCounts.set(aftermathAsset,index+1);entity=mode==="ready"?this.acquireAftermathAssetEntity(aftermathAsset,index):this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.useGameplayLayer(entity,"target");this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(mode==="ready"&&object.aftermath?.sliceSign!=null)this.applyAftermathAppearance(object,entity);else if(mode==="ready"){this.restoreSliceMaterials(entity);for(const record of this.assetMaterials.get(entity)??[]){const m=record.meshInstance.material;const part=gameplayAssetMaterialRole(object.assetId??"",record.name);const base=this.aftermathCorpsePartColor(part,object,record);m.diffuse.set(base[0],base[1],base[2]);m.emissive.set(base[0]*.32,base[1]*.32,base[2]*.32);m.opacity=base[3]*object.alpha;m.blendType=base[3]*object.alpha<1?pc.BLEND_NORMAL:record.blendType;m.depthWrite=base[3]*object.alpha<1?false:record.depthWrite;m.depthTest=true;m.useLighting=false;m.cull=record.cull;m.update();}}else this.updateMaterial(entity,object.appearanceColor??this.roleColor(object.role),object.alpha,null,false,false);renderedCounts.set(aftermathAsset,(renderedCounts.get(aftermathAsset)??0)+1);continue;}if(object.kind==="collider_square"||object.kind==="collider_volume"||object.kind==="wrist_bomb_collider"||object.kind==="tolerance_cone"){entity=this.acquireColliderOverlayEntity(object,object.kind==="wrist_bomb_collider"?(wristBombIndex++):primitiveIndex++);if(!entity)continue;entity.enabled=true;entity.name=object.id;this.applyColliderOverlayAppearance(object,entity);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);if(object.kind==="collider_volume"&&object.shape==="cylinder")this.stageBoxingColliderWire(object);renderedCounts.set(object.kind,(renderedCounts.get(object.kind)??0)+1);continue;}if(object.assetId){if(mode==="ready"){const index=assetCounts.get(object.assetId)??0;entity=this.acquireAssetEntity(object.assetId,index);assetCounts.set(object.assetId,index+1);}else if(mode==="fallback"){entity=this.acquirePrimitiveEntity(primitiveIndex++);fallbackCount+=1;}}else entity=this.acquirePrimitiveEntity(primitiveIndex++);if(!entity)continue;this.useGameplayLayer(entity,object.kind==="cell"||object.kind==="lane"||object.kind==="timing"?"grid":object.kind==="guidance_band"?"guidance":object.kind==="icon"?"target":"world");entity.enabled=true;entity.name=object.id;entity.setPosition(object.position.x,object.position.y,object.position.z);entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);entity.setEulerAngles(0,0,object.rotationZRad*180/Math.PI);this.applyDrawOrder(entity,object.renderOrder*100+drawIndex++);const appearance=object.appearanceColor??this.roleColor(object.role);if(object.assetId&&mode==="ready"){this.applyAssetAppearance(entity,object.assetId,appearance,object.alpha,object.kind==="obstacle"&&object.tintMix>0);renderedCounts.set(object.assetId,(renderedCounts.get(object.assetId)??0)+1);}else this.updateMaterial(entity,appearance,object.alpha,null,object.state==="spent",false);}
     this.applyHazardGlow(objects.find((entry)=>entry.kind==="hazard_glow")??null);
     this.activeCount=[...renderedCounts.values()].reduce((sum,value)=>sum+value,0)+primitiveIndex;this.sceneDiagnostics=buildSceneDiagnostics(objects,guidance,mode,loader,renderedCounts,fallbackCount);
   }
@@ -703,6 +703,20 @@ export class AeroPlayCanvasRenderer {
       this.flowColliderCapsulePool=pool;
       return pool[index];
     }
+    if(object.kind==="collider_volume"&&object.shape==="cylinder"){
+      const pool=this.boxingColliderCylinderPool??=[];
+      while(pool.length<=index){
+        const entity=new pc.Entity(`boxing-collider-cylinder-${pool.length}`,this.app);
+        const material=this.makeMaterial(),mesh=createUnitBoxingCylinderMesh(this.app.graphicsDevice);
+        this.ownedMaterials.add(mesh);
+        entity.addComponent("render",{material,layers:[this.gameplayColliderOverlayLayer?.id??pc.LAYERID_WORLD]});
+        entity.render.meshInstances=[new pc.MeshInstance(mesh,material)];
+        this.entityMaterials.set(entity,material);
+        this.app.root.addChild(entity);pool.push(entity);
+      }
+      this.boxingColliderCylinderPool=pool;
+      return pool[index];
+    }
     if(object.kind==="wrist_bomb_collider"){
       const pool=this.wristBombColliderPool??=[];
       while(pool.length<=index)pool.push(this.makeDetachedEntity(`wrist-bomb-collider-${pool.length}`,"sphere"));
@@ -736,13 +750,13 @@ export class AeroPlayCanvasRenderer {
     this.colliderOverlayConePool=pool;
     return pool[index];
   }
-  /** Retain one unit-cuboid line mesh per hand before World so crossing beats stay readable. */
+  /** Retain one polygon cylinder edge mesh per hand before World so beats stay readable. */
   stageBoxingColliderWire(object){
     const pool=this.boxingColliderWirePool??[];
     const index=object.role==="left"?0:1;
     while(pool.length<=index){
       const wire=new pc.Entity(`boxing-collider-wire-${pool.length}`,this.app);
-      const material=this.makeMaterial(),mesh=createUnitBoxEdgeMesh(this.app.graphicsDevice);
+      const material=this.makeMaterial(),mesh=createUnitBoxingCylinderEdgeMesh(this.app.graphicsDevice);
       this.ownedMaterials.add(mesh);
       wire.addComponent("render",{material,layers:[this.gameplayColliderOverlayLayer?.id??pc.LAYERID_WORLD]});
       wire.render.meshInstances=[new pc.MeshInstance(mesh,material)];
@@ -757,7 +771,8 @@ export class AeroPlayCanvasRenderer {
     const wire=pool[index];wire.enabled=true;
     wire.setPosition(object.position.x,object.position.y,object.position.z);
     wire.setLocalScale(object.scale.x,object.scale.y,object.scale.z);
-    wire.setEulerAngles(0,0,0);
+    const {x,y,z,w}=object.capsule.orientation;
+    wire.setRotation(new pc.Quat(x,y,z,w));
     this.applyDrawOrder(wire,object.renderOrder*100);
   }
   /** 0.0.53 W2: apply appearance for one collider-overlay scene object (unlit, bounded alpha, dedicated transparent layer). */
@@ -805,6 +820,10 @@ export class AeroPlayCanvasRenderer {
           this.flowColliderAxialScales.set(entity,axialScale);
         }
         entity.setLocalScale(radius,radius,radius);
+        const {x,y,z,w}=object.capsule.orientation;
+        entity.setRotation(new pc.Quat(x,y,z,w));
+      }else if(object.shape==="cylinder"&&object.capsule){
+        entity.setLocalScale(object.scale.x,object.scale.y,object.scale.z);
         const {x,y,z,w}=object.capsule.orientation;
         entity.setRotation(new pc.Quat(x,y,z,w));
       }else{
@@ -1015,7 +1034,7 @@ export class AeroPlayCanvasRenderer {
   acquireFeedbackEntity(index,object){while(this.feedbackPool.length<=index)this.feedbackPool.push(this.createFeedbackGlyph());const entry=this.feedbackPool[index],feedback=object.feedback;if(!feedback)return null;entry.root.enabled=true;entry.root.name=object.id;const cameraForward=this.cameraEntity?.forward,position={x:object.position.x+feedback.offsetX,y:object.position.y+feedback.offsetY,z:object.position.z};entry.root.setPosition(position.x-(cameraForward?.x??0)*feedback.depthBias,position.y-(cameraForward?.y??0)*feedback.depthBias,position.z-(cameraForward?.z??-1)*feedback.depthBias);if(this.cameraEntity)entry.root.setRotation(this.cameraEntity.getRotation());const height=this.worldScaleForCssPx(feedback.apparentHeightCssPx*this.tuning.markerScaleFactor,position)*feedback.scale;const material=this.entityMaterials.get(entry.quad),texture=this.feedbackTextureFor(feedback.text);entry.quad.setLocalScale(height*texture.width/texture.height,1,height);if(material){material.diffuse.set(1,1,1);material.emissive.set(1,1,1);material.diffuseMap=texture;material.emissiveMap=texture;material.opacityMap=texture;material.opacityMapChannel="a";material.opacity=feedback.alpha;material.blendType=pc.BLEND_NORMAL;material.depthTest=true;material.depthWrite=false;material.cull=pc.CULLFACE_NONE;material.update();}entry.text=feedback.text;entry.apparentHeightPx=feedback.apparentHeightCssPx*feedback.scale;return entry.root;}
   createFeedbackGlyph(){const root=new pc.Entity(`feedback-${this.feedbackPool.length}`,this.app),quad=this.makeDetachedEntity("feedback-quad","plane");quad.setLocalEulerAngles(90,0,0);root.addChild(quad);this.app.root.addChild(root);return{root,quad,text:"",apparentHeightPx:0};}
   feedbackTextureFor(text){let texture=this.feedbackTextures.get(text);if(texture)return texture;const width=Math.max(96,[...text].length*18+4),height=32,pixels=feedbackGlyphPixels(text,width,height),created=new pc.Texture(this.app.graphicsDevice,{name:`aero-feedback-${text.toLowerCase()}`,width,height,format:pc.PIXELFORMAT_RGBA8,mipmaps:false,minFilter:pc.FILTER_NEAREST,magFilter:pc.FILTER_NEAREST,addressU:pc.ADDRESS_CLAMP_TO_EDGE,addressV:pc.ADDRESS_CLAMP_TO_EDGE});created.lock().set(pixels);created.unlock();this.feedbackTextures.set(text,created);return created;}
-  clearSceneObjects(){for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entity of this.colliderOverlayPrimitivePool??[])entity.enabled=false;for(const entity of this.flowColliderCapsulePool??[])entity.enabled=false;for(const entity of this.boxingColliderWirePool??[])entity.enabled=false;for(const entity of this.wristBombColliderPool??[])entity.enabled=false;for(const entity of this.colliderOverlayConePool??[])entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();}
+  clearSceneObjects(){for(const entity of this.pool)entity.enabled=false;for(const entries of this.assetPools.values())for(const entity of entries)entity.enabled=false;for(const entries of this.aftermathAssetPools.values())for(const entity of entries)entity.enabled=false;for(const entity of this.colliderOverlayPrimitivePool??[])entity.enabled=false;for(const entity of this.flowColliderCapsulePool??[])entity.enabled=false;for(const entity of this.boxingColliderWirePool??[])entity.enabled=false;for(const entity of this.boxingColliderCylinderPool??[])entity.enabled=false;for(const entity of this.wristBombColliderPool??[])entity.enabled=false;for(const entity of this.colliderOverlayConePool??[])entity.enabled=false;for(const entry of this.feedbackPool)entry.root.enabled=false;this.activeCount=0;this.sceneDiagnostics=emptySceneDiagnostics();}
   destroyPrimitiveEntity(entity){const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
   destroyMarkerPool(){for(const entity of this.markerPool){const records=this.assetMaterials.get(entity)??[];for(const record of records)if(record.materialOwned)record.material.destroy();if(records.length)entity.destroy();else this.destroyPrimitiveEntity(entity);}this.markerPool=[];this.markerPoolMode="none";}
   destroyEquipmentPools(){for(const entries of this.equipmentPools.values())for(const entity of entries.slice(1)){for(const record of this.assetMaterials.get(entity)??[])if(record.materialOwned)record.material.destroy();const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();}for(const root of this.equipmentPoseRoots.values())root.destroy();this.equipmentPools.clear();this.equipmentPoseRoots.clear();this.equipmentGlbEntities.clear();this.equipmentPrimitiveChildren.clear();}
@@ -1028,6 +1047,8 @@ export class AeroPlayCanvasRenderer {
     this.flowColliderCapsulePool=[];
     for(const entity of this.boxingColliderWirePool??[]){const instance=entity.render?.meshInstances?.[0];if(instance?.mesh&&this.ownedMaterials.delete(instance.mesh))instance.mesh.destroy();const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
     this.boxingColliderWirePool=[];
+    for(const entity of this.boxingColliderCylinderPool??[]){const instance=entity.render?.meshInstances?.[0];if(instance?.mesh&&this.ownedMaterials.delete(instance.mesh))instance.mesh.destroy();const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
+    this.boxingColliderCylinderPool=[];
     for(const entity of this.wristBombColliderPool??[])this.destroyPrimitiveEntity(entity);
     this.wristBombColliderPool=[];
     for(const entity of this.colliderOverlayConePool??[]){const meshInstance=entity.render?.meshInstances?.[0];if(meshInstance?.mesh&&this.ownedMaterials.delete(meshInstance.mesh))meshInstance.mesh.destroy();const material=this.entityMaterials.get(entity);if(material&&this.ownedMaterials.delete(material))material.destroy();entity.destroy();}
@@ -1122,15 +1143,32 @@ function setFlowCapsuleEdgeGeometry(mesh,axialScale){
   }
   mesh.setPositions(positions);mesh.setIndices(indices);mesh.update(pc.PRIMITIVE_LINES);
 }
-/** Twelve straight edges of the exact unit box surface, without inflated geometry. */
-function createUnitBoxEdgeMesh(device){
-  const mesh=new pc.Mesh(device);
-  const positions=[];
-  for(const x of [-.5,.5])for(const y of [-.5,.5])for(const z of [-.5,.5])positions.push(x,y,z);
-  const indices=[];
-  for(let a=0;a<8;a++)for(let bit of [1,2,4])if((a&bit)===0)indices.push(a,a|bit);
-  mesh.setPositions(positions);mesh.setIndices(indices);mesh.update(pc.PRIMITIVE_LINES);
-  return mesh;
+/** Unit flat-ended cylinder along local +Z: radius .5, ends ±.5. */
+function createUnitBoxingCylinderMesh(device){
+  const mesh=new pc.Mesh(device),positions=[0,0,-.5,0,0,.5],indices=[],segments=24;
+  for(const z of [-.5,.5])for(let side=0;side<segments;side++){
+    const angle=side*2*Math.PI/segments;
+    positions.push(.5*Math.cos(angle),.5*Math.sin(angle),z);
+  }
+  for(let side=0;side<segments;side++){
+    const next=(side+1)%segments,back=2+side,backNext=2+next,front=2+segments+side,frontNext=2+segments+next;
+    indices.push(0,backNext,back,1,front,frontNext,back,backNext,front,front,backNext,frontNext);
+  }
+  mesh.setPositions(positions);mesh.setIndices(indices);mesh.update();return mesh;
+}
+/** Cap polygons and four longitudinal edges on the identical unit cylinder surface. */
+function createUnitBoxingCylinderEdgeMesh(device){
+  const mesh=new pc.Mesh(device),positions=[],indices=[],segments=24;
+  for(const z of [-.5,.5])for(let side=0;side<segments;side++){
+    const angle=side*2*Math.PI/segments;
+    positions.push(.5*Math.cos(angle),.5*Math.sin(angle),z);
+  }
+  for(let side=0;side<segments;side++){
+    const next=(side+1)%segments;
+    indices.push(side,next,segments+side,segments+next);
+    if(side%6===0)indices.push(side,segments+side);
+  }
+  mesh.setPositions(positions);mesh.setIndices(indices);mesh.update(pc.PRIMITIVE_LINES);return mesh;
 }
 function gridPositionForNormalized(x,y,z=0){return{x:GRID_LEFT+clamp(x,0,1)*gameplayWorldGrid.columns*GRID_COLUMN_PITCH,y:GRID_TOP-clamp(y,0,1)*gameplayWorldGrid.rows*GRID_ROW_PITCH,z};}
 function normalizeCursorGrid(value){if(!plainData(value)||![value.x,value.y,value.width,value.height].every(Number.isFinite)||value.width<=0||value.height<=0||value.x<0||value.y<0||value.x+value.width>1||value.y+value.height>1)throw new TypeError("Gameplay cursor grid is required");return value;}

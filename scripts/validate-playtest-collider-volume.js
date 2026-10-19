@@ -10,34 +10,37 @@ const boxes=(model)=>model.objects.filter((object)=>object.kind==="collider_volu
 const flowVolume=(model)=>boxes(model)[0];
 assert.deepEqual(normalizeColliderSettings(settings(false)),{...settings(false),visibleWristObstacleRadius:false,wristBombColliderScale:1},"legacy four-field renderer callers receive both new defaults");
 assert.deepEqual(normalizeColliderSettings({...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5}),{...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5},"six-field renderer callers preserve explicit wrist settings");
+const configIdentity=createEquipmentConfigIdentity({schema:"aerobeat/equipment_config_identity",version:1,algorithm:"sha256",value:"1".repeat(64)});
+const pose=(role,mode,anchor,euler={x:0,y:0,z:0},scale=1)=>({role,mode,anchor,scale,orientation:equipmentEulerDegreesToQuaternion(euler),geometryIdentity:mode==="flow"?saberCapsuleGeometry.identity:gloveObbGeometry.identity,configIdentity});
 for(const presentation of ["boxing_collider","boxing_lanes"]){
   const frame={presentation,nowMs:1000,targets:[],timingWindowBeforeMs:120,timingWindowAfterMs:240,colliderSettings:settings(false,1,2,3)};
   const hidden=buildGameplaySceneModel(frame);
   assert.equal(boxes(hidden).length,0);
   assert.equal(hidden.objects.some((object)=>object.kind==="timing"),false,"collider mode removes legacy timing tiles");
-  const shown=buildGameplaySceneModel({...frame,colliderSettings:settings(true,1.5,2,3),equipmentColliderAnchors:{left:{x:-1.5,y:1.5,z:0},right:{x:1.5,y:1.5,z:0}}});
-  assert.deepEqual(boxes(shown).map((object)=>object.position.x),[-1.5,1.5]);
-  assert.ok(Math.abs(boxes(shown)[0].scale.x-1.35)<1e-12);
-  assert.ok(Math.abs(boxes(shown)[0].scale.y-1.35)<1e-12);
-  assert.ok(Math.abs(boxes(shown)[0].scale.z-5.4)<1e-12);
-  assert.ok(Math.abs(boxes(shown)[0].position.z-.54)<1e-12);
-  assert.equal(boxes(shown)[0].alpha,.16);
-  const anchors={left:{x:-.7,y:2,z:.4},right:{x:1.2,y:.6,z:-.3}};
-  const tracked=buildGameplaySceneModel({...frame,colliderSettings:settings(true,1.5,2,3),equipmentColliderAnchors:anchors});
-  for(const [index,hand] of ["left","right"].entries()){
-    const box=boxes(tracked)[index],center=anchors[hand],halfExtent=.45;
-    const expected=resolveColliderBounds({mode:presentation==="flow"?"flow":"boxing",center,halfWidth:halfExtent,halfHeight:halfExtent,settings:normalizeColliderSettings(settings(true,1.5,2,3))});
-    assert.ok(Math.abs(box.position.x-center.x)<1e-12&&Math.abs(box.position.y-center.y)<1e-12&&Math.abs(box.position.z-(expected.minZ+expected.maxZ)/2)<1e-12);
-    assert.deepEqual(box.scale,{x:expected.maxX-expected.minX,y:expected.maxY-expected.minY,z:expected.maxZ-expected.minZ});
+  const left=pose("left_wrist","boxing",{x:1.5,y:1.5,z:.45});
+  const right=pose("right_wrist","boxing",{x:2.5,y:.6,z:.45},{x:0,y:90,z:0},2);
+  const shown=buildGameplaySceneModel({...frame,colliderSettings:settings(true,1,1,0),equipmentColliderPoses:[left,right]});
+  assert.equal(boxes(shown).length,2);
+  for(const object of boxes(shown)){assert.equal(object.shape,"cylinder");assert.equal(object.alpha,.16);}
+  assert.ok(Math.abs(boxes(shown)[0].capsule.start.z-.16)<1e-12&&Math.abs(boxes(shown)[0].capsule.end.z-.84)<1e-12);
+  assert.equal(boxes(shown)[0].capsule.start.x,0);assert.equal(boxes(shown)[0].capsule.end.y,1.5);
+  assert.equal(boxes(shown)[0].capsule.radius,.34);
+  assert.ok(Math.abs(boxes(shown)[1].capsule.start.x-.42)<1e-12);
+  assert.ok(Math.abs(boxes(shown)[1].capsule.end.x-1.78)<1e-12);
+  assert.equal(boxes(shown)[1].capsule.radius,.68);
+  assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true),equipmentColliderPoses:[left]})).length,1,"missing right pose does not invent a hand");
+  assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true),equipmentColliderPoses:[]})).length,0,"lost poses hide both cylinders");
+  assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true,0),equipmentColliderPoses:[left,right]})).length,0,"Scale0 hides both cylinders");
+  for(const [scale,front,rear] of [[.00001,.00001,0],[9999999,9999999,0],[1,9999999,9999999]]){
+    const cylinders=boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true,scale,front,rear),equipmentColliderPoses:[left]}));
+    assert.equal(cylinders.length,1);
+    assert.ok([cylinders[0].capsule.radius,...Object.values(cylinders[0].capsule.start),...Object.values(cylinders[0].capsule.end)].every(Number.isFinite));
+    assert.equal(cylinders[0].capsule.radius,.34*scale);
   }
-  const partial=buildGameplaySceneModel({...frame,colliderSettings:settings(true),equipmentColliderAnchors:{left:anchors.left,right:null}});
-  assert.equal(boxes(partial)[0].position.x,anchors.left.x);
-  assert.equal(boxes(partial).length,1,"missing right pose does not invent a hand");
-  assert.equal(buildGameplaySceneModel({...frame,colliderSettings:settings(false),equipmentColliderAnchors:anchors}).objects.some((object)=>object.kind==="collider_volume"),false);
-  assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true,0),equipmentColliderAnchors:anchors})).length,0,"Boxer Scale0 omits both hand volumes even with valid tracked anchors");
+  assert.throws(()=>buildGameplaySceneModel({...frame,colliderSettings:settings(true,Number.MAX_VALUE,1,0),equipmentColliderPoses:[pose("left_wrist","boxing",left.anchor,{x:0,y:0,z:0},Number.MAX_VALUE)]}),/glove_cylinder_geometry_nonfinite/);
+  assert.throws(()=>buildGameplaySceneModel({...frame,colliderSettings:settings(true),equipmentColliderPoses:[pose("left_wrist","flow",left.anchor)]}),/Equipment collider poses are invalid/);
 }
-const configIdentity=createEquipmentConfigIdentity({schema:"aerobeat/equipment_config_identity",version:1,algorithm:"sha256",value:"1".repeat(64)});
-const pose=(role,mode,anchor,euler={x:0,y:0,z:0},scale=1)=>({role,mode,anchor,scale,orientation:equipmentEulerDegreesToQuaternion(euler),geometryIdentity:mode==="flow"?saberCapsuleGeometry.identity:gloveObbGeometry.identity,configIdentity});
+
 const down=pose("left_wrist","flow",{x:1.5,y:1,z:.45},{x:0,y:0,z:-90},2);
 const up=pose("left_wrist","flow",{x:1.5,y:1,z:.45},{x:0,y:0,z:90},2);
 const flowFrame={presentation:"flow",nowMs:1000,targets:[],colliderSettings:settings(true,1,1,0)};
@@ -103,7 +106,7 @@ const paletteSymbol=Symbol.for("aerobeat.web-renderer.internal-effective-palette
 const material={diffuse:{set(...rgb){this.rgb=rgb;}},emissive:{set(...rgb){this.rgb=rgb;}},update(){}};
 const entity={findComponents(){return[{meshInstances:[{material}],layers:[]}];},setPosition(){},setLocalScale(){},setEulerAngles(){},setRotation(){}};
 for(const presentation of ["flow","boxing_collider"]){
-  const model=buildGameplaySceneModel({presentation,nowMs:1000,targets:[],colliderSettings:settings(true),...(presentation==="flow"?{equipmentColliderPoses:[up,pose("right_wrist","flow",{x:2.5,y:1,z:.45})]}:{equipmentColliderAnchors:{left:{x:-1,y:1,z:.45},right:{x:1,y:1,z:.45}}})});
+  const model=buildGameplaySceneModel({presentation,nowMs:1000,targets:[],colliderSettings:settings(true),...(presentation==="flow"?{equipmentColliderPoses:[up,pose("right_wrist","flow",{x:2.5,y:1,z:.45})]}:{equipmentColliderPoses:[pose("left_wrist","boxing",{x:.5,y:1,z:.45}),pose("right_wrist","boxing",{x:2.5,y:1,z:.45})]})});
   for(const [left,right] of [["#AABBCC","#123456"],["#FF0088","#00DD33"]]){
     renderer[paletteSymbol](left,right);
     for(const [index,color] of [left,right].entries()){
@@ -125,4 +128,4 @@ for(const nowMs of [1181,1281,1529]){
   assert.equal(result.objects.filter((object)=>object.kind==="feedback").length,2,"no duplicate moving label");
 }
 assert.equal(buildGameplaySceneModel({presentation:"flow",nowMs:1531,targets:[miss("left","left")]}).objects.some((object)=>object.kind==="feedback"),false);
-console.log("Oriented Flow saber volumes, no missing-pose fallback, tracked Boxing boxes, visibility and miss spots passed.");
+console.log("Oriented Flow saber volumes, no missing-pose fallback, tracked Boxing cylinders, visibility and miss spots passed.");

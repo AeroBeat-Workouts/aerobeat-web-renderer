@@ -48,6 +48,10 @@ Three unscaled `track/blue-glass-v1` segments extend the approach path below gam
 
 Boxing Spatial Grid preserves exact 4x3 cells and blocked/safe truth. Boxing Lanes preserves left/right placement and authoritative asymmetric timing windows without rewriting semantic target records. Nose and wrist cursors instantiate the same full `athlete-marker/sphere-v1` at the existing truthful world projection with role colors only on `mat/tint_base`, preserved white/charcoal structure, normal depth, and no mirrored/always-on-top pass. Marker clones alone use a lighting-independent contrast response (charcoal `0.025/0.032/0.045`, white `0.88/0.92/0.98`, role tint at exact `1.0×` resolved wrist song color (or fixed nose yellow)) so the eight bright/dark environments and moving live video cannot wash out their structural materials; canonical source materials remain immutable. Their bounded world scale is derived from caller `sizeCssPx` (`8–64` CSS px).
 
+## Hit aftermath fade (private frame seam)
+
+`frame.aftermathFadeByMode` is optional; when absent, corpses retain the original offscreen/eviction fade. When present it must contain exact plain `flow` and `boxing` records, each `{enabled:boolean,delayMs:number,durationMs:number}` with finite nonnegative floats and no arbitrary maximum. Flow aftermath uses `flow`; punch, guard, obstacle, bomb and safe use `boxing`. Disabled timers preserve the original fade. Enabled timers keep full opacity through the delay measured from `hitCommitMs`, fade linearly over the duration, and disappear at its end; zero duration hides at the delay boundary. Offscreen crossing no longer shortens an enabled timer, while caller-owned bounded FIFO eviction and cleanup remain unchanged. Alpha uses the existing native GLB transparency/depth path, not a shader or dither. Malformed present settings reject before scene objects are staged. This renderer does not own the public Game Setup controls or persistence.
+
 ## Manual PlayCanvas lifecycle
 
 Assembly owns the display cadence. The facade never starts an engine RAF and never advances gameplay time. PlayCanvas 2.x still requires its per-application activation/update path, so each facade disables `Application.requestAnimationFrame` and invokes bounded manual ticks only from caller render requests. The production assembly stages gameplay and current/empty cursors through `renderGameplayFrameWithCursors`, producing exactly one manual tick per display opportunity instead of separately rendering the same scene twice. Initial framegraph/application activation is bootstrapped synchronously. Entities are constructed with their explicit owning application so multiple `<aero-game>` instances remain isolated.
@@ -67,6 +71,7 @@ Approved SVG masters are resolved from `aerobeat-branding/icons/web-gameplay/man
 ```bash
 npm test
 npm run test:browser
+node scripts/validate-aftermath-fade-browser.js # focused native GLB aftermath framebuffer
 npm pack --dry-run --json
 ```
 

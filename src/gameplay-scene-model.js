@@ -18,7 +18,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
 /** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"flow"|"guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",tier?:"great"|"good"|"almost"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two complementary side pieces with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the renderer retains this scored metadata but the visual always splits the authored GLB along local X=0 for its entire tail-to-tip length (or an orb diameter), independent of crossing. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
@@ -27,6 +27,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{leftHandColor:string,rightHandColor:string,guardColor:string,obstacleColor:string,receptorColor:string,approachLeadMs:number,targetStartScale:number,targetHitScale:number,approachEasing:string,hitEasing:string,missEasing:string}} AeroRendererThemeTokens */
 /** Per-family aftermath launch velocity (WU/s); hooks carry the magnitude with hand-derived sign. @typedef {{x:number,y:number,z:number}} AeroAftermathLaunchVelocity */
 /** @typedef {{straight:AeroAftermathLaunchVelocity,hook:AeroAftermathLaunchVelocity,uppercut:AeroAftermathLaunchVelocity,guardBonk:AeroAftermathLaunchVelocity,flowNote:AeroAftermathLaunchVelocity}} AeroAftermathLaunchVelocities */
+/** @typedef {Readonly<{enabled:boolean,delayMs:number,durationMs:number}>} AeroAftermathFadeSettings */
 /** @typedef {{id:string,version:string,hash:string,dprCap:number,roleScale:number,noteScaleFactor:number,obstacleScaleFactor:number,bombScaleFactor:number,markerScaleFactor:number,worldUnitsPerMs:number,futureCullMs:number,spentCullMs:number,targetSize:number,obstacleHeight:number,timingZoneHeight:number,feedbackDurationMs:number,hitPulseScale:number,greatEndScale:number,aftermathGravityWUPerS2:number,aftermathRestitution:number,aftermathBounceCount:number,aftermathEvictedFadeMs:number,aftermathSettledTumbleRadPerS:number,aftermathSliceSeparationWU:number,aftermathSliceWiderSeparationWU:number,aftermathLaunchVelocities:AeroAftermathLaunchVelocities,hazardGlowRampMs:number,hazardGlowDecayMs:number,hazardVignetteIntensity:number,hazardVignettePulseHz:number,hazardVignettePulseDepth:number,hazardVignetteRampMs:number,hazardVignetteDecayMs:number}} AeroRendererTuning */
 /** @typedef {{text:"Great"|"Good"|"Almost"|"Miss",holdMs:number,fadeMs:number,totalMs:number,elapsedMs:number,alpha:number,faceColor:string,separationColor:string,depthBias:number,apparentHeightCssPx:number,offsetX:number,offsetY:number,scale:number,animation:"bounce"|"shake"}} AeroFeedbackVisual */
 /** @typedef {{elapsedMs:number,durationMs:number,progress:number}} AeroRemovalVisual */
@@ -141,6 +142,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   if(frame.noseMarkerScale!==undefined&&(!Number.isFinite(frame.noseMarkerScale)||frame.noseMarkerScale<0||frame.noseMarkerScale>2))throw new TypeError("Frame nose marker scale is invalid");
   if(frame.trackExtensionWorldUnits!==undefined&&(!Number.isFinite(frame.trackExtensionWorldUnits)||frame.trackExtensionWorldUnits<0||frame.trackExtensionWorldUnits>20))throw new TypeError("Frame track extension is invalid");
   if(frame.guidanceBandMode!==undefined&&!["off","song_beat_grid","target_arrivals"].includes(frame.guidanceBandMode))throw new TypeError("Frame guidance band mode is invalid");
+  if(Object.hasOwn(frame,"aftermathFadeByMode")&&!isValidAftermathFadeByMode(frame.aftermathFadeByMode))throw new TypeError("Frame aftermath fade settings are invalid");
   if(frame.aftermath!==undefined&&!isValidAftermathList(frame.aftermath))throw new TypeError("Frame aftermath entries are invalid");
   if(frame.hazardContacts!==undefined&&!isValidHazardContactList(frame.hazardContacts))throw new TypeError("Frame hazard contact events are invalid");
   if(frame.hazardContactActive!==undefined&&!isValidHazardContactActive(frame.hazardContactActive))throw new TypeError("Frame hazard contact active state is invalid");
@@ -238,7 +240,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   for(const entry of frame.aftermath??[]){
     const guardTarget=entry.family==="guard"?sorted.find((target)=>target.id===entry.targetId&&target.kind==="guard"):undefined;
     const guardPositions=guardTarget?targetPositions(frame,guardTarget,presentationConfig,reach):undefined;
-    objects.push(...aftermathObjects(entry,frame.nowMs,tuning,guardPositions));
+    objects.push(...aftermathObjects(entry,frame.nowMs,tuning,guardPositions,frame.aftermathFadeByMode?.[entry.family==="flow"?"flow":"boxing"]));
   }
   const overlayObjects=colliderOverlayObjects(frame,sorted,colliderOverlay);
   objects.push(...overlayObjects);
@@ -694,7 +696,7 @@ export function aftermathLaunchVelocity(entry,tuning=defaultRendererTuning){
   }
   if(entry.family==="guard"){if(entry.mode!=="bonk")throw new TypeError("Guard aftermath mode must be bonk");return velocities.guardBonk;}
   if(entry.family==="flow"){if(entry.mode!=="single"&&entry.mode!=="slice")throw new TypeError("Flow aftermath mode must be single or slice");return velocities.flowNote;}
-  if((entry.family==="obstacle"||entry.family==="bomb")&&entry.mode==="single")return velocities.flowNote;
+  if((entry.family==="obstacle"||entry.family==="bomb"||entry.family==="safe")&&entry.mode==="single")return velocities.flowNote;
   throw new TypeError(`Aftermath family/mode combination is invalid: ${String(entry.family)}/${String(entry.mode)}`);
 }
 
@@ -727,10 +729,11 @@ export function aftermathSliceOffsetX(entry,sign,tuning=defaultRendererTuning){
  * earliest of (that off-screen crossing, the assembly-marked eviction) and runs for
  * `aftermathEvictedFadeMs`, after which the pose returns null (stops rendering). The assembly's
  * FIFO eviction contract is unchanged — only the trajectory changed from "settle on a below-track
- * floor" to "fall off-screen and fade".
- * @param {AeroAftermathEntry} entry @param {number} elapsedMs @param {AeroRendererTuning} [tuning]
+ * floor" to "fall off-screen and fade". An enabled frame-local timer instead schedules alpha
+ * from hitCommitMs regardless of offscreen crossing or eviction; eviction still bounds producer memory.
+ * @param {AeroAftermathEntry} entry @param {number} elapsedMs @param {AeroRendererTuning} [tuning] @param {AeroAftermathFadeSettings} [fadeSettings]
  */
-export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
+export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning,fadeSettings=undefined){
   const g=tuning.aftermathGravityWUPerS2;
   const launch=aftermathLaunchVelocity(entry,tuning);
   const {spawn}=entry;
@@ -738,9 +741,13 @@ export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
   // center drops below AFTERMATH_OFFSCREEN_Y. It is the single timeline boundary for the pose:
   // before it the piece is a single parabola in flight; from it the fade tail may begin.
   const settleMs=offscreenCrossingMs(spawn.y,launch.y,g,AFTERMATH_OFFSCREEN_Y);
-  const fadeStartMs=entry.evictedAtMs===undefined?settleMs:Math.min(settleMs,Math.max(0,entry.evictedAtMs-entry.hitCommitMs));
-  const fadeMs=tuning.aftermathEvictedFadeMs;
+  const timed=fadeSettings?.enabled===true;
+  const fadeStartMs=timed?fadeSettings.delayMs:entry.evictedAtMs===undefined?settleMs:Math.min(settleMs,Math.max(0,entry.evictedAtMs-entry.hitCommitMs));
+  const fadeMs=timed?fadeSettings.durationMs:tuning.aftermathEvictedFadeMs;
   let alpha=1;
+  // Subtract elapsed from the start rather than adding delay+duration: both public values
+  // may be large finite floats, and their sum need not remain representable.
+  if(timed&&fadeMs===0&&elapsedMs>=fadeStartMs)return null;
   if(elapsedMs>fadeStartMs){alpha=Math.max(0,1-(elapsedMs-fadeStartMs)/fadeMs);if(alpha<=0)return null;}
   const tSec=elapsedMs/1000;
   const x=spawn.x+launch.x*tSec;
@@ -753,8 +760,8 @@ export function aftermathPose(entry,elapsedMs,tuning=defaultRendererTuning){
   const rotationZRad=phase+tumbleRate*tSec;
   return Object.freeze({x,y,z,rotationZRad,alpha,settleMs,settled:false});
 }
-/** Build bounded aftermath scene objects (Flow slice and guard pair each produce two). Guard positions come from the matching live target when available; after cull legacy entries fall back to default center-cell spacing unless the producer carries explicit spacing. @param {AeroAftermathEntry} entry @param {number} nowMs @param {AeroRendererTuning} [tuning] @param {readonly {x:number,y:number}[]|undefined} [guardPositions] @returns {AeroGameplaySceneObject[]} */
-export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardPositions=undefined){
+/** Build bounded aftermath scene objects (Flow slice and guard pair each produce two). Guard positions come from the matching live target when available; after cull legacy entries fall back to default center-cell spacing unless the producer carries explicit spacing. @param {AeroAftermathEntry} entry @param {number} nowMs @param {AeroRendererTuning} [tuning] @param {readonly {x:number,y:number}[]|undefined} [guardPositions] @param {AeroAftermathFadeSettings} [fadeSettings] @returns {AeroGameplaySceneObject[]} */
+export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardPositions=undefined,fadeSettings=undefined){
   const elapsedMs=nowMs-entry.hitCommitMs;
   if(elapsedMs<0||!Number.isFinite(elapsedMs))return[];
   // 0.0.59 B13: for flow + punch corpses the color fallback must come from the NOTE'S
@@ -772,7 +779,7 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardP
   if(entry.family==="flow"&&entry.mode==="slice"){
     const objects=[];
     for(const sign of[-1,1]){
-      const pose=aftermathPose(entry,elapsedMs,tuning);
+      const pose=aftermathPose(entry,elapsedMs,tuning,fadeSettings);
       if(pose===null)continue;
       const offsetX=aftermathSliceOffsetX(entry,sign,tuning);
       const halfPhase=seedPhase(entry.seed,sign===1?21:23)*Math.PI*.75;
@@ -780,7 +787,7 @@ export function aftermathObjects(entry,nowMs,tuning=defaultRendererTuning,guardP
     }
     return objects;
   }
-  const pose=aftermathPose(entry,elapsedMs,tuning);
+  const pose=aftermathPose(entry,elapsedMs,tuning,fadeSettings);
   if(pose===null)return[];
   if(entry.family==="guard"){
     // The live target supplies exact positions; after cull, preserve a producer-carried
@@ -926,6 +933,18 @@ function hazardGlowObject(glow){
 /** @param {{intensity:number,activeCount:number}} glow @param {AeroRendererTuning} [tuning] */
 function hazardGlowVisual(glow,tuning=defaultRendererTuning){
   return Object.freeze({present:glow.intensity>0,activeCount:glow.activeCount,intensity:glow.intensity,rampMs:tuning.hazardGlowRampMs,decayMs:tuning.hazardGlowDecayMs});
+}
+/** Reject malformed present timer configuration before staging any scene objects. @param {unknown} value */
+function isValidAftermathFadeByMode(value){
+  const exact=(record,keys)=>record!==null&&typeof record==="object"&&!Array.isArray(record)&&Object.getPrototypeOf(record)===Object.prototype&&Reflect.ownKeys(record).length===keys.length&&keys.every((key)=>{const descriptor=Object.getOwnPropertyDescriptor(record,key);return descriptor&&"value" in descriptor;});
+  if(!exact(value,["flow","boxing"]))return false;
+  for(const mode of["flow","boxing"]){
+    const settings=Object.getOwnPropertyDescriptor(value,mode).value;
+    if(!exact(settings,["enabled","delayMs","durationMs"]))return false;
+    if(typeof Object.getOwnPropertyDescriptor(settings,"enabled").value!=="boolean")return false;
+    for(const key of["delayMs","durationMs"]){const number=Object.getOwnPropertyDescriptor(settings,key).value;if(typeof number!=="number"||!Number.isFinite(number)||number<0)return false;}
+  }
+  return true;
 }
 /** Validate a bounded, plain-data aftermath entries list without invoking accessors. @param {unknown} value */
 function isValidAftermathList(value){

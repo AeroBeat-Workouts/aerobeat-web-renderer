@@ -234,6 +234,43 @@ for (const [row, expected] of [[0, 1.25], [1, 1], [2, 0.75]]) {
   assert.ok(beforeEvict.alpha > afterEvict.alpha, "alpha decreases after eviction mark");
 }
 
+// Per-mode hit-time fade: absent/OFF preserve legacy offscreen/eviction, ON ignores
+// offscreen scheduling but never changes the producer's bounded FIFO eviction records.
+{
+  const flow = { targetId: "fade-flow", hitCommitMs: 1000, family: "flow", hand: "left", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 55, evictedAtMs: 1020 };
+  const guard = { ...flow, targetId: "fade-guard", family: "guard", hand: "both", mode: "bonk", guardSeparationWU: 0.5 };
+  const punch = { ...flow, targetId: "fade-punch", family: "punch", hand: "left", mode: "straight" };
+  const config = { flow: { enabled: true, delayMs: 100, durationMs: 200 }, boxing: { enabled: true, delayMs: 50, durationMs: 100 } };
+  const frame = (nowMs, aftermath, settings) => ({ presentation: "flow", nowMs, targets: [], aftermath, aftermathFadeByMode: settings === undefined ? config : settings });
+  const corpses = (f) => buildGameplaySceneModel(f).objects.filter((o) => o.kind === "aftermath");
+  const before = corpses(frame(1050, [flow, guard, punch]));
+  assert.equal(before.length, 5, "Flow two halves, guard pair and punch survive early FIFO eviction with timer ON");
+  assert.deepEqual(before.filter((o) => o.targetId === "fade-flow").map((o) => o.alpha), [1, 1], "Flow stays opaque during its delay");
+  assert.deepEqual(before.filter((o) => o.targetId === "fade-guard" || o.targetId === "fade-punch").map((o) => o.alpha), [1, 1, 1], "Boxing stays opaque through its delay");
+  assert.deepEqual(corpses(frame(1100, [guard, punch])).map((o) => o.alpha), [0.5, 0.5, 0.5], "Boxing guard pair and punch fade together");
+  const flowMiddle = corpses(frame(1200, [flow])).map((o) => o.alpha);
+  assert.deepEqual(flowMiddle, [0.5, 0.5], "both Flow slice halves fade together");
+  assert.equal(corpses(frame(1300, [flow])).length, 0, "Flow halves disappear at duration boundary");
+  assert.equal(corpses(frame(1150, [guard, punch])).length, 0, "Boxing pair and punch disappear at duration boundary");
+  for (const family of ["obstacle", "bomb", "safe"]) {
+    const other = { ...flow, targetId: `fade-${family}`, family, mode: "single" };
+    assert.deepEqual(corpses(frame(1100, [other])).map((o) => o.alpha), [0.5], `${family} uses Boxing fade, even on a Flow presentation frame`);
+  }
+  const off = { flow: { ...config.flow, enabled: false }, boxing: { ...config.boxing, enabled: false } };
+  assert.deepEqual(corpses(frame(1050, [flow, guard, punch], off)), corpses({ presentation: "flow", nowMs: 1050, targets: [], aftermath: [flow, guard, punch] }), "OFF equals absent legacy frame exactly");
+  const zero = { flow: { enabled: true, delayMs: 100, durationMs: 0 }, boxing: { enabled: true, delayMs: 0, durationMs: 0 } };
+  assert.equal(corpses(frame(1000, [flow, guard, punch], zero)).length, 2, "Boxing zero delay/duration disappears at hit while Flow waits");
+  assert.equal(corpses(frame(1099, [flow], zero)).length, 2);
+  assert.equal(corpses(frame(1100, [flow], zero)).length, 0, "zero duration hides at delay boundary");
+  const huge = { flow: { enabled: true, delayMs: Number.MAX_VALUE, durationMs: Number.MAX_VALUE }, boxing: config.boxing };
+  assert.deepEqual(corpses(frame(1200, [flow], huge)).map((o) => o.alpha), [1, 1], "finite large floats have no arbitrary cap or addition overflow");
+  const invalid = [undefined, null, {}, { ...config, flow: { ...config.flow, delayMs: -1 } }, { ...config, boxing: { ...config.boxing, durationMs: Infinity } }, { ...config, flow: { ...config.flow, enabled: 1 } }, { ...config, bonus: 1 }, { ...config, flow: { ...config.flow, surprise: true } }, { ...config, boxing: { ...config.boxing, delayMs: "2" } }, { ...config, flow: Object.defineProperty({ ...config.flow }, "delayMs", { get: () => 2 }) }];
+  for (const bad of invalid) assert.throws(() => corpses({ ...frame(1000, [flow]), aftermathFadeByMode: bad }), TypeError, "malformed present settings reject before scene production");
+  const live = { id: "live", kind: "flow", hand: "left", family: "flow", cell: 5, cells: [], lane: null, beatCenterMs: 1500, direction: null };
+  const baseline = buildGameplaySceneModel({ presentation: "flow", nowMs: 1000, targets: [live] }).objects.filter((o) => o.kind === "icon");
+  assert.deepEqual(buildGameplaySceneModel({ ...frame(1000, []), targets: [live] }).objects.filter((o) => o.kind === "icon"), baseline, "live target unchanged by timers");
+}
+
 // Slice offset determinism.
 {
   const entry = { targetId: "so", hitCommitMs: 0, family: "flow", hand: "neutral", mode: "slice", spawn: { x: 0, y: 1, z: 0 }, seed: 77 };

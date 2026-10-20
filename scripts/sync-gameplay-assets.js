@@ -6,46 +6,33 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedReleaseCommit="398d0370af86fbb7c411845139990f9e0be11cb6";
-const expectedReleaseSourceTree="90773e1b3254f640bf7d082ef1d7eac8b6259ecc";
-const expectedAuditCommit=expectedReleaseCommit;
-const expectedAuditTree=expectedReleaseSourceTree;
-// The asset owner ships seven 0.0.12 GLBs; this renderer retains its two independently
-// pinned Flow-saber/Boxing-glove GLBs in one nine-asset packaged inventory/proof.
-const expectedSourceInventoryHash="1a6846e7d5ef92e2a271dfb2acecfbb1295ed3ab2bad3d4abc306b5930044eb9";
-const expectedSourceProofHash="6fc8937bbba25296de9110ffa20a7526d877df70be1d078cf064b176ff4d81fd";
-const expectedInventoryHash="a7a4902e7aa0bf92da8179dd4149e4e241e04ac64d0b9887d66151dacbf30231";
-const expectedProofHash="f37bb12bc3cafc53e0e3314c95e8bd0551a76a1366ee16e9af4adcb522dc9910";
-const expectedSetHash="bfdc33a670cde20ef19878b9fb445f5ecb5563802aa6ae2d351cf665a2f0e3f0";
-const expectedMarkerGlbHash="f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc";
-const expectedReleaseTree="08e8f8524d6e6642c65d5842ab05ec2095a30b97";
-const release="0.0.12";
-const predecessorRelease="0.0.11";
+const expectedReleaseCommit="54e83d89264b2cedbdcc616ddd7c8b386ac9e204";
+const expectedReleaseSourceTree="3122baa63d481173992a637ad275d2aec6f3ec37";
+const expectedAuditCommit="cf38fa7c61030f4a9f38e228563d5dd820b5ed04";
+const expectedAuditTree="3da9af7827efb93d0a7f6a25d61769ed6fce9910";
+const expectedSourceInventoryHash="e9fb5d662b5e07b6c5f75ccf49185ddae2c2dddede9940e3e5661c5eddc21042";
+const expectedSourceProofHash="11f14d2bc2f172b2e79544532c260b9b3fcc049ee464b2ab24ab2b43c7cb4c0f";
+const expectedInventoryHash="77e90badd35b8e21460045f05ab669d624bd6249b1b248609f32778b48660123";
+const expectedProofHash="0bbf78d723babd15150b8dfbf544f5b289673bdf98f9ddc738c46fa682d1ebdb";
+const expectedSetHash="50a9c8cf1a59e23338a08bb6b08f4c879467294ef86e4f4d869a9ca3673b1363";
+const expectedReleaseTree="e01a56f3b1f1dd53444a8cbcb1b7fa7f21f45faf";
+const release="0.0.13",predecessorRelease="0.0.12";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
-const args=process.argv.slice(2);
-const mode=args.includes("--verify")?"verify":null;
-const sourceArg=args.indexOf("--source");
-const source=path.resolve(sourceArg>=0?args[sourceArg+1]:defaultSource);
-const sourceRelease=path.join(source,"release/raw",release);
-const packageRoot=path.join(rendererRoot,"assets/gameplay");
-const target=path.join(packageRoot,release);
+const args=process.argv.slice(2),mode=args.includes("--verify")?"verify":null,sourceArg=args.indexOf("--source");
+const source=path.resolve(sourceArg>=0?args[sourceArg+1]:defaultSource),sourceRelease=path.join(source,"release/raw",release),packageRoot=path.join(rendererRoot,"assets/gameplay"),target=path.join(packageRoot,release);
 if(!mode)throw new Error("Usage: node scripts/sync-gameplay-assets.js --verify [--source PATH]");
 if(sourceArg>=0&&!args[sourceArg+1])throw new Error("--source requires a path");
-
 const commit=execFileSync("git",["rev-parse","HEAD"],{cwd:source,encoding:"utf8"}).trim();
 const auditTree=execFileSync("git",["rev-parse",`${expectedAuditCommit}^{tree}`],{cwd:source,encoding:"utf8"}).trim();
 if(commit!==expectedAuditCommit||auditTree!==expectedAuditTree)throw new Error(`asset source HEAD/audit tree mismatch: ${commit}/${auditTree}`);
 const releaseSourceTree=execFileSync("git",["rev-parse",`${expectedReleaseCommit}^{tree}`],{cwd:source,encoding:"utf8"}).trim();
-if(releaseSourceTree!==expectedReleaseSourceTree)throw new Error(`asset release source tree mismatch: ${releaseSourceTree}`);
-try{execFileSync("git",["merge-base","--is-ancestor",expectedReleaseCommit,expectedAuditCommit],{cwd:source,stdio:"ignore"});}
-catch{throw new Error("pinned asset audit must descend from pinned release commit");}
+if(releaseSourceTree!==expectedReleaseSourceTree)throw new Error("asset release source tree mismatch");
+try{execFileSync("git",["merge-base","--is-ancestor",expectedReleaseCommit,expectedAuditCommit],{cwd:source,stdio:"ignore"});}catch{throw new Error("pinned asset audit must descend from pinned release commit");}
 const pinnedReleaseTree=execFileSync("git",["rev-parse",`${expectedReleaseCommit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim(),currentReleaseTree=execFileSync("git",["rev-parse",`${commit}:release/raw/${release}`],{cwd:source,encoding:"utf8"}).trim();
-if(pinnedReleaseTree!==expectedReleaseTree)throw new Error(`pinned asset release tree mismatch: ${pinnedReleaseTree}`);
-if(currentReleaseTree!==expectedReleaseTree)throw new Error(`current asset release tree drifted: ${currentReleaseTree}`);
-const sourceStatus=execFileSync("git",["status","--porcelain","--untracked-files=all"],{cwd:source,encoding:"utf8"}).trim().split("\n").filter((line)=>line.trim()!=="");
-const protectedLedger=" M .beads/interactions.jsonl";
-if(!(sourceStatus.length===0||(sourceStatus.length===1&&sourceStatus[0]===protectedLedger)))throw new Error(`asset source worktree is not fully clean or carries only the exact protected unstaged ledger export: ${JSON.stringify(sourceStatus)}`);
+if(pinnedReleaseTree!==expectedReleaseTree||currentReleaseTree!==expectedReleaseTree)throw new Error("immutable asset release tree drifted");
+const sourceStatus=execFileSync("git",["status","--porcelain","--untracked-files=all"],{cwd:source,encoding:"utf8"}).trim();
+if(sourceStatus)throw new Error("asset source worktree is not fully clean");
 
 const sha256=(bytes)=>createHash("sha256").update(bytes).digest("hex");
 const sourceInventoryBytes=await readFile(path.join(sourceRelease,"inventory.v1.json"));
@@ -54,54 +41,26 @@ if(sha256(sourceInventoryBytes)!==expectedSourceInventoryHash)throw new Error("s
 if(sha256(sourceProofBytes)!==expectedSourceProofHash)throw new Error("source proof hash mismatch");
 const sourceInventory=JSON.parse(sourceInventoryBytes.toString("utf8"));
 const sourceProof=JSON.parse(sourceProofBytes.toString("utf8"));
-if(sourceInventory.expected_asset_count!==7||sourceInventory.immutable!==true||sourceInventory.payload.length!==15)throw new Error("source inventory contract mismatch");
-if(sourceProof.release!==release||sourceProof.inventory_sha256!==expectedSourceInventoryHash)throw new Error("source proof contract mismatch");
-// The renderer target inventory (9 entries, flow-saber + boxing-glove added) is what the
-// validators + assembly consume. Parse it from the target tree.
-const targetInventoryBytes=await readFile(path.join(target,"inventory.v1.json"));
-const targetProofBytes=await readFile(path.join(target,"proof.v1.json"));
-if(sha256(targetInventoryBytes)!==expectedInventoryHash)throw new Error("target inventory hash mismatch");
-if(sha256(targetProofBytes)!==expectedProofHash)throw new Error("target proof hash mismatch");
-const inventory=JSON.parse(targetInventoryBytes.toString("utf8"));
-const proof=JSON.parse(targetProofBytes.toString("utf8"));
-if(inventory.expected_asset_count!==9||inventory.immutable!==true||inventory.payload.length!==17)throw new Error("target inventory contract mismatch");
-if(proof.release!==release||proof.inventory_sha256!==expectedInventoryHash)throw new Error("target proof contract mismatch");
-const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/default-v1.json");
-if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
-for(const sourceEntry of sourceInventory.payload){const packaged=inventory.payload.find((entry)=>entry.path===sourceEntry.path);if(!packaged||packaged.sha256!==sourceEntry.sha256||packaged.bytes!==sourceEntry.bytes)throw new Error(`packaged owner asset drifted: ${sourceEntry.path}`);}
-const markerEntry=inventory.payload.find(({path:relative})=>relative==="athlete-marker/sphere-v1.glb");
-if(markerEntry?.sha256!==expectedMarkerGlbHash||markerEntry?.bytes!==90520)throw new Error("source tint-dominant marker identity mismatch");
-const expectedWall={adjacent_gap:[.06,.06],adjacent_instances_overlap:false,body_triangles:12,cell_pitch:[1,1],centered_pivot:true,closed_body:true,edge_cage:false,material_primitives:1,source_dimensions:[.94,.94,1],uniform_surface:true,unit_cell_footprint:[.94,.94],xy_scale_authoritative:[1,1],z_scale_authoritative:true};
-if(JSON.stringify(proof.claims?.wall)!==JSON.stringify(expectedWall))throw new Error("source wall contract mismatch");
-const expectedMarkerClaims={all_camera_directions:["+X","-X","+Y","-Y","+Z","-Z"],alpha_mode:"OPAQUE",canonical_identity:"athlete-marker/sphere-v1",canonical_instances:["nose","left-wrist","right-wrist"],coplanar_overlapping_faces:false,depth_test:true,depth_write:true,dimensions:[.18,.18,.18],explicit_normals:true,geometric_normal_agreement:true,keyline:"thin polar band (charcoal cap + white seam at each pole)",opacity:1.0,runtime_tint_material:"mat/tint_base",source_backface_culling:true,structural_materials:["mat/white","mat/charcoal"],tint_dominant:true,winding:"outward-ccw"};
-if(JSON.stringify(proof.claims?.athlete_marker)!==JSON.stringify(expectedMarkerClaims))throw new Error("source tint-dominant marker proof contract mismatch");
-const markerManifest=JSON.parse(await readFile(path.join(sourceRelease,"manifests/athlete-marker/sphere-v1.v1.json"),"utf8")),markerContract=markerManifest.materials?.contract;
-if(markerContract?.runtime_tint_material!=="mat/tint_base"||JSON.stringify(markerContract.structural_materials)!==JSON.stringify(["mat/white","mat/charcoal"])||markerContract.alpha_mode!=="OPAQUE"||markerContract.depth_test!==true||markerContract.depth_write!==true||markerContract.winding!=="outward-ccw"||markerContract.tint_dominant!==true)throw new Error("source marker material/depth/culling contract mismatch");
-const cueContracts=[
-  ["directional-arrow/rounded-outline-v1","note_fill",true,"mat/tint_base"],
-  ["any-note/outlined-circle-v1","note_fill",true,"mat/tint_base"],
-  ["guard/outlined-shield-v1","guard_fill",false,"mat/green"]
-];
-for(const [identity,fillRole,runtimeTintable,fillMaterial] of cueContracts){
-  const manifest=JSON.parse(await readFile(path.join(sourceRelease,`manifests/${identity}.v1.json`),"utf8")),contract=manifest.materials?.contract;
-  const expectedOrder=["outline_charcoal","outline_white","outline_charcoal",fillRole];
-  if(manifest.identity?.canonical_name!==identity||contract?.fill_material!==fillMaterial||contract?.runtime_tintable!==runtimeTintable||contract?.runtime_tint_material!==(runtimeTintable?fillMaterial:null)||JSON.stringify(contract?.face_band_order)!==JSON.stringify(expectedOrder)||contract?.styled_faces?.join(",")!=="+Z,-Z"||contract?.blend!=="opaque"||contract?.cull!=="back"||contract?.depth_test!==true||contract?.depth_write!==true)throw new Error(`source cue material-role contract mismatch: ${identity}`);
+if(sourceInventory.expected_asset_count!==9||sourceInventory.immutable!==true||sourceInventory.payload.length!==19)throw new Error("source inventory contract mismatch");
+if(sourceProof.release!==release||sourceProof.inventory_sha256!==expectedSourceInventoryHash||sourceProof.predecessor!==predecessorRelease||JSON.stringify(sourceProof.changed_identities)!==JSON.stringify(["knee-pad/segmented-lightwrap-v1","knee-target/hover-shell-strike-v1"]))throw new Error("source proof contract mismatch");
+const targetInventoryBytes=await readFile(path.join(target,"inventory.v1.json")),targetProofBytes=await readFile(path.join(target,"proof.v1.json"));
+if(sha256(targetInventoryBytes)!==expectedInventoryHash||sha256(targetProofBytes)!==expectedProofHash)throw new Error("target inventory/proof hash mismatch");
+const inventory=JSON.parse(targetInventoryBytes.toString("utf8")),proof=JSON.parse(targetProofBytes.toString("utf8"));
+if(inventory.expected_asset_count!==11||inventory.immutable!==true||inventory.payload.length!==21||proof.release!==release||proof.inventory_sha256!==expectedInventoryHash||proof.source_inventory_sha256!==expectedSourceInventoryHash||proof.source_proof_sha256!==expectedSourceProofHash)throw new Error("target release contract mismatch");
+if(inventory.payload.find(({path:relative})=>relative==="sets/default-v1.json")?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
+for(const item of sourceInventory.payload){const packaged=inventory.payload.find((entry)=>entry.path===item.path);if(!packaged||packaged.sha256!==item.sha256||packaged.bytes!==item.bytes)throw new Error(`packaged owner asset drifted: ${item.path}`);}
+const predecessorRoot=path.join(packageRoot,predecessorRelease),predecessorInventoryBytes=await readFile(path.join(predecessorRoot,"inventory.v1.json")),predecessorProofBytes=await readFile(path.join(predecessorRoot,"proof.v1.json"));
+if(sha256(predecessorInventoryBytes)!=="a7a4902e7aa0bf92da8179dd4149e4e241e04ac64d0b9887d66151dacbf30231"||sha256(predecessorProofBytes)!=="f37bb12bc3cafc53e0e3314c95e8bd0551a76a1366ee16e9af4adcb522dc9910")throw new Error("predecessor metadata drifted");
+const predecessorInventory=JSON.parse(predecessorInventoryBytes.toString("utf8"));
+for(const item of predecessorInventory.payload){const bytes=await readFile(path.join(predecessorRoot,item.path));if(bytes.length!==item.bytes||sha256(bytes)!==item.sha256)throw new Error(`predecessor payload drifted: ${item.path}`);if(item.path.endsWith(".glb")){const packaged=inventory.payload.find((entry)=>entry.path===item.path);if(!packaged||packaged.sha256!==item.sha256||packaged.bytes!==item.bytes)throw new Error(`packaged predecessor GLB drifted: ${item.path}`);}}
+for(const item of inventory.payload.filter(({path:relative})=>relative.startsWith("flow-saber/")||relative.startsWith("boxing-glove/"))){const original=predecessorInventory.payload.find((entry)=>entry.path===item.path);if(!original||original.sha256!==item.sha256||original.bytes!==item.bytes)throw new Error(`renderer retained asset drifted: ${item.path}`);}
+for(const [identity,hash] of [["knee-target/hover-shell-strike-v1","ab9237a84cb01a4965a0aa7b929c4300652548b043655ec2998b9772e0c6fbb6"],["knee-pad/segmented-lightwrap-v1","2dc4a861acb672d177654123bcb06a9b7155ac5a9cedc4fe860fa24e644a1326"]]){
+  if(inventory.payload.find(({path:relative})=>relative===`${identity}.glb`)?.sha256!==hash)throw new Error(`knee GLB pin drifted: ${identity}`);
+  const manifest=JSON.parse(await readFile(path.join(sourceRelease,`manifests/${identity}.v1.json`),"utf8"));
+  if(manifest.identity?.canonical_name!==identity||manifest.files?.release_sha256!==hash||manifest.release!==release)throw new Error(`knee manifest drifted: ${identity}`);
 }
-for(const relative of ["directional-arrow/rounded-outline-v1.glb","any-note/outlined-circle-v1.glb","guard/outlined-shield-v1.glb","bomb/urchin-v1.glb","track/blue-glass-v1.glb","wall/red-glass-v1.glb"]){
-  const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,`release/raw/${predecessorRelease}`,relative));
-  if(relative==="track/blue-glass-v1.glb"){
-    if(currentBytes.equals(predecessorBytes))throw new Error("canonical 72-WU track did not change from 0.0.11");
-  }else if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from ${predecessorRelease}: ${relative}`);
-}
-// 0.0.62 L-C (r2lb r1a): the source tree has 7 GLBs (the asset-source commit
-// predates the flow-saber). The target tree has 9 GLBs (flow-saber + boxing-glove added).
-const trackManifest=JSON.parse(await readFile(path.join(sourceRelease,"manifests/track/blue-glass-v1.v1.json"),"utf8"));
-const trackContract=trackManifest.materials?.contract;
-if(JSON.stringify(trackManifest.geometry?.dimensions)!==JSON.stringify([4.2,.06,72])||JSON.stringify(trackContract?.rail_centers_x)!==JSON.stringify([-2,-1,0,1,2])||trackContract.beat_columns!==4||trackContract.segment_joins!==false||trackContract.continuous_depth!==72||trackManifest.files?.release_sha256!=="93e8dc45f7f6be58aa90ddc7a2def16b54b830ad6882b881fe72dc558f42dfba")throw new Error("source canonical four-column continuous track contract mismatch");
-const expectedSourceFiles=[...sourceInventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
-if(expectedSourceFiles.length!==17||new Set(expectedSourceFiles).size!==17)throw new Error("source exact inventory mismatch");
-const expectedTargetFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
-if(expectedTargetFiles.length!==19||new Set(expectedTargetFiles).size!==19)throw new Error("target exact inventory mismatch");
+const expectedSourceFiles=[...sourceInventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort(),expectedTargetFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
+if(expectedSourceFiles.length!==21||new Set(expectedSourceFiles).size!==21||expectedTargetFiles.length!==23||new Set(expectedTargetFiles).size!==23)throw new Error("release exact inventory mismatch");
 
 async function filesUnder(root,current=""){
   const result=[];
@@ -132,13 +91,11 @@ await verifyTree(sourceRelease,"source");
 await stat(target);
 await verifyTree(target,"target");
 const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();
-if(JSON.stringify(packagedReleases)!==JSON.stringify([predecessorRelease,release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
-// Historical 0.0.11 is retained byte-identically; only 0.0.12 is selected by gameplay-assets.js.
-const priorInventoryBytes=await readFile(path.join(packageRoot,predecessorRelease,"inventory.v1.json"));
-const priorProofBytes=await readFile(path.join(packageRoot,predecessorRelease,"proof.v1.json"));
-if(sha256(priorInventoryBytes)!=="b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29"||sha256(priorProofBytes)!=="a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3")throw new Error("historical 0.0.11 release metadata drifted");
-const priorInventory=JSON.parse(priorInventoryBytes.toString("utf8"));
-const priorFiles=[...priorInventory.payload.map((entry)=>entry.path),"inventory.v1.json","proof.v1.json"].sort();
-if(JSON.stringify(await filesUnder(path.join(packageRoot,predecessorRelease)))!==JSON.stringify(priorFiles))throw new Error("historical 0.0.11 release inventory drifted");
-for(const entry of priorInventory.payload){const bytes=await readFile(path.join(packageRoot,predecessorRelease,entry.path));if(bytes.length!==entry.bytes||sha256(bytes)!==entry.sha256)throw new Error(`historical 0.0.11 payload drifted: ${entry.path}`);}
+if(JSON.stringify(packagedReleases)!==JSON.stringify(["0.0.11",predecessorRelease,release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
+// Historical 0.0.11 and 0.0.12 remain untouched; do not select either for new frames.
+const historicalRoot=path.join(packageRoot,"0.0.11"),historicalInventoryBytes=await readFile(path.join(historicalRoot,"inventory.v1.json")),historicalProofBytes=await readFile(path.join(historicalRoot,"proof.v1.json"));
+if(sha256(historicalInventoryBytes)!=="b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29"||sha256(historicalProofBytes)!=="a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3")throw new Error("historical 0.0.11 metadata drifted");
+const historicalInventory=JSON.parse(historicalInventoryBytes.toString("utf8"));
+if(JSON.stringify(await filesUnder(historicalRoot))!==JSON.stringify([...historicalInventory.payload.map((entry)=>entry.path),"inventory.v1.json","proof.v1.json"].sort()))throw new Error("historical inventory drifted");
+for(const item of historicalInventory.payload){const bytes=await readFile(path.join(historicalRoot,item.path));if(bytes.length!==item.bytes||sha256(bytes)!==item.sha256)throw new Error(`historical payload drifted: ${item.path}`);}
 console.log(`${mode} gameplay ${release}: source ${expectedSourceFiles.length} files, target ${expectedTargetFiles.length} files, source inv ${expectedSourceInventoryHash}, target inv ${expectedInventoryHash}, source proof ${expectedSourceProofHash}, target proof ${expectedProofHash}, source ${commit}`);

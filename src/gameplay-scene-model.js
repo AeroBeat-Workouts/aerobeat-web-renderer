@@ -17,7 +17,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
 /** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"|"knee",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"knee_left"|"knee_right"|"flow"|"guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",tier?:"great"|"good"|"almost"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
-/** @typedef {{x:number,y:number,z:number}} AeroMeasuredKneePoint */
+/** Unbounded normalized calibrated athlete-grid coordinate; no inferred depth. @typedef {{x:number,y:number}} AeroMeasuredKneePoint */
 /** @typedef {{hip:AeroMeasuredKneePoint,knee:AeroMeasuredKneePoint,ankle:AeroMeasuredKneePoint}} AeroMeasuredLeg */
 /** @typedef {{left:AeroMeasuredLeg|null,right:AeroMeasuredLeg|null}} AeroMeasuredKneeJoints */
 /** @typedef {{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number}} AeroKneeColliderVisualSettings */
@@ -236,7 +236,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
   if(sorted.some((target)=>target?.kind==="guard"&&target.family!=="guard"))throw new TypeError("Gameplay guard target family is invalid");
-  if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?8:11)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
+  if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?9:10)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
   const guidanceMode=frame.guidanceBandMode??experiment.guidanceBandMode;
   const guidance=buildGuidanceBands(frame,sorted,window,guidanceMode,presentationConfig,tuning);
   objects.push(...guidance.objects);
@@ -497,7 +497,7 @@ function targetPositions(frame,target,config,reach){
     if(target.family==="squat")return lanes.map(lane=>({x:lane.x,y:lane.y}));
     // Guards carry the authored pair of target cells. Honor its spacing in both
     // Boxing presentations rather than replacing it with fixed lane centers.
-    if(target.kind==="knee")return [{x:target.hand==="left"?-1.5:1.5,y:frame.presentation==="boxing_collider"?presentationRowY(reach,2):0}];
+    if(target.kind==="knee")return [{x:target.hand==="left"?-.5:.5,y:frame.presentation==="boxing_collider"?presentationRowY(reach,2):0}];
     if(target.kind==="guard"){
       if(target.cells.length<2)return lanes.map(lane=>({x:lane.x,y:lane.y}));
       const cells=target.cells.slice(0,2);
@@ -556,7 +556,7 @@ function normalizeKneeVisualFrame(frame){
     const leg=joints?.[side];if(leg===undefined||leg===null)continue;
     if(typeof leg!=="object"||Array.isArray(leg)||!Object.hasOwn(leg,"hip")||!Object.hasOwn(leg,"knee")||!Object.hasOwn(leg,"ankle"))throw new TypeError("Measured knee leg is invalid");
     for(const key of /** @type {const} */(["hip","knee","ankle"])){
-      const point=leg[key];if(!point||typeof point!=="object"||Array.isArray(point)||![point.x,point.y,point.z].every(Number.isFinite))throw new TypeError("Measured knee point is invalid");
+      const point=leg[key];if(!point||typeof point!=="object"||Array.isArray(point)||!Object.hasOwn(point,"x")||!Object.hasOwn(point,"y")||Reflect.ownKeys(point).length!==2||![point.x,point.y].every(Number.isFinite))throw new TypeError("Measured knee point is invalid");
     }
     legs[side]=leg;
   }
@@ -572,20 +572,20 @@ function kneeVisualObjects(visual){
   if(!visual.enabled)return objects;
   for(const side of /** @type {const} */(["left","right"])){
     const leg=visual.legs[side];if(!leg)continue;
-    const knee={...judgeToPresentationPoint(leg.knee),z:leg.knee.z},hip={...judgeToPresentationPoint(leg.hip),z:leg.hip.z},ankle={...judgeToPresentationPoint(leg.ankle),z:leg.ankle.z};
-    const upper=Math.hypot(hip.x-knee.x,hip.y-knee.y,hip.z-knee.z),lower=Math.hypot(ankle.x-knee.x,ankle.y-knee.y,ankle.z-knee.z);
+    // Input supplies unbounded normalized calibrated-grid X/Y, not judge-space
+    // coordinates or measured depth. Keep the whole leg on one visual-only plane.
+    /** @param {AeroMeasuredKneePoint} point */
+    const project=(point)=>({x:4*point.x-.5,y:2.5-3*point.y,z:.45});
+    const knee=project(leg.knee),hip=project(leg.hip),ankle=project(leg.ankle);
+    const upper=Math.hypot(hip.x-knee.x,hip.y-knee.y),lower=Math.hypot(ankle.x-knee.x,ankle.y-knee.y);
     if(upper<1e-6||lower<1e-6)continue;
     const dot=sceneObject(`knee-marker-${side}`,"knee_marker",side,null,{...knee},{x:1,y:1,z:1},null,"athlete-marker/sphere-v1",0,1,null,false,false,null,null,knee.z,41,null,null,null,null,"#F4C20D");objects.push(dot);
-    // The shell's authored forward is -Z; pitch/roll are driven by measured thigh/shin,
-    // not a synthetic limb or the old seven-landmark T-pose.
-    const lift=Math.acos(Math.max(-1,Math.min(1,((hip.x-knee.x)*(ankle.x-knee.x)+(hip.y-knee.y)*(ankle.y-knee.y)+(hip.z-knee.z)*(ankle.z-knee.z))/(upper*lower))))/Math.PI;
-    // The pad's shell faces incoming notes along -Z at rest. Bend the measured
-    // shin relative to the thigh; an upright straight leg therefore stays neutral.
-    const shin={x:ankle.x-knee.x,y:ankle.y-knee.y,z:ankle.z-knee.z};
-    const pitch=Math.atan2(shin.z,-shin.y)*180/Math.PI;
-    const yaw=Math.atan2(shin.x,-shin.y)*180/Math.PI;
-    const roll=Math.atan2(hip.x-knee.x,hip.y-knee.y)*180/Math.PI;
-    const degrees={x:pitch+visual.rotation.lowered.x+(visual.rotation.raised.x-visual.rotation.lowered.x)*lift,y:yaw+visual.rotation.lowered.y+(visual.rotation.raised.y-visual.rotation.lowered.y)*lift,z:roll+visual.rotation.lowered.z+(visual.rotation.raised.z-visual.rotation.lowered.z)*lift};
+    const bend=Math.acos(Math.max(-1,Math.min(1,((hip.x-knee.x)*(ankle.x-knee.x)+(hip.y-knee.y)*(ankle.y-knee.y))/(upper*lower))))/Math.PI;
+    // Only two-dimensional thigh/shin directions are measured. Rotate about
+    // screen Z; optional authored X/Y tuning may follow measured bend, but does
+    // not claim recovered 3D orientation or physical depth.
+    const shinAngle=Math.atan2(ankle.x-knee.x,knee.y-ankle.y)*180/Math.PI;
+    const degrees={x:visual.rotation.lowered.x+(visual.rotation.raised.x-visual.rotation.lowered.x)*bend,y:visual.rotation.lowered.y+(visual.rotation.raised.y-visual.rotation.lowered.y)*bend,z:shinAngle+visual.rotation.lowered.z+(visual.rotation.raised.z-visual.rotation.lowered.z)*bend};
     const pad=sceneObject(`knee-pad-${side}`,"knee_pad",side,null,{...knee},{x:1,y:1,z:1},null,visual.pad,0,1,null,false,false,null,null,knee.z,42,null,null,null,null);
     objects.push(Object.freeze({...pad,kneeOrientation:Object.freeze(degrees)}));
     if(!visual.settings.colliderVisible||visual.settings.colliderScale===0)continue;

@@ -23,7 +23,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number}} AeroKneeColliderVisualSettings */
 /** @typedef {{lowered:{x:number,y:number,z:number},raised:{x:number,y:number,z:number}}} AeroKneePadRotationTuning */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,kneeEnabled?:boolean,kneeJoints?:AeroMeasuredKneeJoints,kneeTargetAssetId?:string,kneePadAssetId?:string,kneeColliderSettings?:AeroKneeColliderVisualSettings,kneePadRotationTuning?:AeroKneePadRotationTuning,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,kneeEnabled?:boolean,kneeJoints?:AeroMeasuredKneeJoints,kneePreview?:boolean,kneePreviewJoints?:AeroMeasuredKneeJoints,kneeTargetAssetId?:string,kneePadAssetId?:string,kneeColliderSettings?:AeroKneeColliderVisualSettings,kneePadRotationTuning?:AeroKneePadRotationTuning,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two complementary side pieces with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the renderer retains this scored metadata but the visual always splits the authored GLB along local X=0 for its entire tail-to-tip length (or an orb diameter), independent of crossing. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
@@ -144,6 +144,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const experiment=normalizeGameplayVisualExperimentConfig(experimentConfig);
   if(!isPresentation(frame?.presentation)||!Number.isFinite(frame.nowMs)||!Array.isArray(frame.targets)||!(frame.showGameplayGrid===undefined||typeof frame.showGameplayGrid==="boolean")||!(frame.reducedMotion===undefined||typeof frame.reducedMotion==="boolean"))throw new TypeError("Gameplay frame is invalid");
   if(frame.kneeEnabled!==undefined&&typeof frame.kneeEnabled!=="boolean")throw new TypeError("Knee variant enabled state is invalid");
+  if(frame.kneePreview!==undefined&&typeof frame.kneePreview!=="boolean")throw new TypeError("Knee preview state is invalid");
   const kneeVisual=normalizeKneeVisualFrame(frame);
   if(frame.noseMarkerVisible!==undefined&&typeof frame.noseMarkerVisible!=="boolean")throw new TypeError("Frame nose marker visibility is invalid");
   if(frame.noseMarkerScale!==undefined&&(!Number.isFinite(frame.noseMarkerScale)||frame.noseMarkerScale<0||frame.noseMarkerScale>2))throw new TypeError("Frame nose marker scale is invalid");
@@ -236,7 +237,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
   if(sorted.some((target)=>target?.kind==="guard"&&target.family!=="guard"))throw new TypeError("Gameplay guard target family is invalid");
-  if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?9:10)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
+  if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||kneeVisual.preview||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?9:10)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
   const guidanceMode=frame.guidanceBandMode??experiment.guidanceBandMode;
   const guidance=buildGuidanceBands(frame,sorted,window,guidanceMode,presentationConfig,tuning);
   objects.push(...guidance.objects);
@@ -544,13 +545,16 @@ function targetState(target,nowMs,interval,window){if(target.judgement==="hit")r
 function normalizeHitTier(tier){return tier==="good"||tier==="almost"?"good":"great";}
 /** @param {AeroRenderableTarget} target */
 function obstacleInterval(target){const startMs=Number(target.intervalStartMs??target.beatCenterMs),endMs=Number(target.intervalEndMs??target.endMs??startMs);if(target.intervalEndMs!==undefined&&target.endMs!==undefined&&target.intervalEndMs!==target.endMs)throw new TypeError("Flow obstacle end bounds conflict");if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs<=startMs||endMs>86_400_000)throw new TypeError("Flow obstacle interval is invalid");return Object.freeze({startMs,endMs});}
-/** Current measured leg evidence is all-or-nothing per side; the renderer never retains a stale knee. */
+/** Play measured joints and opt-in Test-only preview joints remain mutually exclusive and never persist across frames. */
 function normalizeKneeVisualFrame(frame){
   const enabled=frame.kneeEnabled===true&&frame.presentation!=="flow"&&frame.overlay!=="tracking_lost";
   const target=frame.kneeTargetAssetId??gameplayAssetForRole("knee-target").id,pad=frame.kneePadAssetId??gameplayAssetForRole("knee-pad").id;
   if(gameplayAssetForRole("knee-target").id!==target||gameplayAssetForRole("knee-pad").id!==pad)throw new TypeError("Unknown pinned knee asset variant");
-  const joints=frame.kneeJoints;
-  if(joints!==undefined&&(!joints||typeof joints!=="object"||Array.isArray(joints)||!Object.hasOwn(joints,"left")||!Object.hasOwn(joints,"right")))throw new TypeError("Measured knee joints are invalid");
+  const preview=frame.kneePreview===true;
+  if(preview&&frame.kneeJoints!==undefined)throw new TypeError("Knee preview cannot consume measured Play joints");
+  if(!preview&&frame.kneePreviewJoints!==undefined)throw new TypeError("Knee preview joints require an explicit visual-only preview");
+  const joints=preview?frame.kneePreviewJoints:frame.kneeJoints;
+  if(joints!==undefined&&(!joints||typeof joints!=="object"||Array.isArray(joints)||!Object.hasOwn(joints,"left")||!Object.hasOwn(joints,"right")))throw new TypeError("Knee visual joints are invalid");
   /** @type {AeroMeasuredKneeJoints} */ const legs={left:null,right:null};
   for(const side of /** @type {const} */(["left","right"])){
     const leg=joints?.[side];if(leg===undefined||leg===null)continue;
@@ -564,7 +568,7 @@ function normalizeKneeVisualFrame(frame){
   if(!settings||typeof settings!=="object"||typeof settings.colliderVisible!=="boolean"||![settings.colliderScale,settings.colliderDepthForward,settings.colliderDepthBackward].every((v)=>Number.isFinite(v)&&v>=0))throw new TypeError("Knee collider visual settings are invalid");
   const rotation=frame.kneePadRotationTuning??{lowered:{x:0,y:0,z:0},raised:{x:0,y:0,z:0}};
   for(const pose of [rotation?.lowered,rotation?.raised])if(!pose||![pose.x,pose.y,pose.z].every((v)=>Number.isFinite(v)&&Math.abs(v)<=360))throw new TypeError("Knee pad rotation tuning is invalid");
-  return {enabled,target,pad,legs,settings,rotation};
+  return {enabled,preview,target,pad,legs,settings,rotation};
 }
 /** @param {ReturnType<typeof normalizeKneeVisualFrame>} visual */
 function kneeVisualObjects(visual){
@@ -579,7 +583,7 @@ function kneeVisualObjects(visual){
     const knee=project(leg.knee),hip=project(leg.hip),ankle=project(leg.ankle);
     const upper=Math.hypot(hip.x-knee.x,hip.y-knee.y),lower=Math.hypot(ankle.x-knee.x,ankle.y-knee.y);
     if(upper<1e-6||lower<1e-6)continue;
-    const dot=sceneObject(`knee-marker-${side}`,"knee_marker",side,null,{...knee},{x:1,y:1,z:1},null,"athlete-marker/sphere-v1",0,1,null,false,false,null,null,knee.z,41,null,null,null,null,"#F4C20D");objects.push(dot);
+    if(!visual.preview){const dot=sceneObject(`knee-marker-${side}`,"knee_marker",side,null,{...knee},{x:1,y:1,z:1},null,"athlete-marker/sphere-v1",0,1,null,false,false,null,null,knee.z,41,null,null,null,null,"#F4C20D");objects.push(dot);}
     const bend=Math.acos(Math.max(-1,Math.min(1,((hip.x-knee.x)*(ankle.x-knee.x)+(hip.y-knee.y)*(ankle.y-knee.y))/(upper*lower))))/Math.PI;
     // Only two-dimensional thigh/shin directions are measured. Rotate about
     // screen Z; optional authored X/Y tuning may follow measured bend, but does
@@ -588,7 +592,7 @@ function kneeVisualObjects(visual){
     const degrees={x:visual.rotation.lowered.x+(visual.rotation.raised.x-visual.rotation.lowered.x)*bend,y:visual.rotation.lowered.y+(visual.rotation.raised.y-visual.rotation.lowered.y)*bend,z:shinAngle+visual.rotation.lowered.z+(visual.rotation.raised.z-visual.rotation.lowered.z)*bend};
     const pad=sceneObject(`knee-pad-${side}`,"knee_pad",side,null,{...knee},{x:1,y:1,z:1},null,visual.pad,0,1,null,false,false,null,null,knee.z,42,null,null,null,null);
     objects.push(Object.freeze({...pad,kneeOrientation:Object.freeze(degrees)}));
-    if(!visual.settings.colliderVisible||visual.settings.colliderScale===0)continue;
+    if(visual.preview||!visual.settings.colliderVisible||visual.settings.colliderScale===0)continue;
     const radius=.27*visual.settings.colliderScale,front=.27*visual.settings.colliderDepthForward,back=.27*visual.settings.colliderDepthBackward;
     if(![radius,front,back,radius*2,front+back].every(Number.isFinite))throw new TypeError("Knee collider geometry is nonfinite");
     const start={x:knee.x,y:knee.y,z:knee.z+back},end={x:knee.x,y:knee.y,z:knee.z-front};

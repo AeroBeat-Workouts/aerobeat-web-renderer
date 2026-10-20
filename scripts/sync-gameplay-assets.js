@@ -24,7 +24,7 @@ const predecessorRelease="0.0.11";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
-const mode=args.includes("--verify")?"verify":args.includes("--sync")?"sync":null;
+const mode=args.includes("--verify")?"verify":null;
 const sourceArg=args.indexOf("--source");
 const source=path.resolve(sourceArg>=0?args[sourceArg+1]:defaultSource);
 const sourceRelease=path.join(source,"release/raw",release);
@@ -127,9 +127,8 @@ async function verifyTree(root,label){
   if(sha256(inv)!==expectedInv||sha256(proofFile)!==expectedPrf)throw new Error(`${label} release metadata mismatch`);
 }
 await verifyTree(sourceRelease,"source");
-// The immutable nine-asset package is authored once from the verified owner release
-// plus the renderer's two existing equipment GLBs. Routine verification never rewrites it.
-if(mode==="sync")throw new Error("Pinned 0.0.12 is immutable; verify the packaged release instead of replacing it");
+// This installed release is immutable. Future successor sync must stage only a fresh
+// version beside both retained releases; never remove or replace either existing tree.
 await stat(target);
 await verifyTree(target,"target");
 const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();

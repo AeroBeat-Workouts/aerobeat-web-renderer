@@ -413,12 +413,17 @@ function buildGuidanceBands(frame,targets,window,mode,config,tuning){
   }
   groups.push(...byIdentity.values());
   if(mode==="off")return Object.freeze({objects:Object.freeze([]),culledCount:0});
-  const leadMs=config.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs,maxMs=frame.nowMs+leadMs;
-  const cadenceMs=supplied?.length&&Number.isFinite(Math.max(...supplied))&&Math.max(...supplied)>1?Math.min(leadMs,Math.max(...supplied)):leadMs/8;
+  // Song rows use only mapped beats on the actual 72-WU track, including its near extension.
+  // Target-arrivals retains its existing lead/cadence and synthetic continuation behavior.
+  const extension=frame.trackExtensionWorldUnits??4;
+  const minMs=mode==="song_beat_grid"?frame.nowMs-extension/tuning.worldUnitsPerMs:frame.nowMs;
+  const leadMs=config.normalSpawnDistanceWorldUnits/tuning.worldUnitsPerMs;
+  const maxMs=mode==="song_beat_grid"?frame.nowMs+(72-extension)/tuning.worldUnitsPerMs:frame.nowMs+leadMs;
+  const cadenceMs=mode==="song_beat_grid"?0:leadMs/8;
   let anchors,cap;
   if(mode==="song_beat_grid"){
     const values=supplied??[];if(new Set(values).size!==values.length||values.some((value,index)=>index>0&&value<=values[index-1]))throw new TypeError("Guidance beat timestamps must be unique and strictly increasing");
-    anchors=values.filter((value)=>value>=frame.nowMs&&value<=maxMs);cap=MAX_SONG_GUIDANCE_BANDS;
+    anchors=values.filter((value)=>value>=minMs&&value<=maxMs).sort((left,right)=>right-left);cap=MAX_SONG_GUIDANCE_BANDS;
   }else{
     anchors=groups.filter((group)=>group.beatCenterMs>=frame.nowMs&&group.beatCenterMs<=maxMs&&group.members.some((target)=>target.judgement!=="hit"&&target.judgement!=="miss")).sort((a,b)=>a.beatCenterMs-b.beatCenterMs||a.identity.localeCompare(b.identity)).map((group)=>group.beatCenterMs);
     anchors=[...new Set(anchors)].sort((left,right)=>right-left);cap=MAX_TARGET_ARRIVAL_BANDS;
@@ -426,7 +431,7 @@ function buildGuidanceBands(frame,targets,window,mode,config,tuning){
   /** @type {{z:number,alpha:number,continuation:boolean}[]} */ const entries=anchors.slice(0,cap).map((timestamp)=>({z:timestampToWorldZ(timestamp,frame.nowMs,tuning.worldUnitsPerMs),alpha:.32,continuation:false}));
   let culled=Math.max(0,anchors.length-entries.length);
   const lastFutureAnchor=anchors.reduce((max,value)=>value>=frame.nowMs?Math.max(max,value):max,-Infinity);
-  for(let timestamp=(Number.isFinite(lastFutureAnchor)?lastFutureAnchor:frame.nowMs)+cadenceMs;timestamp<=maxMs;timestamp+=cadenceMs){
+  for(let timestamp=(Number.isFinite(lastFutureAnchor)?lastFutureAnchor:frame.nowMs)+cadenceMs;mode!=="song_beat_grid"&&timestamp<=maxMs;timestamp+=cadenceMs){
     if(entries.length<MAX_GUIDANCE_CONTINUATION_BANDS)entries.push({z:timestampToWorldZ(timestamp,frame.nowMs,tuning.worldUnitsPerMs),alpha:.16,continuation:true});
     else{culled+=1;break;}
   }

@@ -1,0 +1,4530 @@
+{
+  "reviewOnly": true,
+  "canonicalRenderer": true,
+  "notScoredGameplay": true,
+  "notTrackedLegs": true,
+  "descriptors": [
+    {
+      "type": "target",
+      "name": "open-prong-v1",
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d",
+      "bounds": [
+        [
+          -0.307,
+          -0.24,
+          -0.129
+        ],
+        [
+          0.307,
+          0.323,
+          0.044
+        ]
+      ]
+    },
+    {
+      "type": "target",
+      "name": "chevron-v1",
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100",
+      "bounds": [
+        [
+          -0.22819,
+          -0.371,
+          -0.138
+        ],
+        [
+          0.22819,
+          0.269,
+          0.016
+        ]
+      ]
+    },
+    {
+      "type": "target",
+      "name": "turtle-shell-strap-v1",
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca",
+      "bounds": [
+        [
+          -0.284,
+          -0.27785,
+          -0.2395
+        ],
+        [
+          0.284,
+          0.31185,
+          0.182
+        ]
+      ]
+    },
+    {
+      "type": "pad",
+      "name": "dome-strap-v1",
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328",
+      "bounds": [
+        [
+          -0.275,
+          -0.319,
+          -0.259
+        ],
+        [
+          0.275,
+          0.314,
+          0.146
+        ]
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "name": "open-prong-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 371.3384597027924,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 361.10425005291313,
+        "right": 381.76009729677946,
+        "top": 216.91666375358017,
+        "bottom": 235.66275011175728
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 101,
+      "trackPixels": 843,
+      "cuePixels": 2202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-left-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 331.72544681082695,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 313.20871638666506,
+        "right": 350.8265598546385,
+        "top": 233.7646154951217,
+        "bottom": 267.6446884019034
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 448,
+      "trackPixels": 1933,
+      "cuePixels": 3207,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-left-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 286.2270720034838,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 257.89111454937614,
+        "right": 315.85735159448814,
+        "top": 252.81059542253576,
+        "bottom": 304.58266555541366
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 1111,
+      "trackPixels": 3987,
+      "cuePixels": 4887,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-left-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 469.3930537355925,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 459.00258139893776,
+        "right": 479.6164956849094,
+        "top": 216.91666375358017,
+        "bottom": 235.66275011175728
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 98,
+      "trackPixels": 648,
+      "cuePixels": 2193,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-right-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 506.45038830544405,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 487.4474995092467,
+        "right": 524.9328406056247,
+        "top": 233.7646154951217,
+        "bottom": 267.6446884019034
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 445,
+      "trackPixels": 1336,
+      "cuePixels": 3208,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-right-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 549.0133840113879,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 519.6034166009414,
+        "right": 577.2715731169593,
+        "top": 252.81059542253576,
+        "bottom": 304.58266555541366
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 1107,
+      "trackPixels": 2624,
+      "cuePixels": 4888,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-right-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 371.3384597027924,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 363.81062057598217,
+        "right": 379.2372118662943,
+        "top": 218.64908487877088,
+        "bottom": 239.86451731396878
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 83,
+      "trackPixels": 843,
+      "cuePixels": 2202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-left-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 331.72544681082695,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 318.21446505716233,
+        "right": 346.4028955661911,
+        "top": 236.80743158641948,
+        "bottom": 275.019549537601
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 401,
+      "trackPixels": 1933,
+      "cuePixels": 3207,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-left-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 286.2270720034838,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 265.73863278269386,
+        "right": 309.32529666132575,
+        "top": 257.3124389040094,
+        "bottom": 315.47887233751163
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 1049,
+      "trackPixels": 3987,
+      "cuePixels": 4887,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-left-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 469.3930537355925,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 461.5276189857044,
+        "right": 476.9169855264055,
+        "top": 218.64908487877088,
+        "bottom": 239.86451731396878
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 83,
+      "trackPixels": 648,
+      "cuePixels": 2193,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-right-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 506.45038830544405,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 491.8778931611996,
+        "right": 519.9489517970965,
+        "top": 236.80743158641948,
+        "bottom": 275.019549537601
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 402,
+      "trackPixels": 1336,
+      "cuePixels": 3208,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-right-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 549.0133840113879,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 526.1504293165563,
+        "right": 569.4737027057407,
+        "top": 257.3124389040094,
+        "bottom": 315.47887233751163
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 1047,
+      "trackPixels": 2624,
+      "cuePixels": 4888,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-right-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 371.3384597027924,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 361.23058246333363,
+        "right": 381.34754800648807,
+        "top": 217.0971435437459,
+        "bottom": 237.34143791555059
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 209,
+      "trackPixels": 843,
+      "cuePixels": 2202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-left-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 331.72544681082695,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 312.5355463341979,
+        "right": 350.5419010289959,
+        "top": 233.84193432114466,
+        "bottom": 271.26998178900897
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 838,
+      "trackPixels": 1933,
+      "cuePixels": 3207,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-left-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 286.2270720034838,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 255.28141116653055,
+        "right": 316.17327627340273,
+        "top": 252.52342577820824,
+        "bottom": 311.1621266848792
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 2175,
+      "trackPixels": 3987,
+      "cuePixels": 4887,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-left-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 469.3930537355925,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 459.4413577506407,
+        "right": 479.4559268477844,
+        "top": 217.0971435437459,
+        "bottom": 237.34143791555059
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 212,
+      "trackPixels": 648,
+      "cuePixels": 2193,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-right-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 506.45038830544405,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 487.81369921256066,
+        "right": 525.4958355238504,
+        "top": 233.84193432114466,
+        "bottom": 271.26998178900897
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 835,
+      "trackPixels": 1336,
+      "cuePixels": 3208,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-right-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 549.0133840113879,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 519.4675826013674,
+        "right": 579.6281529833984,
+        "top": 252.52342577820824,
+        "bottom": 311.1621266848792
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 2166,
+      "trackPixels": 2624,
+      "cuePixels": 4888,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-right-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "cyan-coral",
+        "colors": [
+          "#19CBF0",
+          "#FD626A"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 5449,
+      "padAndLegDelta": 9615,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#19CBF0",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#FD626A",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-lowered-cyan-coral-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "amber-violet",
+        "colors": [
+          "#FFC247",
+          "#8A66ED"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 5862,
+      "padAndLegDelta": 9617,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#FFC247",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#8A66ED",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-lowered-amber-violet-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "cyan-coral",
+        "colors": [
+          "#19CBF0",
+          "#FD626A"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 8343,
+      "padAndLegDelta": 16992,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#19CBF0",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#FD626A",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-raised-cyan-coral-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "amber-violet",
+        "colors": [
+          "#FFC247",
+          "#8A66ED"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 8547,
+      "padAndLegDelta": 16992,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#FFC247",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#8A66ED",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-raised-amber-violet-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 153.9891439609563,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 145.70448272592938,
+        "right": 162.42552937143296,
+        "top": 439.7416866128941,
+        "bottom": 454.91676951440087
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 240,
+      "trackPixels": 1857,
+      "cuePixels": 16649,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-left-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 121.92214482404448,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 106.932727566548,
+        "right": 137.38462372416217,
+        "top": 453.38021678465736,
+        "bottom": 480.8063635144915
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 1103,
+      "trackPixels": 4682,
+      "cuePixels": 19202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-left-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 85.09090581536292,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 62.15275853258935,
+        "right": 109.07681553248518,
+        "top": 468.79806554608,
+        "bottom": 510.7079042845719
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 2968,
+      "trackPixels": 9972,
+      "cuePixels": 23555,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-left-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 233.36499435910537,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 224.95383743238304,
+        "right": 241.64093906868177,
+        "top": 439.7416866128941,
+        "bottom": 454.91676951440087
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 243,
+      "trackPixels": 1361,
+      "cuePixels": 16651,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-right-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 263.36315484202294,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 247.9801891257302,
+        "right": 278.32482372944276,
+        "top": 453.38021678465736,
+        "bottom": 480.8063635144915
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 1098,
+      "trackPixels": 3154,
+      "cuePixels": 19196,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-right-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "open-prong-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 297.8181848824024,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 274.01061934543,
+        "right": 320.69337816814243,
+        "top": 468.79806554608,
+        "bottom": 510.7079042845719
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 182
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 182
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 4,
+      "delta": 2972,
+      "trackPixels": 6514,
+      "cuePixels": 23502,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/open-prong-v1-right-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "6906093aee4cbc426ebefc835b6ccbfbe6cee28d8bc82eea19a68c8d4c6d842d"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 153.9891439609563,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 147.89530778489006,
+        "right": 160.38323672334622,
+        "top": 441.144093157534,
+        "bottom": 458.31812830514275
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 212,
+      "trackPixels": 1857,
+      "cuePixels": 16649,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-left-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 121.92214482404448,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 110.9849146312591,
+        "right": 133.80363786375827,
+        "top": 455.84339686167334,
+        "bottom": 486.7763631711128
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 991,
+      "trackPixels": 4682,
+      "cuePixels": 19202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-left-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 85.09090581536292,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 68.50537708526652,
+        "right": 103.78907332827187,
+        "top": 472.4423381017312,
+        "bottom": 519.528456909316
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 2754,
+      "trackPixels": 9972,
+      "cuePixels": 23555,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-left-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 233.36499435910537,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 226.99787226533945,
+        "right": 239.45566752061106,
+        "top": 441.144093157534,
+        "bottom": 458.31812830514275
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 209,
+      "trackPixels": 1361,
+      "cuePixels": 16651,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-right-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 263.36315484202294,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 251.56662245079212,
+        "right": 274.29033236885107,
+        "top": 455.84339686167334,
+        "bottom": 486.7763631711128
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 990,
+      "trackPixels": 3154,
+      "cuePixels": 19196,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-right-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "chevron-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 297.8181848824024,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 279.31046997434134,
+        "right": 314.3809498587196,
+        "top": 472.4423381017312,
+        "bottom": 519.528456909316
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 266
+        },
+        {
+          "material": "mat/white",
+          "vertices": 800
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 266
+        },
+        {
+          "material": "mat/target_tint",
+          "vertices": 24
+        },
+        {
+          "material": "mat/white",
+          "vertices": 24
+        }
+      ],
+      "tintMeshes": 2,
+      "delta": 2745,
+      "trackPixels": 6514,
+      "cuePixels": 23502,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/chevron-v1-right-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "8b4e295270e3f078e35328755b4ff2b8627fb1c133bbdf1daf0f25acae1a9100"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 153.9891439609563,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 145.80674965842658,
+        "right": 162.09156795839633,
+        "top": 439.88778621605826,
+        "bottom": 456.27567857422184
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 526,
+      "trackPixels": 1857,
+      "cuePixels": 16649,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-left-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 121.92214482404448,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 106.38779190311837,
+        "right": 137.15419049791183,
+        "top": 453.44280689399153,
+        "bottom": 483.74106287735947
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 2166,
+      "trackPixels": 4682,
+      "cuePixels": 19202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-left-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 85.09090581536292,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 60.04018617374066,
+        "right": 109.33255867326018,
+        "top": 468.5655997888973,
+        "bottom": 516.0340222901751
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 5597,
+      "trackPixels": 9972,
+      "cuePixels": 23555,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-left-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 233.36499435910537,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 225.30902982662707,
+        "right": 241.5109575203317,
+        "top": 439.88778621605826,
+        "bottom": 456.27567857422184
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 532,
+      "trackPixels": 1361,
+      "cuePixels": 16651,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-right-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 263.36315484202294,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 248.2766302365204,
+        "right": 278.7805718865828,
+        "top": 453.44280689399153,
+        "bottom": 483.74106287735947
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 2158,
+      "trackPixels": 3154,
+      "cuePixels": 19196,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-right-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "name": "turtle-shell-strap-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 297.8181848824024,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 273.90066081119954,
+        "right": 322.6010453515451,
+        "top": 468.5655997888973,
+        "bottom": 516.0340222901751
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/target_tint",
+          "vertices": 482
+        },
+        {
+          "material": "mat/white",
+          "vertices": 384
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 216
+        },
+        {
+          "material": "mat/white",
+          "vertices": 216
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        },
+        {
+          "material": "mat/charcoal",
+          "vertices": 114
+        }
+      ],
+      "tintMeshes": 1,
+      "delta": 5606,
+      "trackPixels": 6514,
+      "cuePixels": 23502,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/turtle-shell-strap-v1-right-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "ed92a95381484357435856b7a0d403c3207f4c7927c43daad8f7b5ac4656dcca"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "cyan-coral",
+        "colors": [
+          "#19CBF0",
+          "#FD626A"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 27414,
+      "padAndLegDelta": 29557,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#19CBF0",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#FD626A",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-lowered-cyan-coral-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "amber-violet",
+        "colors": [
+          "#FFC247",
+          "#8A66ED"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 28483,
+      "padAndLegDelta": 29569,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#FFC247",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#8A66ED",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-lowered-amber-violet-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "cyan-coral",
+        "colors": [
+          "#19CBF0",
+          "#FD626A"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 32366,
+      "padAndLegDelta": 54237,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#19CBF0",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#FD626A",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-raised-cyan-coral-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "amber-violet",
+        "colors": [
+          "#FFC247",
+          "#8A66ED"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 32851,
+      "padAndLegDelta": 54237,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#FFC247",
+          "tinted": 1
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#8A66ED",
+          "tinted": 1
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20/pad-raised-amber-violet-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "814e587687071e341ff512bc38ab21aad11b8641417a04e4ffc29f56b1a07328"
+    }
+  ]
+}

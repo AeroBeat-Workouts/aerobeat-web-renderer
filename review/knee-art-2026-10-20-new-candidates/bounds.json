@@ -1,0 +1,1994 @@
+{
+  "reviewOnly": true,
+  "facePlayer": true,
+  "newCandidates": true,
+  "canonicalRenderer": true,
+  "notScoredGameplay": true,
+  "notTrackedLegs": true,
+  "descriptors": [
+    {
+      "type": "target",
+      "name": "hover-shell-strike-v1",
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead",
+      "bounds": [
+        [
+          -0.311,
+          -0.247,
+          -0.247
+        ],
+        [
+          0.311,
+          0.29,
+          0.106
+        ]
+      ]
+    },
+    {
+      "type": "pad",
+      "name": "segmented-lightwrap-v1",
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a",
+      "bounds": [
+        [
+          -0.269,
+          -0.313,
+          -0.271
+        ],
+        [
+          0.269,
+          0.313,
+          0.1775
+        ]
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 371.3384597027924,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 360.68846333469935,
+        "right": 382.23640726212665,
+        "top": 217.78623867635864,
+        "bottom": 236.08301085849402
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 208,
+      "trackPixels": 843,
+      "cuePixels": 2202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-left-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 331.72544681082695,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 312.06264538212844,
+        "right": 352.13341879004116,
+        "top": 235.03653808261137,
+        "bottom": 268.66570435472846
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 831,
+      "trackPixels": 1933,
+      "cuePixels": 3207,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-left-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 286.2270720034838,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 255.4541182999568,
+        "right": 318.5782857013244,
+        "top": 254.26506394587494,
+        "bottom": 306.59737038841337
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 2070,
+      "trackPixels": 3987,
+      "cuePixels": 4887,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-left-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 469.3930537355925,
+        "y": 227.68486341433737
+      },
+      "box": {
+        "left": 458.5542631306407,
+        "right": 480.0169886600041,
+        "top": 217.78623867635864,
+        "bottom": 236.08301085849402
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 207,
+      "trackPixels": 648,
+      "cuePixels": 2193,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-right-far-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 506.45038830544405,
+        "y": 253.24164491384585
+      },
+      "box": {
+        "left": 486.2276318043715,
+        "right": 526.0299200294825,
+        "top": 235.03653808261137,
+        "bottom": 268.66570435472846
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 831,
+      "trackPixels": 1336,
+      "cuePixels": 3208,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-right-near-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 48,
+      "center": {
+        "x": 549.0133840113879,
+        "y": 282.5954339504242
+      },
+      "box": {
+        "left": 517.0745216313148,
+        "right": 579.5966132232058,
+        "top": 254.26506394587494,
+        "bottom": 306.59737038841337
+      },
+      "canvas": [
+        844,
+        390
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 2072,
+      "trackPixels": 2624,
+      "cuePixels": 4888,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-right-hit-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "cyan-magenta",
+        "colors": [
+          "#19CBF0",
+          "#E657A8"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 7339,
+      "padAndLegDelta": 10258,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#19CBF0",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#E657A8",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-lowered-cyan-magenta-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "yellow-royal-blue",
+        "colors": [
+          "#FFC247",
+          "#4265DB"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 7490,
+      "padAndLegDelta": 10258,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#FFC247",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#4265DB",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-lowered-yellow-royal-blue-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "cyan-magenta",
+        "colors": [
+          "#19CBF0",
+          "#E657A8"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 11553,
+      "padAndLegDelta": 17759,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#19CBF0",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#E657A8",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-raised-cyan-magenta-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "yellow-royal-blue",
+        "colors": [
+          "#FFC247",
+          "#4265DB"
+        ]
+      },
+      "viewport": {
+        "name": "landscape",
+        "width": 844,
+        "height": 390,
+        "dpr": 1
+      },
+      "facePlayer": true,
+      "canvas": [
+        844,
+        390
+      ],
+      "colored": 11640,
+      "padAndLegDelta": 17759,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#FFC247",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#4265DB",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-raised-yellow-royal-blue-landscape.png",
+      "pngSize": [
+        844,
+        390
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "left",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 153.9891439609563,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 145.3679005937959,
+        "right": 162.81110547720925,
+        "top": 440.44561335739445,
+        "bottom": 455.25697341350417
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 525,
+      "trackPixels": 1857,
+      "cuePixels": 16649,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-left-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "left",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 121.92214482404448,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 106.00497541537906,
+        "right": 138.44253478148775,
+        "top": 454.40984666796555,
+        "bottom": 481.63288279066677
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 2103,
+      "trackPixels": 4682,
+      "cuePixels": 19202,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-left-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "left",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 8,
+      "world": {
+        "x": -1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 85.09090581536292,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 60.17999375297629,
+        "right": 111.2794299078642,
+        "top": 469.9754675913702,
+        "bottom": 512.3388213879438
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 5397,
+      "trackPixels": 9972,
+      "cuePixels": 23555,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": -1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-left-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "right",
+      "distance": 1400,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -8.4
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 233.36499435910537,
+        "y": 448.4586166125625
+      },
+      "box": {
+        "left": 224.59092079213775,
+        "right": 241.96514081371598,
+        "top": 440.44561335739445,
+        "bottom": 455.25697341350417
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 530,
+      "trackPixels": 1361,
+      "cuePixels": 16651,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -8.4
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -8.4
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-right-far-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "right",
+      "distance": 420,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": -2.52
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 263.36315484202294,
+        "y": 469.14700300642784
+      },
+      "box": {
+        "left": 246.9926980499479,
+        "right": 279.2129168691657,
+        "top": 454.40984666796555,
+        "bottom": 481.63288279066677
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 2108,
+      "trackPixels": 3154,
+      "cuePixels": 19196,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": -2.52
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": -2.52
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-right-near-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "name": "hover-shell-strike-v1",
+      "side": "right",
+      "distance": 0,
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "authoredFrontWorld": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "cell": 11,
+      "world": {
+        "x": 1.5,
+        "y": 0,
+        "z": 0
+      },
+      "cameraPosition": {
+        "x": 0.05000000074505806,
+        "y": 1,
+        "z": 5
+      },
+      "cameraFov": 99.929061,
+      "center": {
+        "x": 297.8181848824024,
+        "y": 492.9090925216675
+      },
+      "box": {
+        "left": 271.96346193296426,
+        "right": 322.5755137028527,
+        "top": 469.9754675913702,
+        "bottom": 512.3388213879438
+      },
+      "canvas": [
+        780,
+        1688
+      ],
+      "meshInfo": [
+        {
+          "material": "mat/shell_white",
+          "vertices": 482
+        },
+        {
+          "material": "mat/shadow_charcoal",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 442
+        },
+        {
+          "material": "mat/strike_lime",
+          "vertices": 482
+        },
+        {
+          "material": "mat/cyan_rim",
+          "vertices": 384
+        }
+      ],
+      "tintMeshes": 0,
+      "rimMaterials": [
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        },
+        {
+          "name": "mat/cyan_rim",
+          "opacity": 0.8199999928474426,
+          "blendType": 2,
+          "depthTest": true,
+          "depthWrite": false
+        }
+      ],
+      "delta": 5412,
+      "trackPixels": 6514,
+      "cuePixels": 23502,
+      "production": {
+        "punch": {
+          "asset": "directional-arrow/rounded-outline-v1",
+          "position": {
+            "x": 1.5,
+            "y": 1,
+            "z": 0
+          }
+        },
+        "guards": [
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": -0.5,
+              "y": 2,
+              "z": 0
+            }
+          },
+          {
+            "asset": "guard/outlined-shield-v1",
+            "position": {
+              "x": 0.5,
+              "y": 2,
+              "z": 0
+            }
+          }
+        ],
+        "track": "track/blue-glass-v1"
+      },
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/hover-shell-strike-v1-right-hit-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "926e1813f420b25d764970f5bc7e15bff017d9b62eeb86200eef4c4d4e0bfead"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "cyan-magenta",
+        "colors": [
+          "#19CBF0",
+          "#E657A8"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 32326,
+      "padAndLegDelta": 31256,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#19CBF0",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#E657A8",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-lowered-cyan-magenta-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "pose": "lowered",
+      "pair": {
+        "name": "yellow-royal-blue",
+        "colors": [
+          "#FFC247",
+          "#4265DB"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 32725,
+      "padAndLegDelta": 31253,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#FFC247",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": -0.15,
+            "z": 1.2
+          },
+          "color": "#4265DB",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.08715574249514314,
+            "y": 0,
+            "z": 0.9961946981138378
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-lowered-yellow-royal-blue-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "cyan-magenta",
+        "colors": [
+          "#19CBF0",
+          "#E657A8"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 40855,
+      "padAndLegDelta": 56242,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#19CBF0",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#E657A8",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-raised-cyan-magenta-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    },
+    {
+      "pose": "raised",
+      "pair": {
+        "name": "yellow-royal-blue",
+        "colors": [
+          "#FFC247",
+          "#4265DB"
+        ]
+      },
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "facePlayer": true,
+      "canvas": [
+        780,
+        1688
+      ],
+      "colored": 41060,
+      "padAndLegDelta": 56242,
+      "positioned": [
+        {
+          "side": "left",
+          "knee": {
+            "x": -1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#FFC247",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": -0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        },
+        {
+          "side": "right",
+          "knee": {
+            "x": 1.1,
+            "y": 0.55,
+            "z": 1.55
+          },
+          "color": "#4265DB",
+          "tinted": 6,
+          "authoredFrontWorld": {
+            "x": 0.1418803954275866,
+            "y": -0.48212120752254134,
+            "z": 0.8645398166945918
+          }
+        }
+      ],
+      "assetState": "ready",
+      "path": "/home/derrick/.dsh/projects/aerobeat/aerobeat-web-renderer/review/knee-art-2026-10-20-new-candidates/pad-raised-yellow-royal-blue-phone.png",
+      "pngSize": [
+        390,
+        844
+      ],
+      "sha256": "9c68a860a50ee7c381ba7a8a357e2ce623eb92c78c9f70b65a2138762a50314a"
+    }
+  ]
+}

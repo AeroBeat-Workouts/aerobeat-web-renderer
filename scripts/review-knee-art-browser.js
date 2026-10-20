@@ -7,17 +7,18 @@ import {resolve,join,normalize,extname} from 'node:path';
 import {chromium} from 'playwright';
 
 const root=process.cwd(),assets=resolve(root,'../aerobeat-asset-gameplay/candidates/knee-art-2026-10-20');
-assert.ok(process.argv.length===2||process.argv.length===3&&process.argv[2]==='--face-player','Only optional --face-player is supported');
-const facePlayer=process.argv[2]==='--face-player';
-const out=resolve(root,facePlayer?'review/knee-art-2026-10-20-front-facing':'review/knee-art-2026-10-20');
-const names=['open-prong-v1','chevron-v1','turtle-shell-strap-v1'];
-const descriptors=await Promise.all([...names.map(name=>({type:'target',name,path:join(assets,'knee-target',name)})),{type:'pad',name:'dome-strap-v1',path:join(assets,'knee-pad/dome-strap-v1')}].map(async spec=>{
+assert.ok(process.argv.length===2||process.argv.length===3&&['--face-player','--new-candidates'].includes(process.argv[2]),'Only --face-player or --new-candidates is supported');
+const newCandidates=process.argv[2]==='--new-candidates',facePlayer=newCandidates||process.argv[2]==='--face-player';
+const out=resolve(root,newCandidates?'review/knee-art-2026-10-20-new-candidates':facePlayer?'review/knee-art-2026-10-20-front-facing':'review/knee-art-2026-10-20');
+const names=newCandidates?['hover-shell-strike-v1']:['open-prong-v1','chevron-v1','turtle-shell-strap-v1'];
+const padName=newCandidates?'segmented-lightwrap-v1':'dome-strap-v1';
+const descriptors=await Promise.all([...names.map(name=>({type:'target',name,path:join(assets,'knee-target',name)})),{type:'pad',name:padName,path:join(assets,'knee-pad',padName)}].map(async spec=>{
   const manifest=JSON.parse(await readFile(join(spec.path,'candidate-manifest.json'),'utf8'));
   const file=`${spec.name}.glb`,bytes=await readFile(join(spec.path,file));
   assert.equal(bytes.length,manifest.files[file].bytes);
   assert.equal(createHash('sha256').update(bytes).digest('hex'),manifest.files[file].sha256);
   assert.equal(manifest.status,'UNAPPROVED_CANDIDATE');
-  return {...spec,sha256:manifest.files[file].sha256,bounds:manifest.bounds,materials:manifest.materials,url:`/candidate/${spec.type}/${spec.name}.glb`};
+  return {...spec,sha256:manifest.files[file].sha256,bounds:manifest.geometry?.measured_aabb??manifest.bounds,materials:manifest.materials,url:`/candidate/${spec.type}/${spec.name}.glb`};
 }));
 const server=createServer(async(req,res)=>{try{
   const pathname=new URL(req.url??'/','http://127.0.0.1').pathname;
@@ -64,7 +65,7 @@ try{
     },descriptors.map(({name,url,bounds,materials,type})=>({name,url,bounds,materials,type})));
     for(const spec of descriptors.filter(d=>d.type==='target'))for(const side of ['left','right'])for(const distance of [{name:'far',leadMs:1400},{name:'near',leadMs:420},{name:'hit',leadMs:0}]){
       const id=`${spec.name}-${side}-${distance.name}-${viewport.name}`;
-      const row=await page.evaluate(({name,side,leadMs,viewport,facePlayer})=>{
+      const row=await page.evaluate(({name,side,leadMs,viewport,facePlayer,newCandidates})=>{
         const review=globalThis.__KNEE_REVIEW__,{renderer,pc,resources,instances}=review;
         for(const entity of instances.splice(0))entity.destroy();
         const nowMs=1000,beatCenterMs=nowMs+leadMs;
@@ -82,16 +83,20 @@ try{
         const entity=resources.get(name).instantiateRenderEntity({castShadows:true,receiveShadows:false});
         entity.name=`review-only-${name}-${side}`;renderer.app.root.addChild(entity);renderer.useGameplayLayer(entity,'target');
         entity.setPosition(x,y,z);entity.setLocalScale(punch.scale.x,punch.scale.y,punch.scale.z);
-        if(facePlayer)entity.setEulerAngles(0,180,0); // authored local −Z faces camera at world +Z
+        if(facePlayer&&!newCandidates)entity.setEulerAngles(0,180,0); // old assets: authored local −Z faces camera at world +Z; new hover shell specifies camera +Z
         const tint=side==='left'?'#19CBF0':'#FD626A';const rgb=tint.match(/[0-9A-F]{2}/g).map(h=>parseInt(h,16)/255);
-        let tintMeshes=0;const meshInfo=[];
+        let tintMeshes=0;const meshInfo=[],rimMaterials=[];
         for(const render of entity.findComponents('render'))for(const mesh of render.meshInstances){
           const old=mesh.material,material=old.clone();mesh.material=material;
           const sourceName=old.name??'';
           if(sourceName.includes('target_tint')){material.diffuse.set(...rgb);material.emissive.set(...rgb.map(v=>v*.32));material.update();tintMeshes++;}
+          if(newCandidates&&sourceName.includes('cyan_rim')){
+            if(material.blendType===pc.BLEND_NONE||material.opacity>=1)throw Error('Provisional cyan rim lost authored alpha blending');
+            rimMaterials.push({name:sourceName,opacity:material.opacity,blendType:material.blendType,depthTest:material.depthTest,depthWrite:material.depthWrite});
+          }
           meshInfo.push({material:sourceName,vertices:mesh.mesh?.vertexBuffer?.numVertices??0});
         }
-        if(!tintMeshes||!meshInfo.length)throw Error(`Candidate material/mesh missing: ${name}`);
+        if(!meshInfo.length||(newCandidates?rimMaterials.length===0:tintMeshes===0))throw Error(`Candidate material/mesh missing: ${name}`);
         instances.push(entity);renderer.manualTick();
         const camera=renderer.cameraEntity.camera,center=camera.worldToScreen(new pc.Vec3(x,y,z));
         const bounds=review.descriptors.find(d=>d.name===name).bounds;
@@ -101,7 +106,8 @@ try{
           projected.push(camera.worldToScreen(world));
         }
         const authoredFront=entity.getWorldTransform().transformVector(new pc.Vec3(0,0,-1)).normalize();
-        if(facePlayer&&authoredFront.z<.999)throw Error('Candidate authored front does not face player camera');
+        if(facePlayer&&!newCandidates&&authoredFront.z<.999)throw Error('Candidate authored front does not face player camera');
+        if(newCandidates&&authoredFront.z>-.999)throw Error('New hover shell camera +Z orientation has drifted');
         const box={left:Math.min(...projected.map(p=>p.x)),right:Math.max(...projected.map(p=>p.x)),top:Math.min(...projected.map(p=>p.y)),bottom:Math.max(...projected.map(p=>p.y))};
         const canvas=document.querySelector('#primary canvas');
         const sample=()=>{const copy=document.createElement('canvas');copy.width=canvas.width;copy.height=canvas.height;const ctx=copy.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);return ctx.getImageData(0,0,copy.width,copy.height).data};
@@ -111,8 +117,8 @@ try{
           if(withoutCandidate[i+2]>withoutCandidate[i]+20&&withoutCandidate[i+2]>withoutCandidate[i+1]+5)trackPixels++;
           if(withoutCandidate[i]>95&&withoutCandidate[i+1]>95&&withoutCandidate[i+2]>95)cuePixels++;
         }
-        return {name,side,distance:leadMs,viewport,facePlayer,authoredFrontWorld:{x:authoredFront.x,y:authoredFront.y,z:authoredFront.z},cell,world:{x,y,z},cameraPosition:{x:renderer.cameraEntity.getPosition().x,y:renderer.cameraEntity.getPosition().y,z:renderer.cameraEntity.getPosition().z},cameraFov:camera.fov,center:{x:center.x,y:center.y},box,canvas:[canvas.width,canvas.height],meshInfo,tintMeshes,delta,trackPixels,cuePixels,production:{punch:{asset:punch.assetId,position:punch.position},guards:guards.map(o=>({asset:o.assetId,position:o.position})),track:track.assetId},assetState:result.status.gameplayAssets.state};
-      },{name:spec.name,side,leadMs:distance.leadMs,viewport,facePlayer});
+        return {name,side,distance:leadMs,viewport,facePlayer,authoredFrontWorld:{x:authoredFront.x,y:authoredFront.y,z:authoredFront.z},cell,world:{x,y,z},cameraPosition:{x:renderer.cameraEntity.getPosition().x,y:renderer.cameraEntity.getPosition().y,z:renderer.cameraEntity.getPosition().z},cameraFov:camera.fov,center:{x:center.x,y:center.y},box,canvas:[canvas.width,canvas.height],meshInfo,tintMeshes,rimMaterials,delta,trackPixels,cuePixels,production:{punch:{asset:punch.assetId,position:punch.position},guards:guards.map(o=>({asset:o.assetId,position:o.position})),track:track.assetId},assetState:result.status.gameplayAssets.state};
+      },{name:spec.name,side,leadMs:distance.leadMs,viewport,facePlayer,newCandidates});
       assert.deepEqual(row.canvas,[viewport.width*Math.min(viewport.dpr,2),viewport.height*Math.min(viewport.dpr,2)]);
       assert.equal(row.production.track,'track/blue-glass-v1');assert.equal(row.production.guards.length,2);
       assert.equal(row.production.punch.asset,'directional-arrow/rounded-outline-v1');
@@ -123,9 +129,9 @@ try{
     }
     // Pad geometry is staged as illustrative non-tracked leg silhouettes on the same
     // native app/camera. The torso/leg proxies never enter gameplay or scored collision.
-    for(const pose of ['lowered','raised'])for(const pair of [{name:'cyan-coral',colors:['#19CBF0','#FD626A']},{name:'amber-violet',colors:['#FFC247','#8A66ED']}]){
+    for(const pose of ['lowered','raised'])for(const pair of newCandidates?[{name:'cyan-magenta',colors:['#19CBF0','#E657A8']},{name:'yellow-royal-blue',colors:['#FFC247','#4265DB']}]:[{name:'cyan-coral',colors:['#19CBF0','#FD626A']},{name:'amber-violet',colors:['#FFC247','#8A66ED']}]){
       const id=`pad-${pose}-${pair.name}-${viewport.name}`;
-      const row=await page.evaluate(({pose,pair,viewport,facePlayer})=>{
+      const row=await page.evaluate(({pose,pair,viewport,facePlayer,padName,newCandidates})=>{
         const review=globalThis.__KNEE_REVIEW__,{renderer,pc,resources,instances}=review;
         for(const entity of instances.splice(0))entity.destroy();
         const frame={presentation:'boxing_spatial_grid',nowMs:1000,colliderSettings:{},timingWindowBeforeMs:120,timingWindowAfterMs:240,targets:[]};
@@ -140,9 +146,9 @@ try{
           const material=new pc.StandardMaterial();material.diffuse.set(.31,.35,.43);material.emissive.set(.055,.065,.08);material.update();
           const leg=new pc.Entity(`review-only-leg-${index}`,renderer.app);leg.addComponent('render',{type:'cylinder',material});renderer.app.root.addChild(leg);
           leg.setPosition(x,raised?-.13:-.45,raised?1.42:1.04);leg.setLocalScale(.28,1.05,.28);if(raised)leg.setEulerAngles(side*24,0,side*-23);instances.push(leg);
-          const pad=resources.get('dome-strap-v1').instantiateRenderEntity({castShadows:false,receiveShadows:false});renderer.app.root.addChild(pad);renderer.useGameplayLayer(pad,'target');pad.setPosition(knee);pad.setEulerAngles(raised?-27:0,(facePlayer?180:0)+side*(raised?14:5),side*(raised?-9:0));
+          const pad=resources.get(padName).instantiateRenderEntity({castShadows:false,receiveShadows:false});renderer.app.root.addChild(pad);renderer.useGameplayLayer(pad,'target');pad.setPosition(knee);pad.setEulerAngles(raised?-27:0,(facePlayer?180:0)+side*(raised?14:5),side*(raised?-9:0));
           const rgb=pair.colors[index].match(/[0-9A-F]{2}/g).map(h=>parseInt(h,16)/255);let tinted=0;
-          for(const render of pad.findComponents('render'))for(const mesh of render.meshInstances){const m=mesh.material.clone(),name=m.name;mesh.material=m;if(name.includes('knee_tint')){m.diffuse.set(...rgb);m.emissive.set(...rgb.map(v=>v*.32));m.update();tinted++;}}
+          for(const render of pad.findComponents('render'))for(const mesh of render.meshInstances){const m=mesh.material.clone(),name=m.name;mesh.material=m;if(name.includes(newCandidates?'glove_match_tint':'knee_tint')){m.diffuse.set(...rgb);m.emissive.set(...rgb.map(v=>v*.32));m.update();tinted++;}}
           if(!tinted)throw Error('Pad tint material absent');
           const front=pad.getWorldTransform().transformVector(new pc.Vec3(0,0,-1)).normalize();
           if(facePlayer&&front.z<.75)throw Error('Posed pad authored front does not face player');
@@ -154,13 +160,13 @@ try{
         let padAndLegDelta=0;for(let i=0;i<withPads.length;i+=4)if(Math.abs(withPads[i]-withoutPads[i])+Math.abs(withPads[i+1]-withoutPads[i+1])+Math.abs(withPads[i+2]-withoutPads[i+2])>35)padAndLegDelta++;
         for(const entry of instances)entry.enabled=true;renderer.manualTick();
         return {pose,pair,viewport,facePlayer,canvas:[canvas.width,canvas.height],colored,padAndLegDelta,positioned,assetState:result.status.gameplayAssets.state};
-      },{pose,pair,viewport,facePlayer});
+      },{pose,pair,viewport,facePlayer,padName,newCandidates});
       assert.deepEqual(row.canvas,[viewport.width*Math.min(viewport.dpr,2),viewport.height*Math.min(viewport.dpr,2)]);assert.ok(row.colored>100&&row.padAndLegDelta>100,`${id}: blank pad/representative leg review`);
       const path=join(out,`${id}.png`);await page.locator('#primary canvas').screenshot({path,scale:'css'});rows.push({...row,path,pngSize:[viewport.width,viewport.height],sha256:descriptors.find(d=>d.type==='pad').sha256});
     }
     assert.deepEqual(errors,[],`Chromium page errors: ${errors.join('; ')}`);await page.close();
   }
   const evidence=join(out,'bounds.json');
-  await writeFile(evidence,JSON.stringify({reviewOnly:true,facePlayer,canonicalRenderer:true,notScoredGameplay:true,notTrackedLegs:true,descriptors:descriptors.map(({type,name,sha256,bounds})=>({type,name,sha256,bounds})),rows},null,2)+'\n');
+  await writeFile(evidence,JSON.stringify({reviewOnly:true,facePlayer,newCandidates,canonicalRenderer:true,notScoredGameplay:true,notTrackedLegs:true,descriptors:descriptors.map(({type,name,sha256,bounds})=>({type,name,sha256,bounds})),rows},null,2)+'\n');
   console.log(`Native review captured ${rows.length} PNGs and ${evidence}`);
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok));}

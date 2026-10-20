@@ -271,11 +271,10 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   });
 }
 
-/** Reuse three unscaled canonical segments with exact shared edges, never overlapping the authored translucent faces. @param {AeroGameplaySceneObject[]} objects */
+/** Place one native, unscaled 72-WU canonical GLB with its near edge at the frame extension. @param {AeroGameplaySceneObject[]} objects */
 function addTrack(objects,extension){
-  // The GLB spans exactly 24 WU. Move the entire chain toward the athlete to
-  // extend its near end; moving track-0 alone doubles alpha at its far join.
-  for(let index=0;index<3;index+=1){const z=-12-index*24+extension;objects.push(sceneObject(`track-${index}`,"track","neutral",null,{x:0,y:gameplayWorldGrid.floorY-0.08,z},{x:1,y:1,z:1},null,ASSET.track,0,1,null,false,false,null,null,z,24,null,null,null));}
+  const z=extension-36;
+  objects.push(sceneObject("track-0","track","neutral",null,{x:0,y:gameplayWorldGrid.floorY-0.08,z},{x:1,y:1,z:1},null,ASSET.track,0,1,null,false,false,null,null,z,24,null,null,null));
 }
 /** @typedef {Readonly<{topRowReachWU:number,bottomRowReachWU:number}>} AeroFrameRowReach */
 /** Row-reach fractions for the `boxing_collider` presentation: reach rows 0/1/2 render at the shared `boxingColliderRowY` world Y. */

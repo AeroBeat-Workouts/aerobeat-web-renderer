@@ -1,37 +1,36 @@
 // @ts-check
 
 import {createHash} from "node:crypto";
-import {chmod,cp,mkdir,readFile,readdir,rm,stat} from "node:fs/promises";
+import {readFile,readdir,stat} from "node:fs/promises";
 import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const expectedReleaseCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
-const expectedReleaseSourceTree="d027617131fe2e291e451c5414169c52a6a5b867";
-const expectedAuditCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
-const expectedAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
-// 0.0.62 L-C (r2lb r1a): the asset-source repo (pinned to a157d93) has the
-// original 7-entry inventory/proof. The renderer target (assets/gameplay/
-// 0.0.11/) has the 9-entry inventory (flow-saber + boxing-glove added) + updated proof.
-const expectedSourceInventoryHash="e65571211e7a5a44224c378dbb654afd56263dc37f427a9b3f0af6453a6f1d23";
-const expectedSourceProofHash="0c194b1a8f290cfe387ee34154199cc0758ace8baf9b60fa4a3beb5bdddf4227";
-const expectedInventoryHash="b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29";
-const expectedProofHash="a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3";
-const expectedSetHash="af294a9e1e6654ccfd56c7b42b1f3fefdd536f4eb9bc4fb026ead8a3f970c8a7";
+const expectedReleaseCommit="398d0370af86fbb7c411845139990f9e0be11cb6";
+const expectedReleaseSourceTree="90773e1b3254f640bf7d082ef1d7eac8b6259ecc";
+const expectedAuditCommit=expectedReleaseCommit;
+const expectedAuditTree=expectedReleaseSourceTree;
+// The asset owner ships seven 0.0.12 GLBs; this renderer retains its two independently
+// pinned Flow-saber/Boxing-glove GLBs in one nine-asset packaged inventory/proof.
+const expectedSourceInventoryHash="1a6846e7d5ef92e2a271dfb2acecfbb1295ed3ab2bad3d4abc306b5930044eb9";
+const expectedSourceProofHash="6fc8937bbba25296de9110ffa20a7526d877df70be1d078cf064b176ff4d81fd";
+const expectedInventoryHash="a7a4902e7aa0bf92da8179dd4149e4e241e04ac64d0b9887d66151dacbf30231";
+const expectedProofHash="f37bb12bc3cafc53e0e3314c95e8bd0551a76a1366ee16e9af4adcb522dc9910";
+const expectedSetHash="bfdc33a670cde20ef19878b9fb445f5ecb5563802aa6ae2d351cf665a2f0e3f0";
 const expectedMarkerGlbHash="f376934f218a25c11f2f31928c67684611aaf9c73aa1724548682ae280b5cbcc";
-const expectedReleaseTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";
-const release="0.0.11";
-const predecessorRelease="0.0.10";
+const expectedReleaseTree="08e8f8524d6e6642c65d5842ab05ec2095a30b97";
+const release="0.0.12";
+const predecessorRelease="0.0.11";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const defaultSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const args=process.argv.slice(2);
-const mode=args.includes("--sync")?"sync":args.includes("--verify")?"verify":null;
+const mode=args.includes("--verify")?"verify":args.includes("--sync")?"sync":null;
 const sourceArg=args.indexOf("--source");
 const source=path.resolve(sourceArg>=0?args[sourceArg+1]:defaultSource);
 const sourceRelease=path.join(source,"release/raw",release);
 const packageRoot=path.join(rendererRoot,"assets/gameplay");
 const target=path.join(packageRoot,release);
-if(!mode)throw new Error("Usage: node scripts/sync-gameplay-assets.js (--sync|--verify) [--source PATH]");
+if(!mode)throw new Error("Usage: node scripts/sync-gameplay-assets.js --verify [--source PATH]");
 if(sourceArg>=0&&!args[sourceArg+1])throw new Error("--source requires a path");
 
 const commit=execFileSync("git",["rev-parse","HEAD"],{cwd:source,encoding:"utf8"}).trim();
@@ -69,6 +68,7 @@ if(inventory.expected_asset_count!==9||inventory.immutable!==true||inventory.pay
 if(proof.release!==release||proof.inventory_sha256!==expectedInventoryHash)throw new Error("target proof contract mismatch");
 const setEntry=inventory.payload.find(({path:relative})=>relative==="sets/default-v1.json");
 if(setEntry?.sha256!==expectedSetHash)throw new Error("source set identity mismatch");
+for(const sourceEntry of sourceInventory.payload){const packaged=inventory.payload.find((entry)=>entry.path===sourceEntry.path);if(!packaged||packaged.sha256!==sourceEntry.sha256||packaged.bytes!==sourceEntry.bytes)throw new Error(`packaged owner asset drifted: ${sourceEntry.path}`);}
 const markerEntry=inventory.payload.find(({path:relative})=>relative==="athlete-marker/sphere-v1.glb");
 if(markerEntry?.sha256!==expectedMarkerGlbHash||markerEntry?.bytes!==90520)throw new Error("source tint-dominant marker identity mismatch");
 const expectedWall={adjacent_gap:[.06,.06],adjacent_instances_overlap:false,body_triangles:12,cell_pitch:[1,1],centered_pivot:true,closed_body:true,edge_cage:false,material_primitives:1,source_dimensions:[.94,.94,1],uniform_surface:true,unit_cell_footprint:[.94,.94],xy_scale_authoritative:[1,1],z_scale_authoritative:true};
@@ -89,21 +89,20 @@ for(const [identity,fillRole,runtimeTintable,fillMaterial] of cueContracts){
 }
 for(const relative of ["directional-arrow/rounded-outline-v1.glb","any-note/outlined-circle-v1.glb","guard/outlined-shield-v1.glb","bomb/urchin-v1.glb","track/blue-glass-v1.glb","wall/red-glass-v1.glb"]){
   const currentBytes=await readFile(path.join(sourceRelease,relative)),predecessorBytes=await readFile(path.join(source,`release/raw/${predecessorRelease}`,relative));
-  if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from ${predecessorRelease}: ${relative}`);
+  if(relative==="track/blue-glass-v1.glb"){
+    if(currentBytes.equals(predecessorBytes))throw new Error("canonical 72-WU track did not change from 0.0.11");
+  }else if(!currentBytes.equals(predecessorBytes))throw new Error(`unchanged GLB drifted from ${predecessorRelease}: ${relative}`);
 }
 // 0.0.62 L-C (r2lb r1a): the source tree has 7 GLBs (the asset-source commit
 // predates the flow-saber). The target tree has 9 GLBs (flow-saber + boxing-glove added).
+const trackManifest=JSON.parse(await readFile(path.join(sourceRelease,"manifests/track/blue-glass-v1.v1.json"),"utf8"));
+const trackContract=trackManifest.materials?.contract;
+if(JSON.stringify(trackManifest.geometry?.dimensions)!==JSON.stringify([4.2,.06,72])||JSON.stringify(trackContract?.rail_centers_x)!==JSON.stringify([-2,-1,0,1,2])||trackContract.beat_columns!==4||trackContract.segment_joins!==false||trackContract.continuous_depth!==72||trackManifest.files?.release_sha256!=="93e8dc45f7f6be58aa90ddc7a2def16b54b830ad6882b881fe72dc558f42dfba")throw new Error("source canonical four-column continuous track contract mismatch");
 const expectedSourceFiles=[...sourceInventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
 if(expectedSourceFiles.length!==17||new Set(expectedSourceFiles).size!==17)throw new Error("source exact inventory mismatch");
 const expectedTargetFiles=[...inventory.payload.map(({path:relative})=>relative),"inventory.v1.json","proof.v1.json"].sort();
 if(expectedTargetFiles.length!==19||new Set(expectedTargetFiles).size!==19)throw new Error("target exact inventory mismatch");
 
-async function makeDirectoriesWritable(root){
-  let entries;
-  try{entries=await readdir(root,{withFileTypes:true});}catch(error){if(error?.code==="ENOENT")return;throw error;}
-  await chmod(root,0o755);
-  for(const entry of entries)if(entry.isDirectory())await makeDirectoriesWritable(path.join(root,entry.name));
-}
 async function filesUnder(root,current=""){
   const result=[];
   for(const entry of await readdir(path.join(root,current),{withFileTypes:true})){
@@ -128,12 +127,9 @@ async function verifyTree(root,label){
   if(sha256(inv)!==expectedInv||sha256(proofFile)!==expectedPrf)throw new Error(`${label} release metadata mismatch`);
 }
 await verifyTree(sourceRelease,"source");
-if(mode==="sync"){
-  await makeDirectoriesWritable(packageRoot);
-  await rm(packageRoot,{recursive:true,force:true});
-  await mkdir(packageRoot,{recursive:true});
-  await cp(sourceRelease,target,{recursive:true,preserveTimestamps:false});
-}
+// The immutable nine-asset package is authored once from the verified owner release
+// plus the renderer's two existing equipment GLBs. Routine verification never rewrites it.
+if(mode==="sync")throw new Error("Pinned 0.0.12 is immutable; verify the packaged release instead of replacing it");
 await stat(target);
 await verifyTree(target,"target");
 const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();

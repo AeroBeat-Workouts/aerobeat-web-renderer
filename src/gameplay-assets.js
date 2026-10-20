@@ -1,13 +1,13 @@
 // @ts-check
 
-export const gameplayAssetReleaseVersion="0.0.11";
-export const gameplayAssetSourceCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
-export const gameplayAssetSourceTree="d027617131fe2e291e451c5414169c52a6a5b867";
-export const gameplayAssetAuditCommit="a157d930a07e971ae905a51fdf613b6e7af9e7d2";
-export const gameplayAssetAuditTree="d027617131fe2e291e451c5414169c52a6a5b867";
-export const gameplayAssetRawTree="af911e693622e5f21aa1f2c6f3321fb6541ed312";
-export const gameplayAssetInventorySha256="b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29";
-export const gameplayAssetProofSha256="a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3";
+export const gameplayAssetReleaseVersion="0.0.12";
+export const gameplayAssetSourceCommit="398d0370af86fbb7c411845139990f9e0be11cb6";
+export const gameplayAssetSourceTree="90773e1b3254f640bf7d082ef1d7eac8b6259ecc";
+export const gameplayAssetAuditCommit="398d0370af86fbb7c411845139990f9e0be11cb6";
+export const gameplayAssetAuditTree="90773e1b3254f640bf7d082ef1d7eac8b6259ecc";
+export const gameplayAssetRawTree="08e8f8524d6e6642c65d5842ab05ec2095a30b97";
+export const gameplayAssetInventorySha256="a7a4902e7aa0bf92da8179dd4149e4e241e04ac64d0b9887d66151dacbf30231";
+export const gameplayAssetProofSha256="f37bb12bc3cafc53e0e3314c95e8bd0551a76a1366ee16e9af4adcb522dc9910";
 
 const definitions=[
   ["any-note/outlined-circle-v1","any-note","outlined-circle-v1",142020,"eb1368f09fe3034b9690e18f17e066ea4af7d20522f7c3ee009888c01f5235a6"],
@@ -17,7 +17,7 @@ const definitions=[
   ["directional-arrow/rounded-outline-v1","directional-arrow","rounded-outline-v1",152916,"75435bc79c0278da5488ab05d1a97ac409cdab390e10483748c30a5aa67ad7e4"],
   ["flow-saber/flow-saber-v1","flow-saber","flow-saber-v1",6492,"ed4fce456f4b665f5d3589861a2233b6c67becd86a0fcf5765bb5f48289f40d3"],
   ["guard/outlined-shield-v1","guard","outlined-shield-v1",93944,"5c456ed0d6db8fbc500b7d9815ac72a2f5e40ae86ee582f01b80b40e4c03e09e"],
-  ["track/blue-glass-v1","track","blue-glass-v1",2480,"46cb72ed47a235e9bf40305bac2355b02ca47aa6b39278503cd6fc1b32cef987"],
+  ["track/blue-glass-v1","track","blue-glass-v1",2652,"93e8dc45f7f6be58aa90ddc7a2def16b54b830ad6882b881fe72dc558f42dfba"],
   ["wall/red-glass-v1","wall","red-glass-v1",2316,"6a336116709c2f3c1d92453fe1b3a2821e03d31128dae72d0fc700627fa94cd7"]
 ];
 

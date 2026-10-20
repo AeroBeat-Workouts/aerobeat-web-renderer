@@ -539,10 +539,8 @@ export class AeroPlayCanvasRenderer {
     entity.addComponent("light",{type:"directional",color:new pc.Color(1,1,1),intensity:2,castShadows:true,shadowType:pc.SHADOW_PCF3_32F,shadowResolution:2048,shadowIntensity:.4,shadowBias:0.001,normalOffsetBias:0.02,shadowDistance:12,layers:[pc.LAYERID_WORLD,this.gameplayTargetLayer?.id??pc.LAYERID_WORLD,this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
     this.app.root.addChild(entity);
     this.shadowLightEntity=entity;
-    // The pinned glass track spans world Y [floorY-.14, floorY-.08]. Place the
-    // receiver top .01 below that glass, rather than occluding it from above.
-    // The pinned track reaches X ±2.1 (0.1 beyond the logical 4-cell grid).
-    // Match the visible art in X/Z without changing gameplay or collision bounds.
+    // The pinned 72-WU glass spans world Y [floorY-.14, floorY-.08]. Place the
+    // receiver top .01 below it. The GLB reaches X ±2.1, 0.1 beyond the logical grid.
     const floor=new pc.Entity("aero-shadow-floor",this.app);
     floor.addComponent("render",{type:"box",layers:[this.shadowReceiverLayer?.id??pc.LAYERID_WORLD]});
     this.app.root.addChild(floor);
@@ -559,21 +557,21 @@ export class AeroPlayCanvasRenderer {
     floor.render.material=floorMaterial;
     this.ownedMaterials.add(floorMaterial);
     const thickness=.02,receiverTop=gameplayWorldGrid.floorY-.15,trackSideOverhang=.1;
-    // Three 24-WU glass segments span [extension-72, extension]; default extension is 4.
+    // One unscaled 72-WU GLB spans [extension-72, extension]; default extension is 4.
     floor.setLocalScale(gameplayWorldGrid.columns+2*trackSideOverhang,thickness,72);
     floor.setPosition(0,receiverTop-thickness/2,-32);
     this.shadowFloorEntity=floor;
   }
-  /** Keep the visual-only receiver flush with all three authored glass segments. */
+  /** Keep the visual-only receiver flush with the single authored 72-WU GLB. */
   syncShadowReceiverToTrack(objects){
     const floor=this.shadowFloorEntity;if(!floor)return;
     let minZ=Infinity,maxZ=-Infinity,segments=0;
     for(const object of objects)if(object.kind==="track"){
-      minZ=Math.min(minZ,object.position.z-12);
-      maxZ=Math.max(maxZ,object.position.z+12);
+      minZ=Math.min(minZ,object.position.z-36);
+      maxZ=Math.max(maxZ,object.position.z+36);
       segments++;
     }
-    if(segments!==3||!(maxZ>minZ))throw new Error("Shadow receiver requires three authored track segments");
+    if(segments!==1||!(maxZ>minZ))throw new Error("Shadow receiver requires one authored 72-WU track");
     const {x:width,y:height,z:currentLength}=floor.getLocalScale(),{x,y,z:currentCenter}=floor.getPosition();
     const length=maxZ-minZ,center=(minZ+maxZ)/2;
     if(currentLength===length&&currentCenter===center)return;

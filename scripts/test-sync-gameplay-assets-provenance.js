@@ -6,7 +6,7 @@ import path from "node:path";
 import {execFileSync,spawnSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const releaseSourceTree="15b66a5916cc9b3bd441eff1d0063913aa6eb124";
+const releaseSourceTree="08e8f8524d6e6642c65d5842ab05ec2095a30b97";
 const rendererRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const canonicalSource=path.resolve(rendererRoot,"../aerobeat-asset-gameplay");
 const validator=path.join(rendererRoot,"scripts/sync-gameplay-assets.js");

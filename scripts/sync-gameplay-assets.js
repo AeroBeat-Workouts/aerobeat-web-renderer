@@ -133,5 +133,13 @@ if(mode==="sync")throw new Error("Pinned 0.0.12 is immutable; verify the package
 await stat(target);
 await verifyTree(target,"target");
 const packagedReleases=(await readdir(path.join(rendererRoot,"assets/gameplay"),{withFileTypes:true})).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort();
-if(JSON.stringify(packagedReleases)!==JSON.stringify([release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
+if(JSON.stringify(packagedReleases)!==JSON.stringify([predecessorRelease,release]))throw new Error(`renderer gameplay releases drifted: ${packagedReleases.join(",")}`);
+// Historical 0.0.11 is retained byte-identically; only 0.0.12 is selected by gameplay-assets.js.
+const priorInventoryBytes=await readFile(path.join(packageRoot,predecessorRelease,"inventory.v1.json"));
+const priorProofBytes=await readFile(path.join(packageRoot,predecessorRelease,"proof.v1.json"));
+if(sha256(priorInventoryBytes)!=="b043fe4f039f34527aae229224e0fb1f4069848b67ea5a89a51d732f063cac29"||sha256(priorProofBytes)!=="a3c9ffbd4d07fa2d8b0810d8b22210145c35a479d87399c5ac87060f7b7614d3")throw new Error("historical 0.0.11 release metadata drifted");
+const priorInventory=JSON.parse(priorInventoryBytes.toString("utf8"));
+const priorFiles=[...priorInventory.payload.map((entry)=>entry.path),"inventory.v1.json","proof.v1.json"].sort();
+if(JSON.stringify(await filesUnder(path.join(packageRoot,predecessorRelease)))!==JSON.stringify(priorFiles))throw new Error("historical 0.0.11 release inventory drifted");
+for(const entry of priorInventory.payload){const bytes=await readFile(path.join(packageRoot,predecessorRelease,entry.path));if(bytes.length!==entry.bytes||sha256(bytes)!==entry.sha256)throw new Error(`historical 0.0.11 payload drifted: ${entry.path}`);}
 console.log(`${mode} gameplay ${release}: source ${expectedSourceFiles.length} files, target ${expectedTargetFiles.length} files, source inv ${expectedSourceInventoryHash}, target inv ${expectedInventoryHash}, source proof ${expectedSourceProofHash}, target proof ${expectedProofHash}, source ${commit}`);

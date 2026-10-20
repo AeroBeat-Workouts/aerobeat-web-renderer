@@ -67,7 +67,8 @@ for(const presentation of presentations){
   assert.equal(song.guidance.mode,"song_beat_grid");
 }
 
-const denseSong=buildGameplaySceneModel(frame("flow",[],{guidanceBeatTimestampsMs:Array.from({length:40},(_,index)=>1081+index*25)}),undefined,undefined,undefined,config("song_beat_grid"));assert.deepEqual(denseSong.guidance,{mode:"song_beat_grid",visibleBandCount:16,culledBandCount:24},"dense song grid keeps the nearest 16 real anchors without fabricated continuation");assert.equal(bands(denseSong).length,16);assert.equal(bands(denseSong).filter((entry)=>entry.alpha===.32).length,16);
+const denseSong=buildGameplaySceneModel(frame("flow",[],{guidanceBeatTimestampsMs:Array.from({length:100},(_,index)=>1081+index*25)}),undefined,undefined,undefined,config("song_beat_grid"));assert.deepEqual(denseSong.guidance,{mode:"song_beat_grid",visibleBandCount:64,culledBandCount:36},"runaway beat density remains bounded to 64 mapped rows without fabricated continuation");assert.equal(bands(denseSong).length,64);assert.equal(bands(denseSong).filter((entry)=>entry.alpha===.32).length,64);
+const quarterNotes=Array.from({length:25},(_,index)=>2000+index*500),quarterModel=buildGameplaySceneModel(frame("flow",[],{nowMs:2000,trackExtensionWorldUnits:2,guidanceBeatTimestampsMs:quarterNotes}),undefined,undefined,undefined,config("song_beat_grid"));assert.deepEqual(quarterModel.guidance,{mode:"song_beat_grid",visibleBandCount:24,culledBandCount:0},"120BPM quarter notes fill 70 WU future glass, 24 rows including near and far");assert.deepEqual(bands(quarterModel).map((entry)=>entry.position.z),quarterNotes.slice(0,24).reverse().map((value)=>0-(value-2000)*.006));
 for(const presentation of presentations)for(const extension of [0,2,4,20]){
   const nowMs=2000,msPerWu=1/.006,near=nowMs-extension*msPerWu,far=nowMs+(72-extension)*msPerWu;
   const timestamps=[Math.max(0,near-1),near,nowMs,far,far+1].filter((value,index,array)=>index===0||value>array[index-1]);

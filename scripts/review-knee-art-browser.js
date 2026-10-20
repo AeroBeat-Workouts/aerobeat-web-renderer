@@ -7,7 +7,9 @@ import {resolve,join,normalize,extname} from 'node:path';
 import {chromium} from 'playwright';
 
 const root=process.cwd(),assets=resolve(root,'../aerobeat-asset-gameplay/candidates/knee-art-2026-10-20');
-const out=resolve(root,'review/knee-art-2026-10-20');
+assert.ok(process.argv.length===2||process.argv.length===3&&process.argv[2]==='--face-player','Only optional --face-player is supported');
+const facePlayer=process.argv[2]==='--face-player';
+const out=resolve(root,facePlayer?'review/knee-art-2026-10-20-front-facing':'review/knee-art-2026-10-20');
 const names=['open-prong-v1','chevron-v1','turtle-shell-strap-v1'];
 const descriptors=await Promise.all([...names.map(name=>({type:'target',name,path:join(assets,'knee-target',name)})),{type:'pad',name:'dome-strap-v1',path:join(assets,'knee-pad/dome-strap-v1')}].map(async spec=>{
   const manifest=JSON.parse(await readFile(join(spec.path,'candidate-manifest.json'),'utf8'));
@@ -62,7 +64,7 @@ try{
     },descriptors.map(({name,url,bounds,materials,type})=>({name,url,bounds,materials,type})));
     for(const spec of descriptors.filter(d=>d.type==='target'))for(const side of ['left','right'])for(const distance of [{name:'far',leadMs:1400},{name:'near',leadMs:420},{name:'hit',leadMs:0}]){
       const id=`${spec.name}-${side}-${distance.name}-${viewport.name}`;
-      const row=await page.evaluate(({name,side,leadMs,viewport})=>{
+      const row=await page.evaluate(({name,side,leadMs,viewport,facePlayer})=>{
         const review=globalThis.__KNEE_REVIEW__,{renderer,pc,resources,instances}=review;
         for(const entity of instances.splice(0))entity.destroy();
         const nowMs=1000,beatCenterMs=nowMs+leadMs;
@@ -80,6 +82,7 @@ try{
         const entity=resources.get(name).instantiateRenderEntity({castShadows:true,receiveShadows:false});
         entity.name=`review-only-${name}-${side}`;renderer.app.root.addChild(entity);renderer.useGameplayLayer(entity,'target');
         entity.setPosition(x,y,z);entity.setLocalScale(punch.scale.x,punch.scale.y,punch.scale.z);
+        if(facePlayer)entity.setEulerAngles(0,180,0); // authored local −Z faces camera at world +Z
         const tint=side==='left'?'#19CBF0':'#FD626A';const rgb=tint.match(/[0-9A-F]{2}/g).map(h=>parseInt(h,16)/255);
         let tintMeshes=0;const meshInfo=[];
         for(const render of entity.findComponents('render'))for(const mesh of render.meshInstances){
@@ -93,7 +96,12 @@ try{
         const camera=renderer.cameraEntity.camera,center=camera.worldToScreen(new pc.Vec3(x,y,z));
         const bounds=review.descriptors.find(d=>d.name===name).bounds;
         const projected=[];
-        for(const a of [bounds[0][0],bounds[1][0]])for(const b of [bounds[0][1],bounds[1][1]])for(const c of [bounds[0][2],bounds[1][2]])projected.push(camera.worldToScreen(new pc.Vec3(x+a*punch.scale.x,y+b*punch.scale.y,z+c*punch.scale.z)));
+        for(const a of [bounds[0][0],bounds[1][0]])for(const b of [bounds[0][1],bounds[1][1]])for(const c of [bounds[0][2],bounds[1][2]]){
+          const world=entity.getWorldTransform().transformPoint(new pc.Vec3(a,b,c));
+          projected.push(camera.worldToScreen(world));
+        }
+        const authoredFront=entity.getWorldTransform().transformVector(new pc.Vec3(0,0,-1)).normalize();
+        if(facePlayer&&authoredFront.z<.999)throw Error('Candidate authored front does not face player camera');
         const box={left:Math.min(...projected.map(p=>p.x)),right:Math.max(...projected.map(p=>p.x)),top:Math.min(...projected.map(p=>p.y)),bottom:Math.max(...projected.map(p=>p.y))};
         const canvas=document.querySelector('#primary canvas');
         const sample=()=>{const copy=document.createElement('canvas');copy.width=canvas.width;copy.height=canvas.height;const ctx=copy.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);return ctx.getImageData(0,0,copy.width,copy.height).data};
@@ -103,8 +111,8 @@ try{
           if(withoutCandidate[i+2]>withoutCandidate[i]+20&&withoutCandidate[i+2]>withoutCandidate[i+1]+5)trackPixels++;
           if(withoutCandidate[i]>95&&withoutCandidate[i+1]>95&&withoutCandidate[i+2]>95)cuePixels++;
         }
-        return {name,side,distance:leadMs,viewport,cell,world:{x,y,z},cameraPosition:{x:renderer.cameraEntity.getPosition().x,y:renderer.cameraEntity.getPosition().y,z:renderer.cameraEntity.getPosition().z},cameraFov:camera.fov,center:{x:center.x,y:center.y},box,canvas:[canvas.width,canvas.height],meshInfo,tintMeshes,delta,trackPixels,cuePixels,production:{punch:{asset:punch.assetId,position:punch.position},guards:guards.map(o=>({asset:o.assetId,position:o.position})),track:track.assetId},assetState:result.status.gameplayAssets.state};
-      },{name:spec.name,side,leadMs:distance.leadMs,viewport});
+        return {name,side,distance:leadMs,viewport,facePlayer,authoredFrontWorld:{x:authoredFront.x,y:authoredFront.y,z:authoredFront.z},cell,world:{x,y,z},cameraPosition:{x:renderer.cameraEntity.getPosition().x,y:renderer.cameraEntity.getPosition().y,z:renderer.cameraEntity.getPosition().z},cameraFov:camera.fov,center:{x:center.x,y:center.y},box,canvas:[canvas.width,canvas.height],meshInfo,tintMeshes,delta,trackPixels,cuePixels,production:{punch:{asset:punch.assetId,position:punch.position},guards:guards.map(o=>({asset:o.assetId,position:o.position})),track:track.assetId},assetState:result.status.gameplayAssets.state};
+      },{name:spec.name,side,leadMs:distance.leadMs,viewport,facePlayer});
       assert.deepEqual(row.canvas,[viewport.width*Math.min(viewport.dpr,2),viewport.height*Math.min(viewport.dpr,2)]);
       assert.equal(row.production.track,'track/blue-glass-v1');assert.equal(row.production.guards.length,2);
       assert.equal(row.production.punch.asset,'directional-arrow/rounded-outline-v1');
@@ -117,7 +125,7 @@ try{
     // native app/camera. The torso/leg proxies never enter gameplay or scored collision.
     for(const pose of ['lowered','raised'])for(const pair of [{name:'cyan-coral',colors:['#19CBF0','#FD626A']},{name:'amber-violet',colors:['#FFC247','#8A66ED']}]){
       const id=`pad-${pose}-${pair.name}-${viewport.name}`;
-      const row=await page.evaluate(({pose,pair,viewport})=>{
+      const row=await page.evaluate(({pose,pair,viewport,facePlayer})=>{
         const review=globalThis.__KNEE_REVIEW__,{renderer,pc,resources,instances}=review;
         for(const entity of instances.splice(0))entity.destroy();
         const frame={presentation:'boxing_spatial_grid',nowMs:1000,colliderSettings:{},timingWindowBeforeMs:120,timingWindowAfterMs:240,targets:[]};
@@ -132,24 +140,27 @@ try{
           const material=new pc.StandardMaterial();material.diffuse.set(.31,.35,.43);material.emissive.set(.055,.065,.08);material.update();
           const leg=new pc.Entity(`review-only-leg-${index}`,renderer.app);leg.addComponent('render',{type:'cylinder',material});renderer.app.root.addChild(leg);
           leg.setPosition(x,raised?-.13:-.45,raised?1.42:1.04);leg.setLocalScale(.28,1.05,.28);if(raised)leg.setEulerAngles(side*24,0,side*-23);instances.push(leg);
-          const pad=resources.get('dome-strap-v1').instantiateRenderEntity({castShadows:false,receiveShadows:false});renderer.app.root.addChild(pad);renderer.useGameplayLayer(pad,'target');pad.setPosition(knee);pad.setEulerAngles(raised?-27:0,side*(raised?14:5),side*(raised?-9:0));
+          const pad=resources.get('dome-strap-v1').instantiateRenderEntity({castShadows:false,receiveShadows:false});renderer.app.root.addChild(pad);renderer.useGameplayLayer(pad,'target');pad.setPosition(knee);pad.setEulerAngles(raised?-27:0,(facePlayer?180:0)+side*(raised?14:5),side*(raised?-9:0));
           const rgb=pair.colors[index].match(/[0-9A-F]{2}/g).map(h=>parseInt(h,16)/255);let tinted=0;
           for(const render of pad.findComponents('render'))for(const mesh of render.meshInstances){const m=mesh.material.clone(),name=m.name;mesh.material=m;if(name.includes('knee_tint')){m.diffuse.set(...rgb);m.emissive.set(...rgb.map(v=>v*.32));m.update();tinted++;}}
-          if(!tinted)throw Error('Pad tint material absent');instances.push(pad);positioned.push({side:index?'right':'left',knee:{x:knee.x,y:knee.y,z:knee.z},color:pair.colors[index],tinted});
+          if(!tinted)throw Error('Pad tint material absent');
+          const front=pad.getWorldTransform().transformVector(new pc.Vec3(0,0,-1)).normalize();
+          if(facePlayer&&front.z<.75)throw Error('Posed pad authored front does not face player');
+          instances.push(pad);positioned.push({side:index?'right':'left',knee:{x:knee.x,y:knee.y,z:knee.z},color:pair.colors[index],tinted,authoredFrontWorld:{x:front.x,y:front.y,z:front.z}});
         }
         renderer.manualTick();const canvas=document.querySelector('#primary canvas');const pixels=document.createElement('canvas');pixels.width=canvas.width;pixels.height=canvas.height;const ctx=pixels.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);const image=ctx.getImageData(0,0,canvas.width,canvas.height).data;
         let colored=0;for(let i=0;i<image.length;i+=4)if(image[i]>100&&image[i+1]>65&&image[i+2]>75)colored++;
         const withPads=new Uint8ClampedArray(image);for(const entry of instances)entry.enabled=false;renderer.manualTick();ctx.drawImage(canvas,0,0);const withoutPads=ctx.getImageData(0,0,canvas.width,canvas.height).data;
         let padAndLegDelta=0;for(let i=0;i<withPads.length;i+=4)if(Math.abs(withPads[i]-withoutPads[i])+Math.abs(withPads[i+1]-withoutPads[i+1])+Math.abs(withPads[i+2]-withoutPads[i+2])>35)padAndLegDelta++;
         for(const entry of instances)entry.enabled=true;renderer.manualTick();
-        return {pose,pair,viewport,canvas:[canvas.width,canvas.height],colored,padAndLegDelta,positioned,assetState:result.status.gameplayAssets.state};
-      },{pose,pair,viewport});
+        return {pose,pair,viewport,facePlayer,canvas:[canvas.width,canvas.height],colored,padAndLegDelta,positioned,assetState:result.status.gameplayAssets.state};
+      },{pose,pair,viewport,facePlayer});
       assert.deepEqual(row.canvas,[viewport.width*Math.min(viewport.dpr,2),viewport.height*Math.min(viewport.dpr,2)]);assert.ok(row.colored>100&&row.padAndLegDelta>100,`${id}: blank pad/representative leg review`);
       const path=join(out,`${id}.png`);await page.locator('#primary canvas').screenshot({path,scale:'css'});rows.push({...row,path,pngSize:[viewport.width,viewport.height],sha256:descriptors.find(d=>d.type==='pad').sha256});
     }
     assert.deepEqual(errors,[],`Chromium page errors: ${errors.join('; ')}`);await page.close();
   }
   const evidence=join(out,'bounds.json');
-  await writeFile(evidence,JSON.stringify({reviewOnly:true,canonicalRenderer:true,notScoredGameplay:true,notTrackedLegs:true,descriptors:descriptors.map(({type,name,sha256,bounds})=>({type,name,sha256,bounds})),rows},null,2)+'\n');
+  await writeFile(evidence,JSON.stringify({reviewOnly:true,facePlayer,canonicalRenderer:true,notScoredGameplay:true,notTrackedLegs:true,descriptors:descriptors.map(({type,name,sha256,bounds})=>({type,name,sha256,bounds})),rows},null,2)+'\n');
   console.log(`Native review captured ${rows.length} PNGs and ${evidence}`);
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok));}

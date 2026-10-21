@@ -237,7 +237,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
   if(sorted.some((target)=>target?.kind==="guard"&&target.family!=="guard"))throw new TypeError("Gameplay guard target family is invalid");
-  if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||kneeVisual.preview||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?9:10)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
+  if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?9:10)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
   const guidanceMode=frame.guidanceBandMode??experiment.guidanceBandMode;
   const guidance=buildGuidanceBands(frame,sorted,window,guidanceMode,presentationConfig,tuning);
   objects.push(...guidance.objects);

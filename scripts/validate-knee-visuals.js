@@ -31,6 +31,18 @@ for(const presentation of ["flow","boxing_spatial_grid"])assert.equal(knee({...b
 assert.equal(knee({...base,targets:[],overlay:"tracking_lost",kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:leg(),right:leg(.75)}}).length,0);
 for(const frame of [{...base,kneeEnabled:false},{...base,presentation:"flow"},{...base,overlay:"tracking_lost"}])assert.throws(()=>knee({...frame,kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:leg(),right:leg(.75)}}),/Knee targets require/,"disabled mode must not admit knee targets even in Test preview");
 const settings={colliderVisible:true,colliderScale:2,colliderDepthForward:3,colliderDepthBackward:1};
+const partial={...leg(),ankle:null};
+const visualOnly=knee({...base,targets:[],kneeJoints:{left:null,right:null},kneeVisualJoints:{left:partial,right:null},kneeColliderSettings:settings});
+assert.deepEqual(visualOnly.map(({kind})=>kind),["knee_marker","knee_pad"],"measured hip+knee without an ankle draws no scored Show volume");
+assert.deepEqual(visualOnly[0].position,{x:.5,y:0,z:.45});
+assert.deepEqual(visualOnly[1].kneeOrientation,{x:0,y:0,z:0});
+const angled={hip:{x:.25,y:.5},knee:{x:.5,y:5/6},ankle:null};
+const angledPad=knee({...base,targets:[],kneeJoints:{left:null,right:null},kneeVisualJoints:{left:angled,right:null}}).find(({kind})=>kind==="knee_pad");
+assert.ok(Math.abs(angledPad.kneeOrientation.z-45)<1e-9,"partial pad rotates from measured thigh");
+assert.equal(knee({...base,targets:[],kneeVisualJoints:{left:angled,right:null},kneeColliderSettings:settings}).filter(({kind})=>kind==="knee_collider").length,2,"complete Play legs retain collider authority over visual-only data");
+for(const change of [{presentation:"flow"},{overlay:"tracking_lost"},{kneeEnabled:false}])assert.equal(knee({...base,targets:[],kneeJoints:{left:null,right:null},kneeVisualJoints:{left:partial,right:null},...change}).length,0);
+for(const bad of [{left:{hip:partial.hip,knee:partial.knee},right:null},{left:{...partial,knee:{x:NaN,y:0}},right:null},{left:{...partial,ankle:undefined},right:null},{left:{...partial,knee:{...partial.knee,z:0}},right:null},{left:partial,right:undefined},{left:partial,right:null,extra:null}])assert.throws(()=>knee({...base,targets:[],kneeVisualJoints:bad}),/Knee visual/);
+assert.throws(()=>knee({...base,targets:[],kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:leg(),right:null},kneeVisualJoints:{left:partial,right:null}}),/Knee preview cannot consume measured Play joints/);
 assert.deepEqual(knee({...base,targets:[],kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:leg(),right:leg(.75)},kneeColliderSettings:settings}).map(({kind})=>kind),["knee_pad","knee_pad"],"Show collider is Play-only, never previewed as measured/scored volume");
 const volumes=knee({...base,targets:[],kneeColliderSettings:settings}).filter(({kind})=>kind==="knee_collider");assert.equal(volumes.length,2);assert.deepEqual(volumes[0].scale,{x:1.08,y:1.08,z:1.08});assert.deepEqual(volumes[0].capsule?.start,{x:.5,y:0,z:.72});assert.equal(volumes[0].capsule?.end.x,.5);assert.ok(Math.abs(volumes[0].capsule.end.z+.36)<1e-10);for(const changed of [{...settings,colliderVisible:false},{...settings,colliderScale:0}])assert.equal(knee({...base,targets:[],kneeColliderSettings:changed}).some(({kind})=>kind==="knee_collider"),false);
 for(const mode of ["flow","boxing_spatial_grid"]){const frame={...base,presentation:mode,kneeEnabled:false,targets:[]};assert.equal(knee(frame).length,0);}assert.equal(knee({...base,presentation:"flow",targets:[]}).length,0);assert.equal(knee({...base,overlay:"tracking_lost",targets:[]}).length,0);assert.equal(knee({...base,targets:[],kneeJoints:{left:null,right:null}}).length,0);

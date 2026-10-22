@@ -20,10 +20,12 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** Unbounded normalized calibrated athlete-grid coordinate; no inferred depth. @typedef {{x:number,y:number}} AeroMeasuredKneePoint */
 /** @typedef {{hip:AeroMeasuredKneePoint,knee:AeroMeasuredKneePoint,ankle:AeroMeasuredKneePoint}} AeroMeasuredLeg */
 /** @typedef {{left:AeroMeasuredLeg|null,right:AeroMeasuredLeg|null}} AeroMeasuredKneeJoints */
+/** @typedef {{hip:AeroMeasuredKneePoint,knee:AeroMeasuredKneePoint,ankle:AeroMeasuredKneePoint|null}} AeroVisualLeg */
+/** @typedef {{left:AeroVisualLeg|null,right:AeroVisualLeg|null}} AeroVisualKneeJoints */
 /** @typedef {{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number}} AeroKneeColliderVisualSettings */
 /** @typedef {{lowered:{x:number,y:number,z:number},raised:{x:number,y:number,z:number}}} AeroKneePadRotationTuning */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,kneeEnabled?:boolean,kneeJoints?:AeroMeasuredKneeJoints,kneePreview?:boolean,kneePreviewJoints?:AeroMeasuredKneeJoints,kneeTargetAssetId?:string,kneePadAssetId?:string,kneeColliderSettings?:AeroKneeColliderVisualSettings,kneePadRotationTuning?:AeroKneePadRotationTuning,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,kneeEnabled?:boolean,kneeJoints?:AeroMeasuredKneeJoints,kneeVisualJoints?:AeroVisualKneeJoints,kneePreview?:boolean,kneePreviewJoints?:AeroMeasuredKneeJoints,kneeTargetAssetId?:string,kneePadAssetId?:string,kneeColliderSettings?:AeroKneeColliderVisualSettings,kneePadRotationTuning?:AeroKneePadRotationTuning,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two complementary side pieces with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the renderer retains this scored metadata but the visual always splits the authored GLB along local X=0 for its entire tail-to-tip length (or an orb diameter), independent of crossing. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
@@ -551,48 +553,59 @@ function normalizeKneeVisualFrame(frame){
   const target=frame.kneeTargetAssetId??gameplayAssetForRole("knee-target").id,pad=frame.kneePadAssetId??gameplayAssetForRole("knee-pad").id;
   if(gameplayAssetForRole("knee-target").id!==target||gameplayAssetForRole("knee-pad").id!==pad)throw new TypeError("Unknown pinned knee asset variant");
   const preview=frame.kneePreview===true;
-  if(preview&&frame.kneeJoints!==undefined)throw new TypeError("Knee preview cannot consume measured Play joints");
+  if(preview&&(frame.kneeJoints!==undefined||frame.kneeVisualJoints!==undefined))throw new TypeError("Knee preview cannot consume measured Play joints");
   if(!preview&&frame.kneePreviewJoints!==undefined)throw new TypeError("Knee preview joints require an explicit visual-only preview");
   const joints=preview?frame.kneePreviewJoints:frame.kneeJoints;
-  if(joints!==undefined&&(!joints||typeof joints!=="object"||Array.isArray(joints)||!Object.hasOwn(joints,"left")||!Object.hasOwn(joints,"right")))throw new TypeError("Knee visual joints are invalid");
+  if(joints!==undefined&&(!joints||typeof joints!=="object"||Array.isArray(joints)||!Object.hasOwn(joints,"left")||!Object.hasOwn(joints,"right")||Reflect.ownKeys(joints).length!==2))throw new TypeError("Knee visual joints are invalid");
   /** @type {AeroMeasuredKneeJoints} */ const legs={left:null,right:null};
   for(const side of /** @type {const} */(["left","right"])){
     const leg=joints?.[side];if(leg===undefined||leg===null)continue;
-    if(typeof leg!=="object"||Array.isArray(leg)||!Object.hasOwn(leg,"hip")||!Object.hasOwn(leg,"knee")||!Object.hasOwn(leg,"ankle"))throw new TypeError("Measured knee leg is invalid");
+    if(typeof leg!=="object"||Array.isArray(leg)||!Object.hasOwn(leg,"hip")||!Object.hasOwn(leg,"knee")||!Object.hasOwn(leg,"ankle")||Reflect.ownKeys(leg).length!==3)throw new TypeError("Measured knee leg is invalid");
     for(const key of /** @type {const} */(["hip","knee","ankle"])){
       const point=leg[key];if(!point||typeof point!=="object"||Array.isArray(point)||!Object.hasOwn(point,"x")||!Object.hasOwn(point,"y")||Reflect.ownKeys(point).length!==2||![point.x,point.y].every(Number.isFinite))throw new TypeError("Measured knee point is invalid");
     }
     legs[side]=leg;
   }
+  const visualJoints=frame.kneeVisualJoints;
+  if(visualJoints!==undefined){
+    if(!visualJoints||typeof visualJoints!=="object"||Array.isArray(visualJoints)||Reflect.ownKeys(visualJoints).length!==2||!Object.hasOwn(visualJoints,"left")||!Object.hasOwn(visualJoints,"right"))throw new TypeError("Knee visual joints are invalid");
+    for(const side of /** @type {const} */(["left","right"])){
+      const leg=visualJoints[side];if(leg===null)continue;
+      if(!leg||typeof leg!=="object"||Array.isArray(leg)||Reflect.ownKeys(leg).length!==3||!Object.hasOwn(leg,"hip")||!Object.hasOwn(leg,"knee")||!Object.hasOwn(leg,"ankle"))throw new TypeError("Knee visual leg is invalid");
+      for(const key of /** @type {const} */(["hip","knee","ankle"])){
+        const point=leg[key];if(key==="ankle"&&point===null)continue;
+        if(!point||typeof point!=="object"||Array.isArray(point)||Reflect.ownKeys(point).length!==2||!Object.hasOwn(point,"x")||!Object.hasOwn(point,"y")||typeof point.x!=="number"||typeof point.y!=="number"||![point.x,point.y].every(Number.isFinite))throw new TypeError("Knee visual point is invalid");
+      }
+    }
+  }
   const settings=frame.kneeColliderSettings??{colliderVisible:false,colliderScale:1,colliderDepthForward:1,colliderDepthBackward:0};
   if(!settings||typeof settings!=="object"||typeof settings.colliderVisible!=="boolean"||![settings.colliderScale,settings.colliderDepthForward,settings.colliderDepthBackward].every((v)=>Number.isFinite(v)&&v>=0))throw new TypeError("Knee collider visual settings are invalid");
   const rotation=frame.kneePadRotationTuning??{lowered:{x:0,y:0,z:0},raised:{x:0,y:0,z:0}};
   for(const pose of [rotation?.lowered,rotation?.raised])if(!pose||![pose.x,pose.y,pose.z].every((v)=>Number.isFinite(v)&&Math.abs(v)<=360))throw new TypeError("Knee pad rotation tuning is invalid");
-  return {enabled,preview,target,pad,legs,settings,rotation};
+  return {enabled,preview,target,pad,legs,visualJoints,settings,rotation};
 }
 /** @param {ReturnType<typeof normalizeKneeVisualFrame>} visual */
 function kneeVisualObjects(visual){
   /** @type {AeroGameplaySceneObject[]} */ const objects=[];
   if(!visual.enabled)return objects;
   for(const side of /** @type {const} */(["left","right"])){
-    const leg=visual.legs[side];if(!leg)continue;
+    const fullLeg=visual.legs[side],leg=fullLeg??(visual.preview?null:visual.visualJoints?.[side]);if(!leg)continue;
     // Input supplies unbounded normalized calibrated-grid X/Y, not judge-space
     // coordinates or measured depth. Keep the whole leg on one visual-only plane.
     /** @param {AeroMeasuredKneePoint} point */
     const project=(point)=>({x:4*point.x-.5,y:2.5-3*point.y,z:.45});
-    const knee=project(leg.knee),hip=project(leg.hip),ankle=project(leg.ankle);
-    const upper=Math.hypot(hip.x-knee.x,hip.y-knee.y),lower=Math.hypot(ankle.x-knee.x,ankle.y-knee.y);
-    if(upper<1e-6||lower<1e-6)continue;
+    const knee=project(leg.knee),hip=project(leg.hip),ankle=leg.ankle===null?null:project(leg.ankle);
+    const upper=Math.hypot(hip.x-knee.x,hip.y-knee.y),lower=ankle===null?null:Math.hypot(ankle.x-knee.x,ankle.y-knee.y);
+    if(upper<1e-6||(lower!==null&&lower<1e-6))continue;
     if(!visual.preview){const dot=sceneObject(`knee-marker-${side}`,"knee_marker",side,null,{...knee},{x:1,y:1,z:1},null,"athlete-marker/sphere-v1",0,1,null,false,false,null,null,knee.z,41,null,null,null,null,"#F4C20D");objects.push(dot);}
-    const bend=Math.acos(Math.max(-1,Math.min(1,((hip.x-knee.x)*(ankle.x-knee.x)+(hip.y-knee.y)*(ankle.y-knee.y))/(upper*lower))))/Math.PI;
-    // Only two-dimensional thigh/shin directions are measured. Rotate about
-    // screen Z; optional authored X/Y tuning may follow measured bend, but does
-    // not claim recovered 3D orientation or physical depth.
-    const shinAngle=Math.atan2(ankle.x-knee.x,knee.y-ankle.y)*180/Math.PI;
+    const bend=ankle===null?0:Math.acos(Math.max(-1,Math.min(1,((hip.x-knee.x)*(ankle.x-knee.x)+(hip.y-knee.y)*(ankle.y-knee.y))/(upper*lower))))/Math.PI;
+    // A complete leg retains its original shin/bend rotation. Without an ankle,
+    // orient the visual from the measured thigh, never inventing a shin or depth.
+    const shinAngle=ankle===null?Math.atan2(knee.x-hip.x,hip.y-knee.y)*180/Math.PI:Math.atan2(ankle.x-knee.x,knee.y-ankle.y)*180/Math.PI;
     const degrees={x:visual.rotation.lowered.x+(visual.rotation.raised.x-visual.rotation.lowered.x)*bend,y:visual.rotation.lowered.y+(visual.rotation.raised.y-visual.rotation.lowered.y)*bend,z:shinAngle+visual.rotation.lowered.z+(visual.rotation.raised.z-visual.rotation.lowered.z)*bend};
     const pad=sceneObject(`knee-pad-${side}`,"knee_pad",side,null,{...knee},{x:1,y:1,z:1},null,visual.pad,0,1,null,false,false,null,null,knee.z,42,null,null,null,null);
     objects.push(Object.freeze({...pad,kneeOrientation:Object.freeze(degrees)}));
-    if(visual.preview||!visual.settings.colliderVisible||visual.settings.colliderScale===0)continue;
+    if(visual.preview||!fullLeg||!visual.settings.colliderVisible||visual.settings.colliderScale===0)continue;
     const radius=.27*visual.settings.colliderScale,front=.27*visual.settings.colliderDepthForward,back=.27*visual.settings.colliderDepthBackward;
     if(![radius,front,back,radius*2,front+back].every(Number.isFinite))throw new TypeError("Knee collider geometry is nonfinite");
     const start={x:knee.x,y:knee.y,z:knee.z+back},end={x:knee.x,y:knee.y,z:knee.z-front};

@@ -1,13 +1,16 @@
 // @ts-check
 import assert from "node:assert/strict";
 import {buildGameplaySceneModel} from "../src/gameplay-scene-model.js";
+import {judgeToPresentationPoint} from "@aerobeat/web-contracts/equipment-contracts";
 
 const leg=(x=.25)=>({hip:{x,y:.5},knee:{x,y:5/6},ankle:{x,y:7/6}});
 const targets=[{id:"left-knee",kind:"knee",family:"knee_left",hand:"left",cell:9,cells:[],lane:"left",beatCenterMs:1000},{id:"right-knee",kind:"knee",family:"knee_right",hand:"right",cell:10,cells:[],lane:"right",beatCenterMs:1000}];
 const base={presentation:"boxing_spatial_grid",nowMs:1000,targets,kneeEnabled:true,kneeJoints:{left:leg(),right:leg(.75)}};
 const knee=(frame)=>buildGameplaySceneModel(frame).objects.filter((object)=>object.kind.startsWith("knee_")||object.targetId?.endsWith("knee"));
 const active=knee(base);assert.deepEqual(active.filter(({kind})=>kind==="icon").map(({assetId,position})=>({assetId,position})),[{assetId:"knee-target/hover-shell-strike-v1",position:{x:-.5,y:0,z:0}},{assetId:"knee-target/hover-shell-strike-v1",position:{x:.5,y:0,z:0}}]);
-assert.deepEqual(active.filter(({kind})=>kind==="knee_marker").map(({position,appearanceColor})=>({position,appearanceColor})),[{position:{x:.5,y:0,z:.45},appearanceColor:"#F4C20D"},{position:{x:2.5,y:0,z:.45},appearanceColor:"#F4C20D"}]);
+const wristPresentation=(joint)=>judgeToPresentationPoint({x:4*joint.x-.5,y:2.5-3*joint.y});
+for(const [side,x] of [["left",.25],["right",.75]]){const expected=wristPresentation(leg(x).knee);for(const kind of ["knee_marker","knee_pad"]){const actual=active.find(object=>object.kind===kind&&object.role===side)?.position;assert.equal(actual?.x,expected.x,`${side} ${kind} must share the wrist's calibrated presentation X`);assert.equal(actual?.y,expected.y,`${side} ${kind} must share wrist presentation Y`)}}
+assert.deepEqual(active.filter(({kind})=>kind==="knee_marker").map(({position,appearanceColor})=>({position,appearanceColor})),[{position:{x:-1,y:0,z:.45},appearanceColor:"#F4C20D"},{position:{x:1,y:0,z:.45},appearanceColor:"#F4C20D"}]);
 assert.deepEqual(active.filter(({kind})=>kind==="knee_pad").map(({assetId,kneeOrientation})=>({assetId,kneeOrientation})),[{assetId:"knee-pad/segmented-lightwrap-v1",kneeOrientation:{x:0,y:0,z:0}},{assetId:"knee-pad/segmented-lightwrap-v1",kneeOrientation:{x:0,y:0,z:0}}]);
 const tuning={lowered:{x:2,y:3,z:4},raised:{x:30,y:40,z:50}};
 const lowered={...leg(),ankle:{x:.25,y:.5}},raised=leg(.75);
@@ -19,6 +22,7 @@ const quarterBend={x:9,y:12.25,z:15.5-135};for(const axis of ["x","y","z"])asser
 const preview=knee({...base,targets:[],kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:lowered,right:raised},kneePadRotationTuning:tuning});
 assert.deepEqual(preview.map(({kind})=>kind),["knee_pad","knee_pad"],"visual-only Test preview renders pads but no measured dots, targets or collider geometry");
 assert.deepEqual(preview.map(({kneeOrientation})=>kneeOrientation),tuned.map(({kneeOrientation})=>kneeOrientation),"Test preview shares six-control pad tuning without promoting preview joints to Play evidence");
+assert.deepEqual(preview.map(({position})=>position.x),[-1,1],"Test preview pads share the same calibrated wrist-presentation X");
 assert.equal(knee({...base,targets:[],kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:null,right:null}}).length,0,"no preview joints produces no visual pads");
 assert.throws(()=>knee({...base,kneePreview:true,kneePreviewJoints:{left:leg(),right:null},targets:[]}),/Knee preview cannot consume measured Play joints/);
 assert.throws(()=>knee({...base,kneePreviewJoints:{left:leg(),right:null},targets:[]}),/Knee preview joints require/);
@@ -34,7 +38,8 @@ const settings={colliderVisible:true,colliderScale:2,colliderDepthForward:3,coll
 const partial={...leg(),ankle:null};
 const visualOnly=knee({...base,targets:[],kneeJoints:{left:null,right:null},kneeVisualJoints:{left:partial,right:null},kneeColliderSettings:settings});
 assert.deepEqual(visualOnly.map(({kind})=>kind),["knee_marker","knee_pad"],"measured hip+knee without an ankle draws no scored Show volume");
-assert.deepEqual(visualOnly[0].position,{x:.5,y:0,z:.45});
+assert.deepEqual(visualOnly[0].position,{x:-1,y:0,z:.45});
+assert.deepEqual(visualOnly[1].position,visualOnly[0].position,"missing-ankle pad and yellow marker share the calibrated wrist plane");
 assert.deepEqual(visualOnly[1].kneeOrientation,{x:0,y:0,z:0});
 const angled={hip:{x:.25,y:.5},knee:{x:.5,y:5/6},ankle:null};
 const angledPad=knee({...base,targets:[],kneeJoints:{left:null,right:null},kneeVisualJoints:{left:angled,right:null}}).find(({kind})=>kind==="knee_pad");
@@ -44,7 +49,7 @@ for(const change of [{presentation:"flow"},{overlay:"tracking_lost"},{kneeEnable
 for(const bad of [{left:{hip:partial.hip,knee:partial.knee},right:null},{left:{...partial,knee:{x:NaN,y:0}},right:null},{left:{...partial,ankle:undefined},right:null},{left:{...partial,knee:{...partial.knee,z:0}},right:null},{left:partial,right:undefined},{left:partial,right:null,extra:null}])assert.throws(()=>knee({...base,targets:[],kneeVisualJoints:bad}),/Knee visual/);
 assert.throws(()=>knee({...base,targets:[],kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:leg(),right:null},kneeVisualJoints:{left:partial,right:null}}),/Knee preview cannot consume measured Play joints/);
 assert.deepEqual(knee({...base,targets:[],kneePreview:true,kneeJoints:undefined,kneePreviewJoints:{left:leg(),right:leg(.75)},kneeColliderSettings:settings}).map(({kind})=>kind),["knee_pad","knee_pad"],"Show collider is Play-only, never previewed as measured/scored volume");
-const volumes=knee({...base,targets:[],kneeColliderSettings:settings}).filter(({kind})=>kind==="knee_collider");assert.equal(volumes.length,2);assert.deepEqual(volumes[0].scale,{x:1.08,y:1.08,z:1.08});assert.deepEqual(volumes[0].capsule?.start,{x:.5,y:0,z:.72});assert.equal(volumes[0].capsule?.end.x,.5);assert.ok(Math.abs(volumes[0].capsule.end.z+.36)<1e-10);for(const changed of [{...settings,colliderVisible:false},{...settings,colliderScale:0}])assert.equal(knee({...base,targets:[],kneeColliderSettings:changed}).some(({kind})=>kind==="knee_collider"),false);
+const volumes=knee({...base,targets:[],kneeColliderSettings:settings}).filter(({kind})=>kind==="knee_collider");assert.equal(volumes.length,2);assert.deepEqual(volumes[0].scale,{x:1.08,y:1.08,z:1.08});assert.deepEqual(volumes[0].capsule?.start,{x:-1,y:0,z:.72});assert.equal(volumes[0].capsule?.end.x,-1);assert.equal(volumes[0].position.x,active.find(({kind,role})=>kind==="knee_pad"&&role==="left").position.x);assert.ok(Math.abs(volumes[0].capsule.end.z+.36)<1e-10);for(const changed of [{...settings,colliderVisible:false},{...settings,colliderScale:0}])assert.equal(knee({...base,targets:[],kneeColliderSettings:changed}).some(({kind})=>kind==="knee_collider"),false);
 for(const mode of ["flow","boxing_spatial_grid"]){const frame={...base,presentation:mode,kneeEnabled:false,targets:[]};assert.equal(knee(frame).length,0);}assert.equal(knee({...base,presentation:"flow",targets:[]}).length,0);assert.equal(knee({...base,overlay:"tracking_lost",targets:[]}).length,0);assert.equal(knee({...base,targets:[],kneeJoints:{left:null,right:null}}).length,0);
 for(const target of [{...targets[0],cell:8},{...targets[1],cell:11},{...targets[1],family:"knee_left"}])assert.throws(()=>knee({...base,targets:[target]}),/Knee targets require/);assert.throws(()=>knee({...base,kneeEnabled:false}),/Knee targets require/);assert.throws(()=>knee({...base,presentation:"flow"}),/Knee targets require/);assert.throws(()=>knee({...base,targets:[],kneeJoints:{left:{...leg(),knee:null},right:null}}),/Measured knee point/);assert.throws(()=>knee({...base,targets:[],kneeJoints:{left:{...leg(),knee:{x:.25,y:5/6,z:.45}},right:null}}),/Measured knee point/);
 console.log("Knee target identity/lowest side, measured markers/pads, shared rotations, isolated Test preview, volume dimensions, and synchronous absence gates passed.");

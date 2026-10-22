@@ -590,10 +590,10 @@ function kneeVisualObjects(visual){
   if(!visual.enabled)return objects;
   for(const side of /** @type {const} */(["left","right"])){
     const fullLeg=visual.legs[side],leg=fullLeg??(visual.preview?null:visual.visualJoints?.[side]);if(!leg)continue;
-    // Input supplies unbounded normalized calibrated-grid X/Y, not judge-space
-    // coordinates or measured depth. Keep the whole leg on one visual-only plane.
+    // Input supplies unbounded normalized calibrated-grid X/Y, not world-space
+    // coordinates or measured depth. Match the wrist judge-to-presentation shift.
     /** @param {AeroMeasuredKneePoint} point */
-    const project=(point)=>({x:4*point.x-.5,y:2.5-3*point.y,z:.45});
+    const project=(point)=>({...judgeToPresentationPoint({x:4*point.x-.5,y:2.5-3*point.y}),z:.45});
     const knee=project(leg.knee),hip=project(leg.hip),ankle=leg.ankle===null?null:project(leg.ankle);
     const upper=Math.hypot(hip.x-knee.x,hip.y-knee.y),lower=ankle===null?null:Math.hypot(ankle.x-knee.x,ankle.y-knee.y);
     if(upper<1e-6||(lower!==null&&lower<1e-6))continue;

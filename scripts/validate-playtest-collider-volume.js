@@ -25,9 +25,13 @@ for(const presentation of ["boxing_collider","boxing_lanes"]){
   assert.ok(Math.abs(boxes(shown)[0].capsule.start.z-.16)<1e-12&&Math.abs(boxes(shown)[0].capsule.end.z-.84)<1e-12);
   assert.equal(boxes(shown)[0].capsule.start.x,0);assert.equal(boxes(shown)[0].capsule.end.y,1.5);
   assert.equal(boxes(shown)[0].capsule.radius,.34);
-  assert.ok(Math.abs(boxes(shown)[1].capsule.start.x-.42)<1e-12);
-  assert.ok(Math.abs(boxes(shown)[1].capsule.end.x-1.78)<1e-12);
-  assert.equal(boxes(shown)[1].capsule.radius,.68);
+  const rotated=boxes(shown)[1];
+  assert.deepEqual(rotated.capsule.orientation,{x:0,y:0,z:0,w:1},"rotated glove art leaves Show axis fixed in world Z");
+  assert.equal(rotated.capsule.start.x,1);assert.equal(rotated.capsule.end.x,1);
+  assert.ok(Math.abs(rotated.capsule.start.z-(-.13))<1e-12);
+  assert.ok(Math.abs(rotated.capsule.end.z-1.23)<1e-12);
+  assert.equal(rotated.capsule.radius,.68);
+  assert.deepEqual(rotated,boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true,1,1,0),equipmentColliderPoses:[left,{...right,orientation:left.orientation}]}))[1],"only glove art orientation changes, not Show volume");
   assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true),equipmentColliderPoses:[left]})).length,1,"missing right pose does not invent a hand");
   assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true),equipmentColliderPoses:[]})).length,0,"lost poses hide both cylinders");
   assert.equal(boxes(buildGameplaySceneModel({...frame,colliderSettings:settings(true,0),equipmentColliderPoses:[left,right]})).length,0,"Scale0 hides both cylinders");

@@ -59,7 +59,7 @@ try{
       const rotated={...left,orientation:quaternions[rotations.length]};
       const entry=render({...frame,equipmentColliderPoses:[rotated]},[rotated]).objects.find((object)=>object.kind==="collider_volume");
       const wire=renderer.boxingColliderWirePool[0],filler=renderer.boxingColliderCylinderPool[0];
-      rotations.push({euler,position:entry.position,start:entry.capsule.start,end:entry.capsule.end,wireRotation:{...wire.getRotation()},fillRotation:{...filler.getRotation()},expected:rotated.orientation});
+      rotations.push({euler,position:entry.position,start:entry.capsule.start,end:entry.capsule.end,wireRotation:{...wire.getRotation()},fillRotation:{...filler.getRotation()},artRotation:{...renderer.equipmentPoseRoots.get("left_wrist").getRotation()}});
     }
     renderer.onContextLost({preventDefault(){}});
     const contextLost={pool:renderer.boxingColliderWirePool.length,ownedWires:wires.map((wire)=>renderer.ownedMaterials.has(wire.render?.meshInstances?.[0]?.mesh))};
@@ -72,7 +72,7 @@ try{
   for(const edge of result.edges){
     assert.equal(edge.vertices.length,48);assert.equal(edge.indices,104);assert.equal(edge.shape,"cylinder");assert.equal(edge.radius,.34);assert.equal(edge.primitive,1,"PlayCanvas wire must use line primitives");
     assert.ok(edge.vertices.every(([x,y,z])=>Math.abs(Math.hypot(x,y)-.5)<1e-6&&Math.abs(z)===.5),"cap polygons sit on scored surface");
-    assert.deepEqual(edge.rotation,edge.fillRotation,"fill and wire share final glove quaternion");
+    assert.deepEqual(edge.rotation,edge.fillRotation,"fill and wire share fixed world-Z orientation");assert.deepEqual(edge.rotation,{x:0,y:0,z:0,w:1},"Show remains world-Z under glove art rotation");
     for(const axis of ["x","y","z"]){assert.ok(Math.abs(edge.position[axis]-edge.boxPosition[axis])<1e-6);assert.ok(Math.abs(edge.scale[axis]-edge.boxScale[axis])<1e-6);}
     assert.equal(edge.fillOpacity,.16);assert.equal(edge.fillLayer,edge.wireLayer);assert.equal(edge.wireLayer,edge.outlineLayer);assert.ok(edge.outlineTransparentIndex<edge.worldTransparentIndex,'Boxer wire must not overpaint World beats');
     assert.deepEqual(edge.material.diffuse,[.025,.032,.045]);assert.deepEqual(edge.material.emissive,[.025,.032,.045]);assert.equal(edge.material.opacity,.8);assert.equal(edge.material.depthTest,false);assert.equal(edge.material.depthWrite,false);assert.equal(edge.material.useLighting,false);
@@ -82,10 +82,12 @@ try{
   assert.equal(result.zero.boxes,0);assert.equal(result.lost.boxes,0);assert.ok(result.bareDelta.changed>100,"lost pose correctly removes actual glove GLBs as well");
   for(const entry of result.rescaled)for(const axis of ["x","y","z"])assert.ok(Math.abs(entry.scale[axis]-entry.boxScale[axis])<1e-5,"retained hand wire follows new scored cylinder scale");
   for(const entry of result.rotations){
-    for(const axis of ["x","y","z"]){assert.ok(Math.abs(entry.position[axis]-(entry.start[axis]+entry.end[axis])/2)<1e-6);assert.ok(Math.abs(entry.wireRotation[axis]-entry.expected[axis])<1e-5);}
+    for(const axis of ["x","y","z"])assert.ok(Math.abs(entry.position[axis]-(entry.start[axis]+entry.end[axis])/2)<1e-6);
+    assert.deepEqual(entry.wireRotation,{x:0,y:0,z:0,w:1},"rotating glove art does not rotate native Show wire");assert.notDeepEqual(entry.artRotation,entry.wireRotation,"the wearable glove retains its independent rotation");
     assert.deepEqual(entry.wireRotation,entry.fillRotation,"rotated fill and outline remain aligned");
   }
-  assert.ok(result.rotations[0].end.y<result.rotations[0].start.y&&result.rotations[1].end.x>result.rotations[1].start.x,"cardinal rotations turn cylinder +Z into world -Y/+X");
+  for(const entry of result.rotations){assert.equal(entry.start.x,0);assert.equal(entry.end.x,0);assert.equal(entry.start.y,1);assert.equal(entry.end.y,1);assert.ok(entry.start.z<entry.end.z,"incoming −Z front and athlete-facing +Z back remain fixed under glove art rotation");}
+  assert.deepEqual(result.rotations.map(({start,end})=>({start,end})),Array(4).fill({start:result.rotations[0].start,end:result.rotations[0].end}),"cardinal and combined glove art rotations retain identical Show endpoints");
   assert.deepEqual(result.contextLost,{pool:0,ownedWires:[false,false]},"context loss releases both wire meshes");
   await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const restored=await page.evaluate(({left,right})=>{const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0];const frame={presentation:"boxing_collider",nowMs:1000,targets:[],colliderSettings:{colliderVisible:true,colliderScale:1,colliderDepthForward:1,colliderDepthBackward:0},equipmentColliderPoses:[left,right]};renderer.renderGameplayFrame(frame);const wires=renderer.boxingColliderWirePool??[];const state={count:wires.length,active:wires.filter((wire)=>wire.enabled).length,meshes:wires.map((wire)=>renderer.ownedMaterials.has(wire.render.meshInstances[0].mesh))};renderer.detach();return{...state,afterDetach:renderer.boxingColliderWirePool.length,remainingMeshes:wires.map((wire)=>renderer.ownedMaterials.has(wire.render?.meshInstances?.[0]?.mesh))};},{left:pose("left_wrist",1.5),right:pose("right_wrist",2.5)});

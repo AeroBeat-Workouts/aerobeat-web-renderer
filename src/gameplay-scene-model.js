@@ -226,7 +226,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
         const radius=scored.radius,distance=Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z),diameter=2*radius;
         const position={x:start.x+(end.x-start.x)/2,y:start.y+(end.y-start.y)/2,z:start.z+(end.z-start.z)/2};
         if(![distance,diameter,...Object.values(position)].every(Number.isFinite))throw new TypeError("Boxing collider geometry is nonfinite");
-        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius,orientation:Object.freeze({...pose.orientation})});
+        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius,orientation:Object.freeze({x:0,y:0,z:0,w:1})});
         const object=sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,position,{x:diameter,y:diameter,z:distance},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
         objects.push(Object.freeze({...object,shape:"cylinder",capsule:geometry}));
       }

@@ -16,7 +16,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {"pending"|"active"|"spent"|"hit"|"miss"} AeroSceneTargetState */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldPosition */
 /** @typedef {{x:number,y:number,z:number}} AeroWorldScale */
-/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"|"knee",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"knee_left"|"knee_right"|"flow"|"guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",tier?:"great"|"good"|"almost"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string}} AeroRenderableTarget */
+/** @typedef {{id:string,kind:"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"|"knee",hand:"left"|"right"|"both"|"neutral",family:"straight"|"hook"|"uppercut"|"knee_left"|"knee_right"|"flow"|"guard"|"squat"|"weave"|"obstacle"|"bomb"|"safe",cell:number|null,cells:readonly number[],gameplayGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleGameplayGeometry,sourceGeometry?:import("@aerobeat/web-contracts/obstacle-contracts").AeroObstacleSourceGeometry,lane:"left"|"right"|null,beatCenterMs:number,approachLeadMs?:number,endMs?:number,intervalStartMs?:number,intervalEndMs?:number,judgement?:"pending"|"hit"|"miss",tier?:"great"|"good"|"almost"|"miss",feedbackProgress?:number,missCommitMs?:number,contactPulseProgress?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null,requiresDirection?:boolean,appearanceColor?:unknown,bounceStartMs?:number,normalSpawnMs?:number,skyPreludeStartMs?:number,arrivalGroupIdentity?:string,heightWorldY?:number}} AeroRenderableTarget */
 /** Unbounded normalized calibrated athlete-grid coordinate; no inferred depth. @typedef {{x:number,y:number}} AeroMeasuredKneePoint */
 /** @typedef {{hip:AeroMeasuredKneePoint,knee:AeroMeasuredKneePoint,ankle:AeroMeasuredKneePoint}} AeroMeasuredLeg */
 /** @typedef {{left:AeroMeasuredLeg|null,right:AeroMeasuredLeg|null}} AeroMeasuredKneeJoints */
@@ -238,6 +238,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   objects.push(...kneeVisualObjects(kneeVisual));
   const sorted=[...frame.targets].sort((a,b)=>b.beatCenterMs-a.beatCenterMs||a.id.localeCompare(b.id));
   if(sorted.length>128)throw new TypeError("Gameplay frame cannot exceed 128 targets");
+  if(sorted.some((target)=>{if(target===null||typeof target!=="object")return false;const height=ownEnumerableDataAdmission(target,"heightWorldY");return height.present&&(!height.admitted||typeof height.value!=="number"||!Number.isFinite(height.value));}))throw new TypeError("Gameplay target heightWorldY must be a finite own enumerable number");
   if(sorted.some((target)=>target?.kind==="guard"&&target.family!=="guard"))throw new TypeError("Gameplay guard target family is invalid");
   if(sorted.some((target)=>target?.kind==="knee"&&(!kneeVisual.enabled||target.family!==`knee_${target.hand}`||!(["left","right"].includes(target.hand))||target.cell!==(target.hand==="left"?9:10)||target.cells?.length!==0)))throw new TypeError("Knee targets require enabled Boxing and the matching lowest-row side");
   const guidanceMode=frame.guidanceBandMode??experiment.guidanceBandMode;
@@ -495,12 +496,15 @@ function isBeatBounceSemanticTarget(target){return isDynamicNoteFillTarget(targe
 function assetForTarget(target,kneeTargetAssetId){if(target.kind==="knee")return kneeTargetAssetId;if(target.kind==="guard")return ASSET.guard;if(target.kind==="bomb"||target.family==="bomb")return ASSET.bomb;return target.direction?ASSET.arrow:ASSET.circle;}
 /** @param {AeroGameplayFrame} frame @param {AeroRenderableTarget} target @param {typeof defaultTestPresentationConfig} config @param {AeroFrameRowReach} reach */
 function targetPositions(frame,target,config,reach){
+  // The caller resolves shoulder-relative height every frame, including already-visible IDs.
+  // Preserve the authored X and add bounce/sky only after this final base Y is selected.
+  const targetY=frame.presentation==="boxing_collider"&&["punch","guard","knee"].includes(target.kind)&&target.heightWorldY!==undefined?target.heightWorldY:null;
   if(frame.presentation==="boxing_lanes"||frame.presentation==="boxing_collider"){
     const lanes=boxingLanes(config);
     if(target.family==="squat")return lanes.map(lane=>({x:lane.x,y:lane.y}));
     // Guards carry the authored pair of target cells. Honor its spacing in both
     // Boxing presentations rather than replacing it with fixed lane centers.
-    if(target.kind==="knee")return [{x:target.hand==="left"?-.5:.5,y:frame.presentation==="boxing_collider"?presentationRowY(reach,2):0}];
+    if(target.kind==="knee")return [{x:target.hand==="left"?-.5:.5,y:targetY??(frame.presentation==="boxing_collider"?presentationRowY(reach,2):0)}];
     if(target.kind==="guard"){
       if(target.cells.length<2)return lanes.map(lane=>({x:lane.x,y:lane.y}));
       const cells=target.cells.slice(0,2);
@@ -508,7 +512,7 @@ function targetPositions(frame,target,config,reach){
       if(!pair[0]||!pair[1]||pair[0].y!==pair[1].y||pair[0].x===pair[1].x)throw new TypeError("Guard cells must be a same-height left/right pair");
       // The authored cells are [left-hand, right-hand]; preserve their order.
       // Sorting by screen X would paint the opposite hand on each shield.
-      return pair.map((position)=>({x:position.x,y:frame.presentation==="boxing_collider"?presentationRowY(reach,gridRowFromWorldY(position.y)):lanes[0].y}));
+      return pair.map((position)=>({x:position.x,y:targetY??(frame.presentation==="boxing_collider"?presentationRowY(reach,gridRowFromWorldY(position.y)):lanes[0].y)}));
     }
     // Boxing collider: cell-anchored targets render at their reach-row Y; lane-anchored targets use lanes.
     // 0.0.54 P2 fix: real assembly punch targets carry `cell` set + `cells: []` (session-render-
@@ -516,10 +520,10 @@ function targetPositions(frame,target,config,reach){
     // `target.cells` alone yielded zero positions (no punch icon) for the real punch shape.
     if(frame.presentation==="boxing_collider"&&(target.cells.length>0||target.cell!==null)){
       const effectiveCells=target.cells.length>0?target.cells:[target.cell];
-      const applyReach=(position)=>({x:position.x,y:presentationRowY(reach,gridRowFromWorldY(position.y))});
+      const applyReach=(position)=>({x:position.x,y:targetY??presentationRowY(reach,gridRowFromWorldY(position.y))});
       return effectiveCells.map(worldPositionForCell).filter(Boolean).map(applyReach);
     }
-    const lane=lanes.find(entry=>entry.lane===(target.lane??target.hand));return lane?[{x:lane.x,y:lane.y}]:[];
+    const lane=lanes.find(entry=>entry.lane===(target.lane??target.hand));return lane?[{x:lane.x,y:targetY??lane.y}]:[];
   }
   const applyReach=(position)=>frame.presentation==="boxing_collider"?{x:position.x,y:presentationRowY(reach,gridRowFromWorldY(position.y))}:position;
   if(target.kind==="guard"){

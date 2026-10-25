@@ -49,6 +49,10 @@ One unscaled pinned `0.0.12` `track/blue-glass-v1` GLB spans 72 WU of approach p
 
 Boxing Spatial Grid preserves exact 4x3 cells and blocked/safe truth. Boxing Lanes preserves left/right placement and authoritative asymmetric timing windows without rewriting semantic target records. Nose and wrist cursors instantiate the same full `athlete-marker/sphere-v1` at the existing truthful world projection with role colors only on `mat/tint_base`, preserved white/charcoal structure, normal depth, and no mirrored/always-on-top pass. Marker clones alone use a lighting-independent contrast response (charcoal `0.025/0.032/0.045`, white `0.88/0.92/0.98`, role tint at exact `1.0×` resolved wrist song color (or fixed nose yellow)) so the eight bright/dark environments and moving live video cannot wash out their structural materials; canonical source materials remain immutable. Their bounded world scale is derived from caller `sizeCssPx` (`8–64` CSS px).
 
+## Live Boxer target height (private frame seam)
+
+In `boxing_collider` frames, punch, guard, and knee render targets may carry an own enumerable finite `heightWorldY` number supplied by assembly. It replaces only their grid row-reach or lane base Y, on every frame even for an already-visible target ID. Cell/lane X, icon kind, both guard shields, knee art, target Show overlays, and additive bounce/sky motion remain intact. Absent heights retain legacy rendering; malformed present values reject. Other presentations, including Flow, ignore a valid height. The renderer does not compute shoulder offsets, update scoring, or reposition assembly-owned aftermath spawn records.
+
 ## Hit aftermath fade (private frame seam)
 
 `frame.aftermathFadeByMode` is optional; when absent, corpses retain the original offscreen/eviction fade. When present it must contain exact plain `flow` and `boxing` records, each `{enabled:boolean,delayMs:number,durationMs:number}` with finite nonnegative floats and no arbitrary maximum. Flow aftermath uses `flow`; punch, guard, obstacle, bomb and safe use `boxing`. Disabled timers preserve the original fade. Enabled timers keep full opacity through the delay measured from `hitCommitMs`, fade linearly over the duration, and disappear at its end; zero duration hides at the delay boundary. Offscreen crossing no longer shortens an enabled timer, while caller-owned bounded FIFO eviction and cleanup remain unchanged. Alpha uses the existing native GLB transparency/depth path, not a shader or dither. Malformed present settings reject before scene objects are staged. This renderer does not own the public Game Setup controls or persistence.
@@ -72,6 +76,8 @@ Approved SVG masters are resolved from `aerobeat-branding/icons/web-gameplay/man
 ```bash
 npm test
 npm run test:browser # includes native knee target/pad/dot Show/loss testbed
+node scripts/validate-boxing-height-world-y.js # Boxer height model, validation and Flow
+node scripts/validate-boxing-height-world-y-browser.js # native same-ID live target GLBs
 node scripts/validate-aftermath-fade-browser.js # focused native GLB aftermath framebuffer
 node scripts/validate-track-guidance-browser.js # native single GLB and mapped song rows, Flow/Boxing direct+iframe
 npm pack --dry-run --json

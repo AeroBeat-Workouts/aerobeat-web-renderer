@@ -2,14 +2,14 @@
 import assert from "node:assert/strict";
 import { buildGameplaySceneModel } from "../src/index.js";
 import { createAeroPlayCanvasRenderer, projectEquipmentColliderAnchors } from "../src/renderer-facade.js";
-import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, gloveObbGeometry, saberCapsuleGeometry } from "@aerobeat/web-contracts/equipment-pose-contracts";
+import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, gloveObbGeometry, saberCapsuleGeometry, resolveSaberColliderParts, resolveGloveColliderParts } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { colliderSettingsDefaults, normalizeColliderSettings, resolveColliderBounds } from "@aerobeat/web-contracts/collider-contracts";
 
 const settings=(colliderVisible,colliderScale=1,colliderDepthForward=1,colliderDepthBackward=1)=>({colliderVisible,colliderScale,colliderDepthForward,colliderDepthBackward});
 const boxes=(model)=>model.objects.filter((object)=>object.kind==="collider_volume");
 const flowVolume=(model)=>boxes(model)[0];
-assert.deepEqual(normalizeColliderSettings(settings(false)),{...settings(false),visibleWristObstacleRadius:false,wristBombColliderScale:1},"legacy four-field renderer callers receive both new defaults");
-assert.deepEqual(normalizeColliderSettings({...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5}),{...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5},"six-field renderer callers preserve explicit wrist settings");
+assert.deepEqual(normalizeColliderSettings(settings(false)),{...settings(false),colliderDepthBackwardAthleteFacing:true,visibleWristObstacleRadius:false,wristBombColliderScale:1},"legacy four-field renderer callers receive both new defaults");
+assert.deepEqual(normalizeColliderSettings({...settings(false),visibleWristObstacleRadius:true,wristBombColliderScale:.5}),{...settings(false),colliderDepthBackwardAthleteFacing:true,visibleWristObstacleRadius:true,wristBombColliderScale:.5},"six-field renderer callers preserve explicit wrist settings");
 const configIdentity=createEquipmentConfigIdentity({schema:"aerobeat/equipment_config_identity",version:1,algorithm:"sha256",value:"1".repeat(64)});
 const pose=(role,mode,anchor,euler={x:0,y:0,z:0},scale=1)=>({role,mode,anchor,scale,orientation:equipmentEulerDegreesToQuaternion(euler),geometryIdentity:mode==="flow"?saberCapsuleGeometry.identity:gloveObbGeometry.identity,configIdentity});
 for(const presentation of ["boxing_collider","boxing_lanes"]){
@@ -101,8 +101,8 @@ for(const mode of ["flow","boxing"]){
 }
 assert.equal(colliderSettingsDefaults.flow.colliderDepthForward,1);
 for(const bad of [null,settings(true,-1),settings(true,1,-.9),settings(true,1,Infinity),{...settings(true),extra:1},{...settings(true),colliderVisible:1}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:1000,targets:[],colliderSettings:bad}),/flow_collider_settings_invalid/);
-assert.throws(()=>buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,Number.MAX_VALUE,1,0),equipmentColliderPoses:[pose("left_wrist","flow",up.anchor,{x:0,y:0,z:90},Number.MAX_VALUE)]}),/Flow collider geometry is nonfinite/,"unrepresentable derived Flow radius fails rather than clipping");
-assert.throws(()=>buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1,Number.MAX_VALUE,0),equipmentColliderPoses:[pose("left_wrist","flow",up.anchor,{x:0,y:0,z:90},Number.MAX_VALUE)]}),/Flow collider geometry is nonfinite/,"unrepresentable derived Flow reach fails rather than clipping");
+assert.throws(()=>buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,Number.MAX_VALUE,1,0),equipmentColliderPoses:[pose("left_wrist","flow",up.anchor,{x:0,y:0,z:90},Number.MAX_VALUE)]}),/(?:saber_collider|collider_part)_geometry_nonfinite/,"unrepresentable derived Flow radius fails rather than clipping");
+assert.throws(()=>buildGameplaySceneModel({...flowFrame,colliderSettings:settings(true,1,Number.MAX_VALUE,0),equipmentColliderPoses:[pose("left_wrist","flow",up.anchor,{x:0,y:0,z:90},Number.MAX_VALUE)]}),/(?:saber_collider|collider_part)_geometry_nonfinite/,"unrepresentable derived Flow reach fails rather than clipping");
 for(const bad of [null,{left:{x:0,y:1,z:0}},{left:{x:0,y:1,z:NaN},right:null}])assert.throws(()=>buildGameplaySceneModel({presentation:"flow",nowMs:0,targets:[],colliderSettings:settings(true),equipmentColliderAnchors:bad}),/Equipment collider anchors are invalid/);
 // Exercise the actual collider material path with two different song palettes and modes.
 const renderer=createAeroPlayCanvasRenderer();
@@ -132,4 +132,35 @@ for(const nowMs of [1181,1281,1529]){
   assert.equal(result.objects.filter((object)=>object.kind==="feedback").length,2,"no duplicate moving label");
 }
 assert.equal(buildGameplaySceneModel({presentation:"flow",nowMs:1531,targets:[miss("left","left")]}).objects.some((object)=>object.kind==="feedback"),false);
-console.log("Oriented Flow saber volumes, no missing-pose fallback, tracked Boxing cylinders, visibility and miss spots passed.");
+// Both settings must draw exactly the shared convex union, never a diagonal bridge.
+for(const mode of ["flow","boxing"]){
+  for(const euler of [{x:0,y:0,z:0},{x:0,y:90,z:0},{x:0,y:180,z:0},{x:35,y:40,z:25}]){
+    const resolved=pose("left_wrist",mode,{x:1.5,y:1,z:.45},euler,1.5);
+    const original=structuredClone(resolved);
+    const presentation=mode==="flow"?"flow":"boxing_collider";
+    const make=(facing,front=1,rear=.7,scale=1)=>boxes(buildGameplaySceneModel({presentation,nowMs:0,targets:[],equipmentColliderPoses:[resolved],colliderSettings:{...settings(true,scale,front,rear),...(facing===undefined?{}:{colliderDepthBackwardAthleteFacing:facing})}}));
+    assert.deepEqual(make(undefined),make(mode==="boxing"),"mode default preserves original single-part model");
+    assert.equal(make(undefined).length,1);
+    for(const facing of [false,true]){
+      const drawn=make(facing),parts=(mode==="flow"?resolveSaberColliderParts:resolveGloveColliderParts)(resolved,{scale:1,depthForward:1,depthBackward:.7,depthBackwardAthleteFacing:facing});
+      assert.equal(drawn.length,parts.length);
+      assert.equal(new Set(drawn.map((object)=>object.id)).size,drawn.length);
+      assert.equal(drawn[0].id,"equipment-collider-volume-left");
+      if(drawn.length===2)assert.equal(drawn[1].id,"equipment-collider-volume-left-rear-1");
+      for(const [index,part] of parts.entries()){
+        assert.deepEqual(drawn[index].capsule.start,{...part.start,x:part.start.x-1.5});
+        assert.deepEqual(drawn[index].capsule.end,{...part.end,x:part.end.x-1.5});
+        assert.equal(drawn[index].capsule.radius,part.radius);
+      }
+      assert.equal(make(facing,0,0).length,1,"zero reaches retain original sphere/flat-cap part");
+      assert.deepEqual(make(facing,0,0)[0].capsule.start,make(facing,0,0)[0].capsule.end);
+      assert.equal(make(facing,1,0).length,1,"zero rear needs no extra part");
+      assert.deepEqual(make(facing,1,.7,0),[],"Scale0 hides the complete union");
+    }
+    const bent=make(mode==="flow"),frontOnly=make(mode==="flow",1,0);
+    assert.deepEqual(bent[0].capsule,frontOnly[0].capsule,"bending rear preserves complete front part");
+    assert.deepEqual(resolved,original,"Show settings never mutate equipment art pose");
+    assert.throws(()=>make("true"),/collider_settings_invalid/,"boolean must remain strict");
+  }
+}
+console.log("Oriented Flow/Boxing convex Show unions, default/front/art invariance, zero/lost and visibility passed.");

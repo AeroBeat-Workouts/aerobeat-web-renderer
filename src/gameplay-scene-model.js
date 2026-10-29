@@ -4,8 +4,8 @@ import { isObstacleGameplayGeometry, isObstacleGridMask } from "@aerobeat/web-co
 import { isPrivateNoteAppearance } from "@aerobeat/web-contracts/note-palette-contracts";
 import { boxingColliderRowY } from "@aerobeat/web-contracts/gameplay-contracts";
 import { colliderSettingsDefaults, normalizeColliderSettings as normalizeSharedColliderSettings, normalizeFlowColliderSettings } from "@aerobeat/web-contracts/collider-contracts";
-import { flowSolidBladeRadiusWu, judgeToPresentationPoint, saberGeometry } from "@aerobeat/web-contracts/equipment-contracts";
-import { isResolvedEquipmentPose, resolveGloveCylinder, resolveSaberCapsule } from "@aerobeat/web-contracts/equipment-pose-contracts";
+import { judgeToPresentationPoint } from "@aerobeat/web-contracts/equipment-contracts";
+import { isResolvedEquipmentPose, resolveGloveColliderParts, resolveSaberColliderParts } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { defaultTestPresentationConfig, testPresentationBounceOffsetY, testPresentationSkyOffsetY } from "./test-presentation-config.js";
 import { defaultGameplayCameraPose } from "./gameplay-camera-pose.js";
 import { gameplayAssetForRole, gameplayAssetIds, gameplayAssetSet } from "./gameplay-assets.js";
@@ -25,7 +25,7 @@ import { defaultGameplayVisualExperimentConfig, normalizeGameplayVisualExperimen
 /** @typedef {{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number}} AeroKneeColliderVisualSettings */
 /** @typedef {{lowered:{x:number,y:number,z:number},raised:{x:number,y:number,z:number}}} AeroKneePadRotationTuning */
 /** @typedef {{active:boolean,xDeflection:number,yDeflection:number}} AeroDesiredCameraDeflection */
-/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,kneeEnabled?:boolean,kneeJoints?:AeroMeasuredKneeJoints,kneeVisualJoints?:AeroVisualKneeJoints,kneePreview?:boolean,kneePreviewJoints?:AeroMeasuredKneeJoints,kneeTargetAssetId?:string,kneePadAssetId?:string,kneeColliderSettings?:AeroKneeColliderVisualSettings,kneePadRotationTuning?:AeroKneePadRotationTuning,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
+/** @typedef {{presentation:AeroGameplayPresentation,nowMs:number,targets:readonly AeroRenderableTarget[],timingWindowBeforeMs?:number,timingWindowAfterMs?:number,blockedCells?:readonly number[],safeCells?:readonly number[],showGameplayGrid?:boolean,noseMarkerVisible?:boolean,noseMarkerScale?:number,trackExtensionWorldUnits?:number,guidanceBeatTimestampsMs?:readonly number[],guidanceBandMode?:"off"|"song_beat_grid"|"target_arrivals",countdown?:number|null,overlay?:"none"|"paused"|"calibrating"|"tracking_lost",calibrationDim?:number,viewportAspect?:number,cameraDeflection?:AeroDesiredCameraDeflection|null,reducedMotion?:boolean,aftermath?:readonly AeroAftermathEntry[],aftermathFadeByMode?:Readonly<{flow:AeroAftermathFadeSettings,boxing:AeroAftermathFadeSettings}>,hazardContacts?:readonly AeroHazardContactEvent[],hazardContactActive?:AeroHazardContactActive,hazardVignetteParams?:AeroHazardVignetteParams,rowReach?:Readonly<{topRowReachWU:number,bottomRowReachWU:number}>,kneeEnabled?:boolean,kneeJoints?:AeroMeasuredKneeJoints,kneeVisualJoints?:AeroVisualKneeJoints,kneePreview?:boolean,kneePreviewJoints?:AeroMeasuredKneeJoints,kneeTargetAssetId?:string,kneePadAssetId?:string,kneeColliderSettings?:AeroKneeColliderVisualSettings,kneePadRotationTuning?:AeroKneePadRotationTuning,colliderSettings?:Readonly<{colliderVisible:boolean,colliderScale:number,colliderDepthForward:number,colliderDepthBackward:number,colliderDepthBackwardAthleteFacing?:boolean,visibleWristObstacleRadius?:boolean,wristBombColliderScale?:number}>,visibleWristObstacleRadius?:boolean,equipmentColliderAnchors?:Readonly<{left:Readonly<{x:number,y:number,z:number}>|null,right:Readonly<{x:number,y:number,z:number}>|null}>,equipmentColliderPoses?:readonly import("@aerobeat/web-contracts/equipment-pose-contracts").AeroResolvedEquipmentPose[],visibleToleranceRange?:boolean,visibleColliderRadius?:boolean,colliderRadius?:number,directionToleranceDegrees?:number,equipmentShadowDirections?:Readonly<{left:Readonly<{x:number,z:number}>|null,right:Readonly<{x:number,z:number}>|null}>}} AeroGameplayFrame */
 /** @typedef {"flow"|"punch"|"guard"|"obstacle"|"bomb"|"safe"} AeroAftermathFamily */
 /** Bounded assembly-owned hit-success aftermath entry; the 7-beat FIFO and eviction marking are assembly-owned. Punch `mode` picks the launch curve: `straight` | `hook` | `uppercut` — hooks take the hand sign toward center (left +X, right -X). Flow `mode` is `single` or `slice` (slice = two complementary side pieces with seeded horizontal separation + independent tumble). Guard `mode` is `bonk` (tiny pop impulse, then falls to the floor). 0.0.56 W2: `shape` carries the hit note's ACTUAL asset shape (`"arrow"` for directional notes, `"orb"` for directionless / any notes) so the "hit corpse" is a cut-in-half of the note's real glyph — not a generic circle for everything. Absent (legacy entries) falls back to the per-family default. 0.0.58 B11b: `appearanceColor` carries the note's REAL validated fill token (canonical uppercase `#RRGGBB`) so the corpse desaturates the ACTUAL glyph (white outline kept light, fill grayed) instead of a flat uniform gray; absent → neutral receptor fill fallback. 0.0.63 D5: optional `sliceT` (number 0..1) is the fraction along the glyph's long axis where the saber blade actually crossed at cut time (0 = tail, 1 = tip/head, 0.5 = midpoint); the renderer retains this scored metadata but the visual always splits the authored GLB along local X=0 for its entire tail-to-tip length (or an orb diameter), independent of crossing. @typedef {{targetId:string,hitCommitMs:number,family:AeroAftermathFamily,hand:"left"|"right"|"both"|"neutral",mode:"straight"|"hook"|"uppercut"|"single"|"slice"|"bonk",spawn:{x:number,y:number,z:number},seed:number,shape?:"arrow"|"orb",appearanceColor?:string,sliceT?:number,guardSeparationWU?:number,evictedAtMs?:number,direction?:import("@aerobeat/web-contracts/body-grid-contracts").AeroBodyGridDirection|null}} AeroAftermathEntry */
 /** Assembly-owned bounded hazard-contact event (obstacle head collision, bomb touch); the renderer only derives the vignette envelope. @typedef {{eventId:string,atMs:number}} AeroHazardContactEvent */
@@ -134,6 +134,17 @@ export function timestampToWorldZ(timestampMs,nowMs,worldUnitsPerMs=defaultRende
   return deltaMs===0?0:-deltaMs*worldUnitsPerMs;
 }
 
+/** Mesh-only rotation from its native axis to the shared part axis, including zero-length parts.
+ * @param {AeroWorldPosition} axis @param {"x"|"z"} nativeAxis
+ * @returns {import("@aerobeat/web-contracts/equipment-pose-contracts").AeroQuaternion} */
+function colliderPartOrientation(axis,nativeAxis){
+  const dot=nativeAxis==="x"?axis.x:axis.z;
+  const cross=nativeAxis==="x"?{x:0,y:-axis.z,z:axis.y}:{x:-axis.y,y:axis.x,z:0};
+  const length=Math.hypot(cross.x,cross.y,cross.z,1+dot);
+  if(length<Number.EPSILON)return Object.freeze({x:0,y:1,z:0,w:0});
+  return Object.freeze({x:cross.x/length||0,y:cross.y/length||0,z:cross.z/length||0,w:(1+dot)/length||0});
+}
+
 /** Exact canonical top-left 4x3 mapping. @param {number} cell */
 export function worldPositionForCell(cell){
   if(!Number.isInteger(cell)||cell<0||cell>=12)return null;
@@ -162,7 +173,7 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   const window=timingWindow(frame);
   if(frame.visibleWristObstacleRadius!==undefined&&typeof frame.visibleWristObstacleRadius!=="boolean")throw new TypeError("Wrist bomb collider visibility is invalid");
   const colliderSettings=frame.colliderSettings===undefined?colliderSettingsDefaults[frame.presentation==="flow"?"flow":"boxing"]:frame.presentation==="flow"?normalizeFlowColliderSettings(frame.colliderSettings):normalizeSharedColliderSettings(frame.colliderSettings);
-  // Normalized six-field settings are authoritative; the optional top-level flag remains a legacy frame fallback.
+  // Normalized shared settings are authoritative; the optional top-level flag remains a legacy frame fallback.
   const visibleWristObstacleRadius=colliderSettings.visibleWristObstacleRadius||frame.visibleWristObstacleRadius===true;
   const wristBombColliderScale=colliderSettings.wristBombColliderScale;
   // Flow depth controls extend only the rotating saber, never the note-time window.
@@ -198,37 +209,25 @@ export function buildGameplaySceneModel(frame,theme=defaultRendererThemeTokens,t
   if(colliderSettings.colliderVisible){
     for(const hand of ["left","right"]){
       const color=hand==="left"?"#2693ff":"#39c96b";
-      if(frame.presentation==="flow"){
-        const pose=equipmentPoses[hand];
-        if(!pose||colliderSettings.colliderScale===0)continue;
-        const capsule=resolveSaberCapsule(pose);
-        // Match gameplay's reach: the hilt is zero, +X reaches the visible tip at front 1,
-        // and positive rear extends behind the hilt. Both endpoints use the same pose quaternion.
-        const length=saberGeometry.length*pose.scale;
-        const rear=length*colliderSettings.colliderDepthBackward,front=length*colliderSettings.colliderDepthForward;
-        const radius=flowSolidBladeRadiusWu*pose.scale*colliderSettings.colliderScale;
-        if(![rear,front,radius].every(Number.isFinite))throw new TypeError("Flow collider geometry is nonfinite");
-        const start={x:capsule.start.x-capsule.axis.x*rear-1.5,y:capsule.start.y-capsule.axis.y*rear,z:capsule.start.z-capsule.axis.z*rear};
-        const end={x:capsule.start.x+capsule.axis.x*front-1.5,y:capsule.start.y+capsule.axis.y*front,z:capsule.start.z+capsule.axis.z*front};
-        if(!Object.values(start).every(Number.isFinite)||!Object.values(end).every(Number.isFinite))throw new TypeError("Flow collider geometry is nonfinite");
-        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius,orientation:Object.freeze({...pose.orientation})});
-        const distance=Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z),diameter=2*radius;
+      const pose=equipmentPoses[hand];
+      if(!pose||colliderSettings.colliderScale===0)continue;
+      const flow=frame.presentation==="flow";
+      const volume={scale:colliderSettings.colliderScale,depthForward:colliderSettings.colliderDepthForward,depthBackward:colliderSettings.colliderDepthBackward,depthBackwardAthleteFacing:colliderSettings.colliderDepthBackwardAthleteFacing};
+      const parts=flow?resolveSaberColliderParts(pose,volume):resolveGloveColliderParts(pose,volume);
+      for(const [index,part] of parts.entries()){
+        const start=Object.freeze({...judgeToPresentationPoint(part.start),z:part.start.z});
+        const end=Object.freeze({...judgeToPresentationPoint(part.end),z:part.end.z});
+        const radius=part.radius,distance=Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z),diameter=2*radius;
         const position={x:start.x+(end.x-start.x)/2,y:start.y+(end.y-start.y)/2,z:start.z+(end.z-start.z)/2};
-        if(!Number.isFinite(distance+diameter)||!Object.values(position).every(Number.isFinite))throw new TypeError("Flow collider geometry is nonfinite");
-        const object=sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,position,{x:distance+diameter,y:diameter,z:diameter},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
-        objects.push(Object.freeze({...object,shape:"capsule",capsule:geometry}));
-      }else{
-        const pose=equipmentPoses[hand];
-        if(!pose||colliderSettings.colliderScale===0)continue;
-        const scored=resolveGloveCylinder(pose,{scale:colliderSettings.colliderScale,depthForward:colliderSettings.colliderDepthForward,depthBackward:colliderSettings.colliderDepthBackward});
-        const start={...judgeToPresentationPoint(scored.start),z:scored.start.z};
-        const end={...judgeToPresentationPoint(scored.end),z:scored.end.z};
-        const radius=scored.radius,distance=Math.hypot(end.x-start.x,end.y-start.y,end.z-start.z),diameter=2*radius;
-        const position={x:start.x+(end.x-start.x)/2,y:start.y+(end.y-start.y)/2,z:start.z+(end.z-start.z)/2};
-        if(![distance,diameter,...Object.values(position)].every(Number.isFinite))throw new TypeError("Boxing collider geometry is nonfinite");
-        const geometry=Object.freeze({start:Object.freeze(start),end:Object.freeze(end),radius,orientation:Object.freeze({x:0,y:0,z:0,w:1})});
-        const object=sceneObject(`equipment-collider-volume-${hand}`,"collider_volume",hand,null,position,{x:diameter,y:diameter,z:distance},null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
-        objects.push(Object.freeze({...object,shape:"cylinder",capsule:geometry}));
+        if(!Number.isFinite(distance+diameter)||!Object.values(position).every(Number.isFinite))throw new TypeError("Collider presentation geometry is nonfinite");
+        // Native capsule meshes are axial X; flat cylinder meshes are axial Z.
+        // Preserve the original Flow roll on the first part; only the rear bends.
+        const orientation=flow&&index===0?pose.orientation:colliderPartOrientation(part.axis,flow?"x":"z");
+        const geometry=Object.freeze({start,end,radius,orientation});
+        const scale=flow?{x:distance+diameter,y:diameter,z:diameter}:{x:diameter,y:diameter,z:distance};
+        const id=`equipment-collider-volume-${hand}${index===0?"":`-rear-${index}`}`;
+        const object=sceneObject(id,"collider_volume",hand,null,position,scale,null,null,0,.16,null,false,true,null,null,0,44,null,null,null,null,color);
+        objects.push(Object.freeze({...object,shape:flow?"capsule":"cylinder",capsule:geometry}));
       }
     }
   }

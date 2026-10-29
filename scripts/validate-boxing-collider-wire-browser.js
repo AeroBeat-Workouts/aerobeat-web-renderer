@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { chromium } from "playwright";
-import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, gloveObbGeometry } from "@aerobeat/web-contracts/equipment-pose-contracts";
+import { createEquipmentConfigIdentity, equipmentEulerDegreesToQuaternion, gloveObbGeometry, saberCapsuleGeometry } from "@aerobeat/web-contracts/equipment-pose-contracts";
 import { isExpectedReadPixelsWarning } from "./browser-console-policy.js";
 
 const root=process.cwd(),brandingRoot=resolve(root,"../aerobeat-branding/icons/web-gameplay");
@@ -28,7 +28,7 @@ try{
   await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__?.ready===true&&globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const configIdentity=createEquipmentConfigIdentity({schema:"aerobeat/equipment_config_identity",version:1,algorithm:"sha256",value:"1".repeat(64)});
   const pose=(role,x,euler={x:0,y:0,z:0},scale=1)=>({role,mode:"boxing",anchor:{x,y:1,z:.45},scale,orientation:equipmentEulerDegreesToQuaternion(euler),geometryIdentity:gloveObbGeometry.identity,configIdentity});
-  const result=await page.evaluate(({left,right,quaternions})=>{
+  const result=await page.evaluate(({left,right,quaternions,flowGeometryIdentity})=>{
     const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0],canvas=document.querySelector("#primary canvas");
     renderer.resize({widthCssPx:844,heightCssPx:390,devicePixelRatio:1});renderer.setEnvironmentVisible(false);
     renderer.setBackgroundProjection({kind:"solid",colors:["#102030"],angleDeg:180});
@@ -61,11 +61,41 @@ try{
       const wire=renderer.boxingColliderWirePool[0],filler=renderer.boxingColliderCylinderPool[0];
       rotations.push({euler,position:entry.position,start:entry.capsule.start,end:entry.capsule.end,wireRotation:{...wire.getRotation()},fillRotation:{...filler.getRotation()},artRotation:{...renderer.equipmentPoseRoots.get("left_wrist").getRotation()}});
     }
+    const unions=[];
+    for(const mode of ["flow","boxing"]){
+      for(const orientation of quaternions){
+        const equipment=[left,right].map((entry)=>({...entry,mode,orientation,geometryIdentity:mode==="flow"?flowGeometryIdentity:entry.geometryIdentity}));
+        const request={...frame,presentation:mode==="flow"?"flow":"boxing_collider",equipmentColliderPoses:equipment,colliderSettings:{...frame.colliderSettings,colliderDepthBackward:.8}};
+        const native=()=>[...(mode==="flow"?renderer.flowColliderCapsulePool:renderer.boxingColliderCylinderPool)??[]].filter((entry)=>entry.enabled);
+        const art=()=>equipment.map((entry)=>{const root=renderer.equipmentPoseRoots.get(entry.role);return{position:{...root.getPosition()},rotation:{...root.getRotation()},scale:{...root.getLocalScale()}};});
+        render({...request,colliderSettings:{...request.colliderSettings,colliderDepthBackwardAthleteFacing:mode==="boxing"}},equipment);
+        const originalArt=art(),defaultCount=native().length;
+        const bentRequest={...request,colliderSettings:{...request.colliderSettings,colliderDepthBackwardAthleteFacing:mode==="flow"}};
+        const bent=render(bentRequest,equipment),objects=bent.objects.filter((entry)=>entry.kind==="collider_volume"),entities=native();
+        const nativeParts=objects.map((object)=>{
+          const entity=entities.find((entry)=>entry.name===object.id);
+          const wire=mode==="flow"?entity:renderer.boxingColliderWirePool[(object.id.includes("-rear-")?2:0)+(object.role==="left"?0:1)];
+          const length=Math.hypot(object.capsule.end.x-object.capsule.start.x,object.capsule.end.y-object.capsule.start.y,object.capsule.end.z-object.capsule.start.z);
+          const axis=entity.getPosition().clone().set(mode==="flow"?1:0,0,mode==="flow"?0:1);
+          const direction=entity.getRotation().transformVector(axis);
+          const endpointError=Math.max(...["x","y","z"].map((key)=>Math.abs(direction[key]-(object.capsule.end[key]-object.capsule.start[key])/length)));
+          return{id:object.id,endpointError,rotation:{...entity.getRotation()},wireRotation:{...wire.getRotation()},wireEnabled:wire.enabled,wirePosition:{...wire.getPosition()},position:{...entity.getPosition()},wireScale:{...wire.getLocalScale()},scale:{...entity.getLocalScale()},meshCount:entity.render.meshInstances.length};
+        });
+        const shown=sample();for(const entity of entities)entity.enabled=false;for(const wire of renderer.boxingColliderWirePool??[])wire.enabled=false;renderer.manualTick();const hidden=sample();
+        unions.push({mode,defaultCount,count:objects.length,nativeParts,originalArt,bentArt:art(),pixels:delta(shown,hidden)});
+        render({...bentRequest,colliderSettings:{...bentRequest.colliderSettings,colliderDepthForward:0,colliderDepthBackward:0}},equipment);
+        if(native().length!==2)throw new Error("Zero reaches must retain one part per hand");
+        render({...bentRequest,colliderSettings:{...bentRequest.colliderSettings,colliderScale:0}},equipment);
+        if(native().length!==0||(renderer.boxingColliderWirePool??[]).some((wire)=>wire.enabled))throw new Error("Scale0 must disable all parts and wires");
+      }
+    }
+    // Restore original two-wire state for the established lifecycle assertions below.
+    render(frame);
     renderer.onContextLost({preventDefault(){}});
     const contextLost={pool:renderer.boxingColliderWirePool.length,ownedWires:wires.map((wire)=>renderer.ownedMaterials.has(wire.render?.meshInstances?.[0]?.mesh))};
     renderer.onContextRestored();
-    return{preview,edges,offState,zero,lost,bareDelta:delta(bare,off),rescaled,rotations,contextLost};
-  },{left:pose("left_wrist",1.5),right:pose("right_wrist",2.5),quaternions:[{x:90,y:0,z:0},{x:0,y:90,z:0},{x:0,y:0,z:90},{x:35,y:40,z:25}].map(equipmentEulerDegreesToQuaternion)});
+    return{preview,edges,offState,zero,lost,bareDelta:delta(bare,off),rescaled,rotations,contextLost,unions};
+  },{flowGeometryIdentity:saberCapsuleGeometry.identity,left:pose("left_wrist",1.5),right:pose("right_wrist",2.5),quaternions:[{x:90,y:0,z:0},{x:0,y:90,z:0},{x:0,y:0,z:90},{x:35,y:40,z:25}].map(equipmentEulerDegreesToQuaternion)});
   assert.deepEqual(noise,[],`browser console: ${JSON.stringify(noise)}`);
   assert.ok(result.preview.show.changed>100&&result.preview.wireContrast.dark>15,`Boxer wire must add dark framebuffer contrast over retained fill and GLBs: ${JSON.stringify(result.preview)}`);
   assert.deepEqual(result.edges.map((edge)=>edge.name),["boxing-collider-wire-0","boxing-collider-wire-1"],"stable named hand slots are inspectable in the real PlayCanvas scene");
@@ -88,6 +118,17 @@ try{
   }
   for(const entry of result.rotations){assert.equal(entry.start.x,0);assert.equal(entry.end.x,0);assert.equal(entry.start.y,1);assert.equal(entry.end.y,1);assert.ok(entry.start.z<entry.end.z,"incoming −Z front and athlete-facing +Z back remain fixed under glove art rotation");}
   assert.deepEqual(result.rotations.map(({start,end})=>({start,end})),Array(4).fill({start:result.rotations[0].start,end:result.rotations[0].end}),"cardinal and combined glove art rotations retain identical Show endpoints");
+  for(const union of result.unions){
+    assert.equal(union.defaultCount,2);assert.equal(union.count,4,"each hand needs independent front and rear parts");
+    assert.deepEqual(union.bentArt,union.originalArt,"rear direction changes no native wearable transform");
+    assert.ok(union.pixels.changed>100,"both unions must reach the real framebuffer");
+    for(const part of union.nativeParts){
+      assert.ok(part.endpointError<1e-5,`${union.mode} native cap axis follows shared endpoints: ${part.endpointError}`);
+      assert.equal(part.wireEnabled,true);assert.deepEqual(part.rotation,part.wireRotation,"fill and wire face the same part direction");
+      assert.deepEqual(part.position,part.wirePosition);assert.deepEqual(part.scale,part.wireScale);
+      if(union.mode==="flow")assert.equal(part.meshCount,2,"capsule fill and hemispherical wire share native transform");
+    }
+  }
   assert.deepEqual(result.contextLost,{pool:0,ownedWires:[false,false]},"context loss releases both wire meshes");
   await page.waitForFunction(()=>globalThis.__AERO_RENDERER_TEST__.renderers[0].describe().gameplayAssets.state==="ready");
   const restored=await page.evaluate(({left,right})=>{const renderer=globalThis.__AERO_RENDERER_TEST__.renderers[0];const frame={presentation:"boxing_collider",nowMs:1000,targets:[],colliderSettings:{colliderVisible:true,colliderScale:1,colliderDepthForward:1,colliderDepthBackward:0},equipmentColliderPoses:[left,right]};renderer.renderGameplayFrame(frame);const wires=renderer.boxingColliderWirePool??[];const state={count:wires.length,active:wires.filter((wire)=>wire.enabled).length,meshes:wires.map((wire)=>renderer.ownedMaterials.has(wire.render.meshInstances[0].mesh))};renderer.detach();return{...state,afterDetach:renderer.boxingColliderWirePool.length,remainingMeshes:wires.map((wire)=>renderer.ownedMaterials.has(wire.render?.meshInstances?.[0]?.mesh))};},{left:pose("left_wrist",1.5),right:pose("right_wrist",2.5)});

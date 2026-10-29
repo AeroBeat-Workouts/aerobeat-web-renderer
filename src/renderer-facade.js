@@ -748,10 +748,12 @@ export class AeroPlayCanvasRenderer {
     this.colliderOverlayConePool=pool;
     return pool[index];
   }
-  /** Retain one polygon cylinder edge mesh per hand before World so beats stay readable. */
+  /** Retain polygon cylinder edges per hand/part before World so beats stay readable. */
   stageBoxingColliderWire(object){
     const pool=this.boxingColliderWirePool??[];
-    const index=object.role==="left"?0:1;
+    // Keep original hand slots 0/1; extra rear parts must never overwrite a front wire.
+    const rearPart=Number(object.id.match(/-rear-(\d+)$/)?.[1]??0);
+    const index=rearPart*2+(object.role==="left"?0:1);
     while(pool.length<=index){
       const wire=new pc.Entity(`boxing-collider-wire-${pool.length}`,this.app);
       const material=this.makeMaterial(),mesh=createUnitBoxingCylinderEdgeMesh(this.app.graphicsDevice);
